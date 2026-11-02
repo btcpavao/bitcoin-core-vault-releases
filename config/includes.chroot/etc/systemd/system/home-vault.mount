@@ -1,0 +1,17 @@
+[Unit]
+Description=Bind Vault account home to private RAM workspace
+DefaultDependencies=no
+Conflicts=umount.target
+Before=umount.target
+Requires=core-vault-prepare.service
+After=core-vault-prepare.service
+Before=lightdm.service
+
+[Mount]
+What=/run/core-vault/home
+Where=/home/vault
+Type=none
+Options=bind,nodev,nosuid,noexec
+
+[Install]
+WantedBy=multi-user.target

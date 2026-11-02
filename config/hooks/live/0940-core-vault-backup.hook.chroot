@@ -1,0 +1,73 @@
+#!/bin/sh
+# Only inside live-build's target chroot. Never run this hook on the host.
+set -eu
+for p in core-vault-backup gpg tar zenity python3-pexpect python3-pyside6.qtwidgets; do
+    test "$(dpkg-query -W -f='${Status}' "$p")" = 'install ok installed'
+done
+test "$(dpkg-query -W -f='${Version}' core-vault-backup)" = '0.7.3'
+test -f /etc/core-vault-backup.require-private-workspace
+# Reject stale files even when the old upstream package was removed from recipes.
+test ! -e /usr/bin/veracrypt
+test ! -e /etc/sudoers.d/92-core-vault-veracrypt
+test ! -e /etc/modules-load.d/core-vault-veracrypt.conf
+# live-build does not mount /dev/shm for this chroot stage. Use an owned,
+# bounded tmpfs for synthetic GPG test data; keep backend RAM checks intact.
+GPG_TEST_RAM=$(mktemp -d /tmp/core-vault-gpg-gate.XXXXXXXX)
+cleanup_gpg_test() {
+    if mountpoint -q "$GPG_TEST_RAM"; then
+        umount "$GPG_TEST_RAM"
+    fi
+    rmdir "$GPG_TEST_RAM"
+}
+trap cleanup_gpg_test EXIT
+trap 'exit 1' HUP INT TERM
+mount -t tmpfs -o mode=0700,nosuid,nodev,noexec,size=256M tmpfs "$GPG_TEST_RAM"
+/usr/bin/timeout 180 /usr/bin/core-vault-gpg-self-test --ram-root "$GPG_TEST_RAM"
+/usr/bin/timeout 600 /usr/bin/core-vault-backup-self-test --ram-root "$GPG_TEST_RAM"
+cleanup_gpg_test
+trap - EXIT HUP INT TERM
+QT_QPA_PLATFORM=offscreen /usr/bin/timeout 45 /usr/bin/core-vault-backup-gui-test
+/usr/bin/core-vault-backup-setup --home /etc/skel
+if id vault >/dev/null 2>&1 && [ -d /home/vault ]; then
+    /usr/bin/core-vault-backup-setup --home /home/vault
+    for p in /home/vault/.config /home/vault/.config/Thunar /home/vault/.config/Thunar/uca.xml /home/vault/.config/mimeapps.list; do
+        chown "$(id -u vault):$(id -g vault)" "$p"
+    done
+fi
+# Snapshot the new immutable runtime before 0950 builds the installer manifest.
+/usr/bin/python3 - <<'PYRECORD'
+import hashlib,json,os,subprocess
+from pathlib import Path
+names=(
+    'usr/bin/core-vault-backup','usr/bin/core-vault-backup-setup',
+    'usr/bin/core-vault-backup-self-test','usr/lib/core-vault-backup/backup.py',
+    'usr/lib/core-vault-backup/setup.py','usr/lib/core-vault-backup/self-test.py',
+    'usr/lib/core-vault-backup/password_dialog.py','usr/lib/core-vault-backup/gui-test.py',
+    'usr/lib/core-vault-backup/message_dialog.py',
+    'usr/lib/core-vault-backup/gpg_backend.py','usr/lib/core-vault-backup/gpg-self-test.py',
+    'usr/lib/core-vault-backup/recovery_dialog.py','usr/bin/core-vault-gpg-self-test','usr/bin/gpg',
+    'usr/bin/core-vault-backup-gui-test',
+    'usr/bin/tar','usr/lib/core-vault-backup/layered_backend.py',
+    'usr/share/applications/core-vault-backup.desktop',
+    'usr/share/applications/core-vault-decrypt-gpg.desktop',
+    'etc/core-vault-backup.require-private-workspace',
+    'usr/share/core-vault/recovery/encrypted-backup/README.txt')
+files={}
+for name in names:
+    p=Path('/')/name
+    if not p.is_file() or p.is_symlink(): raise SystemExit('Missing or unexpected backup file: '+name)
+    os.chown(p,0,0)
+    if p.stat().st_mode & 0o022: raise SystemExit('Writable backup runtime: '+name)
+    files[name]=hashlib.sha256(p.read_bytes()).hexdigest()
+packages={p:subprocess.check_output(['dpkg-query','-W','-f=${Version}',p],text=True)
+          for p in ('core-vault-backup','gpg','tar','zenity','python3-pexpect','python3-pyside6.qtwidgets')}
+record={'schema':3,'formats':['gpg-tar'],'gpg_profile':'aes256-cfb-mdc-v1','tar_payload':True,'packages':packages,
+        'files':files,'build_round_trip':'passed','paired_dialog_qt_test':'passed','multilayer_round_trip':'passed','dark_result_qt_test':'passed',
+        'gpg_round_trip':'passed',
+        'gui_boot_cross_platform_tests':'PENDING'}
+output=Path('/etc/core-vault/backup-build.json')
+output.parent.mkdir(parents=True,exist_ok=True)
+output.write_text(json.dumps(record,indent=2)+'\n')
+os.chown(output,0,0);output.chmod(0o644)
+PYRECORD
+printf '%s\n' 'VAULT ENCRYPTED BACKUP CHROOT CHECK PASSED'

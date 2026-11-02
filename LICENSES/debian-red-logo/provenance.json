@@ -1,0 +1,56 @@
+{
+  "schema": 1,
+  "observed_utc": "2026-10-12T13:00:38Z",
+  "references": [
+    {
+      "name": "reference.svg",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/6/66/Openlogo-debianV2.svg",
+      "sha256": "f5e0853b041eabe1bbd2aaf995b600af1a40b4775f37ca830fdadaa143303648",
+      "bytes": 4312
+    },
+    {
+      "name": "reference-500.png",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/66/Openlogo-debianV2.svg/500px-Openlogo-debianV2.svg.png",
+      "sha256": "e9abf25b1296f60c41d4f555a055c8988a21039f8d6284fa4a863193566f9339",
+      "bytes": 33268
+    }
+  ],
+  "production_assets": [
+    {
+      "project_path": "debian-logo.webp",
+      "bytes": 12182,
+      "sha256": "e1cc998351e0b1ee6133fa8c99e14d57612d9ad70c033959f74d6833c865b472"
+    },
+    {
+      "project_path": "tools/core-offline/branding/debian.png",
+      "bytes": 7043,
+      "sha256": "9f0c95cf0513bb583d189ce48035358eec0d7addda7c52503425f8cbb1f6b584"
+    },
+    {
+      "project_path": "config/includes.chroot/usr/share/core-vault/debian-source.png",
+      "bytes": 7043,
+      "sha256": "9f0c95cf0513bb583d189ce48035358eec0d7addda7c52503425f8cbb1f6b584"
+    },
+    {
+      "project_path": "config/includes.chroot/usr/share/core-vault/debian-ui.png",
+      "bytes": 2800,
+      "sha256": "559cb455aea2e1a19316440768e31c909a7b16b904f897dd2253a48ac20c7887"
+    },
+    {
+      "project_path": "config/includes.chroot/etc/calamares/branding/core-offline/debian.png",
+      "bytes": 7043,
+      "sha256": "9f0c95cf0513bb583d189ce48035358eec0d7addda7c52503425f8cbb1f6b584"
+    }
+  ],
+  "root_webp_and_reference500_rgba_pixel_equal": true,
+  "production77x96_png_equals_root500x620_lanczos": true,
+  "historical_download_url_recorded": false,
+  "underlying_work": "Debian Open Use Logo",
+  "copyright": "Copyright (c) 1999 Software in the Public Interest, Inc.",
+  "original_creator": "Raul Silva",
+  "selected_license": "CC-BY-SA-3.0",
+  "license_basis_url": "https://www.debian.org/logos/",
+  "commons_reference_page": "https://commons.wikimedia.org/wiki/File:Openlogo-debianV2.svg",
+  "production_artwork_changed": false,
+  "finished_core_qt_archive_changed": false
+}

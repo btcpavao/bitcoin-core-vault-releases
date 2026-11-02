@@ -1,0 +1,19 @@
+# Calamares V1 dedicated whole-disk installer; no compiler in image.
+calamares
+python3-yaml
+sudo
+locales
+keyboard-configuration
+xkb-data
+x11-xkb-utils
+grub2-common
+grub-pc-bin
+grub-efi-amd64-bin
+efibootmgr
+dosfstools
+e2fsprogs
+rsync
+squashfs-tools
+util-linux
+kmod
+initramfs-tools

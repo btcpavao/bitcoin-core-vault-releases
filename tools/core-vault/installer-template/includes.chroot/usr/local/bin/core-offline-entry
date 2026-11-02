@@ -1,0 +1,163 @@
+#!/bin/sh
+set -eu
+
+
+##############################################################################
+# MODE
+##############################################################################
+
+case " $(cat /proc/cmdline) " in
+
+    *" core-offline.install=1 "*)
+        ;;
+
+    *)
+        exec /usr/local/bin/core-vault-session
+        ;;
+
+esac
+
+
+##############################################################################
+# INSTALLER SESSION
+##############################################################################
+
+export LANG=en_US.UTF-8
+export LANGUAGE=en
+
+: "${XDG_RUNTIME_DIR:?Missing local runtime directory}"
+
+LOG="$XDG_RUNTIME_DIR/core-offline-installer-launch.log"
+
+
+##############################################################################
+# BACKGROUND
+##############################################################################
+
+/usr/bin/feh \
+    --no-fehbg \
+    --bg-fill \
+    /usr/share/core-vault/background-ready.png
+
+
+##############################################################################
+# WINDOW MANAGER
+##############################################################################
+
+/usr/bin/openbox &
+
+WM_PID=$!
+
+trap '
+    kill "$WM_PID" 2>/dev/null || true
+' EXIT
+
+
+##############################################################################
+# INSTALLER LOOP
+##############################################################################
+
+while :; do
+
+    RC=0
+
+    : > "$LOG"
+
+    /usr/bin/sudo \
+        -n \
+        -- \
+        /usr/local/sbin/core-offline-installer \
+        >>"$LOG" 2>&1 \
+        || RC=$?
+
+
+    ##########################################################################
+    # SUCCESSFUL SYSTEM STOP / REBOOT
+    ##########################################################################
+
+    STATE="$(
+        /usr/bin/systemctl is-system-running \
+            2>/dev/null || true
+    )"
+
+    if [ "$STATE" = "stopping" ]; then
+
+        while :; do
+            sleep 60
+        done
+
+    fi
+
+
+    ##########################################################################
+    # INSTALLER FAILURE — SHOW THE ACTUAL LOG
+    ##########################################################################
+
+    if [ "$RC" -ne 0 ]; then
+
+        /usr/bin/zenity \
+            --text-info \
+            --title="Bitcoin Core Vault Installer — Diagnostic Log" \
+            --width=1000 \
+            --height=700 \
+            --filename="$LOG" \
+            --ok-label="Close log" \
+            || true
+
+    fi
+
+
+    ##########################################################################
+    # RETRY / POWER OFF
+    ##########################################################################
+
+    if /usr/bin/zenity \
+        --question \
+        --no-markup \
+        --width=620 \
+        --title="Bitcoin Core Vault Installer" \
+        --ok-label="Open installer again" \
+        --cancel-label="Power off" \
+        --text="The installer has closed (status $RC).
+
+No installation is restarted automatically.
+
+If the installer failed, inspect the diagnostic log before retrying."
+
+    then
+
+        continue
+
+    fi
+
+
+    ##########################################################################
+    # POWER OFF
+    ##########################################################################
+
+    if /usr/bin/sudo \
+        -n \
+        -- \
+        /usr/bin/systemctl \
+        --no-block \
+        poweroff \
+        >>"$LOG" 2>&1
+
+    then
+
+        while :; do
+            sleep 60
+        done
+
+    fi
+
+    /usr/bin/zenity \
+        --error \
+        --no-markup \
+        --text="Power-off request failed.
+
+See:
+$LOG" \
+        || true
+
+done

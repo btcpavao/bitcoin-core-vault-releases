@@ -1,0 +1,34 @@
+Debian Open Use Logo - red artwork
+Copyright (c) 1999 Software in the Public Interest, Inc.
+Original artwork by Raul Silva.
+
+Upstream copyright and license notice:
+https://www.debian.org/logos/
+
+Core Signer OS selects the Creative Commons Attribution-ShareAlike 3.0
+Unported license offered upstream for the identified Debian logo assets.
+The complete license accompanies this notice in CC-BY-SA-3.0.txt:
+https://creativecommons.org/licenses/by-sa/3.0/
+
+Identified project red assets: tools/core-offline/branding/debian.png,
+usr/share/core-vault/debian-source.png and the installer
+branding/core-offline/debian.png, plus their resized runtime derivatives.
+The maintainer-supplied project debian-logo.webp decodes pixel-for-pixel to
+the matching Wikimedia Commons 500 x 620 rendering of Openlogo-debianV2.svg.
+The project 77 x 96 red source PNG is an exact Lanczos resize of that image.
+The historical download URL was not recorded; the matching reference and
+measured identity are preserved here without asserting that history.
+
+Matching reference:
+https://commons.wikimedia.org/wiki/File:Openlogo-debianV2.svg
+https://upload.wikimedia.org/wikipedia/commons/6/66/Openlogo-debianV2.svg
+That file's record traces the artwork to Debian's logo page and retains the
+SPI copyright. This notice relies on the upstream CC BY-SA 3.0 option rather
+than replacing it with a Commons public-domain geometry classification.
+
+Changes: raster format conversion and resizing for the project.
+These identified red logo assets are distributed under CC BY-SA 3.0 Unported.
+The separately identified white logo adaptation has its own change notice.
+This notice applies only to these Debian logo assets and does not imply
+sponsorship or endorsement by Debian, SPI, or Raul Silva.
+No production artwork was replaced or changed during this audit.

@@ -1,0 +1,258 @@
+{
+  "checked_at": "2026-10-12",
+  "iso": {
+    "filename": "bitcoin-core-vault-v0.1.0-amd64.iso",
+    "bytes": 751828992,
+    "sha256": "de24c7911e8d26f727ea5d00d6ee863f9e7615b1cb7e79e55095f4804490595d",
+    "built_at": "2026-10-05T14:04:06Z"
+  },
+  "clean_source_tree": "8abdbf54371c0b842312060c689955544c5f2343",
+  "source_checks": [
+    {
+      "command": [
+        "python3",
+        "tools/core-vault/check-backup.py",
+        "--project",
+        "."
+      ],
+      "returncode": 0,
+      "seconds": 0.11
+    },
+    {
+      "command": [
+        "python3",
+        "tools/core-vault/check-private-session.py"
+      ],
+      "returncode": 0,
+      "seconds": 0.12
+    },
+    {
+      "command": [
+        "python3",
+        "tools/core-vault/check-live.py"
+      ],
+      "returncode": 0,
+      "seconds": 0.11
+    },
+    {
+      "command": [
+        "python3",
+        "tools/core-vault/check-media.py"
+      ],
+      "returncode": 0,
+      "seconds": 0.06
+    },
+    {
+      "command": [
+        "python3",
+        "tools/core-vault/check-home-suite.py"
+      ],
+      "returncode": 0,
+      "seconds": 0.67
+    },
+    {
+      "command": [
+        "python3",
+        "tools/core-vault/check-files-recovery.py"
+      ],
+      "returncode": 0,
+      "seconds": 0.06
+    },
+    {
+      "command": [
+        "python3",
+        "tools/core-vault/check-places-v2.py"
+      ],
+      "returncode": 0,
+      "seconds": 0.06
+    },
+    {
+      "command": [
+        "python3",
+        "tools/core-vault/check-core-file-dialogs.py"
+      ],
+      "returncode": 0,
+      "seconds": 0.52
+    },
+    {
+      "command": [
+        "python3",
+        "tools/core-vault/check-shred.py",
+        "--project",
+        "."
+      ],
+      "returncode": 0,
+      "seconds": 0.17
+    },
+    {
+      "command": [
+        "python3",
+        "tools/core-vault/check-bleachbit.py"
+      ],
+      "returncode": 0,
+      "seconds": 0.06
+    },
+    {
+      "command": [
+        "python3",
+        "tools/core-vault/check-installer.py",
+        "--prebuild"
+      ],
+      "returncode": 0,
+      "seconds": 0.11
+    },
+    {
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tools/core-vault/backup-src/tests",
+        "-v"
+      ],
+      "returncode": 0,
+      "seconds": 7.35
+    },
+    {
+      "command": [
+        "python3",
+        "tools/core-vault/backup-src/src/self-test.py"
+      ],
+      "returncode": 0,
+      "seconds": 3.17
+    },
+    {
+      "command": [
+        "python3",
+        "tools/core-vault/test-private-session.py"
+      ],
+      "returncode": 0,
+      "seconds": 3.78
+    }
+  ],
+  "image_checks_passed": true,
+  "hardware_report": {
+    "date": "2026-10-12",
+    "reported_by": "Pavao",
+    "model": "ThinkPad T530",
+    "result": "Works as reported by maintainer; firmware and individual acceptance cases unspecified."
+  },
+  "limits": [
+    "No new full ISO rebuild or BIOS/UEFI installation run was performed for publication.",
+    "Synthetic automated tests do not establish hardware or recovery acceptance."
+  ],
+  "authoritative_source_and_image_checks": [
+    {
+      "command": [
+        "python3",
+        "tools/core-vault/check-backup.py",
+        "--project",
+        "."
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "python3",
+        "tools/core-vault/check-private-session.py"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "python3",
+        "tools/core-vault/check-live.py"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "python3",
+        "tools/core-vault/check-media.py"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "python3",
+        "tools/core-vault/check-home-suite.py"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "python3",
+        "tools/core-vault/check-files-recovery.py"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "python3",
+        "tools/core-vault/check-places-v2.py"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "python3",
+        "tools/core-vault/check-core-file-dialogs.py"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "python3",
+        "tools/core-vault/check-shred.py",
+        "--project",
+        "."
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "python3",
+        "tools/core-vault/check-bleachbit.py"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "python3",
+        "tools/core-vault/check-installer.py",
+        "--prebuild"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "python3",
+        "tools/core-vault/check-live-iso.py",
+        "live-image-amd64.hybrid.iso"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "python3",
+        "tools/core-vault/check-installer-iso.py",
+        "live-image-amd64.hybrid.iso"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "python3",
+        "tools/core-vault/check-private-session.py",
+        "--iso",
+        "live-image-amd64.hybrid.iso"
+      ],
+      "exit_code": 0
+    }
+  ],
+  "synthetic_test_counts": {
+    "backup_unit_tests": 44,
+    "private_session_tests": 22
+  }
+}

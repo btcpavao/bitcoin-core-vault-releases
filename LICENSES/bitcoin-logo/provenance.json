@@ -1,0 +1,67 @@
+{
+  "schema": 1,
+  "observed_utc": "2026-10-12T12:52:06Z",
+  "references": [
+    {
+      "name": "reference.svg",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/4/46/Bitcoin.svg",
+      "bytes": 1498,
+      "sha256": "b014fc93884b416f1ba5d95968a671700707d874b9353327b7c857d427893c6c"
+    },
+    {
+      "name": "reference-960.png",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Bitcoin.svg/960px-Bitcoin.svg.png",
+      "bytes": 44516,
+      "sha256": "9959c405d3df4d6bb75ba3bb4437a9ce05a6efc89038792836a7fc611295f725"
+    }
+  ],
+  "production_assets": [
+    {
+      "project_path": "bitcoin-logo.webp",
+      "bytes": 17148,
+      "sha256": "e2713b1c5bcbbdbf22e08af7cd36d7dbfc969d2fcce428d934bc750f25b57438"
+    },
+    {
+      "project_path": "tools/core-offline/branding/bitcoin.png",
+      "bytes": 9635,
+      "sha256": "e1f590cf72ce1c681ccb6ae411dd662f8fe0b75af95c9975766d543a0190e0be"
+    },
+    {
+      "project_path": "config/includes.chroot/usr/share/core-vault/bitcoin-source.png",
+      "bytes": 9635,
+      "sha256": "e1f590cf72ce1c681ccb6ae411dd662f8fe0b75af95c9975766d543a0190e0be"
+    },
+    {
+      "project_path": "config/includes.chroot/usr/share/core-vault/bitcoin-ui.png",
+      "bytes": 4462,
+      "sha256": "832eccb968c652f9e491e989054ff8694c06b699c98eaae39e51103643afb04d"
+    },
+    {
+      "project_path": "config/includes.chroot/etc/calamares/branding/core-offline/bitcoin.png",
+      "bytes": 9635,
+      "sha256": "e1f590cf72ce1c681ccb6ae411dd662f8fe0b75af95c9975766d543a0190e0be"
+    }
+  ],
+  "root_webp_and_wikimedia_960_rgba_pixel_equal": true,
+  "current_128_vs_root_webp_lanczos_pixel_equal": false,
+  "current_128_vs_root_webp_lanczos_mean_rgba_difference": [
+    0.12530517578125,
+    0.13604736328125,
+    0.02264404296875,
+    0.00750732421875
+  ],
+  "ui64_equals_current128_lanczos": true,
+  "core31_bitmap_origin_proven": false,
+  "historic_download_and_resampler_recorded": false,
+  "license_basis": "Creator current public-domain dedication plus identified Wikimedia public-domain reference; no blanket project MIT claim.",
+  "creator_release_posts": [
+    "https://bitcointalk.org/index.php?topic=1631.msg19455",
+    "https://bitcointalk.org/index.php?topic=1756.msg21619"
+  ],
+  "commons_reference_pages": [
+    "https://commons.wikimedia.org/wiki/File:Bitcoin.svg",
+    "https://commons.wikimedia.org/wiki/File:Bitcoin_logo.svg"
+  ],
+  "production_changes": false,
+  "finished_core_qt_source_archive_changed": false
+}

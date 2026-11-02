@@ -1,0 +1,341 @@
+#!/usr/bin/python3
+"""Vault's confirmed permanent-deletion UI; never invokes a shell or sudo."""
+from __future__ import annotations
+
+import argparse
+import fcntl
+import importlib.util
+import os
+from pathlib import Path
+import pwd
+import stat
+import subprocess
+import sys
+import threading
+
+from PySide6.QtCore import Qt, QThread, Signal
+from PySide6.QtGui import QFont
+from PySide6.QtWidgets import (QApplication, QDialog, QHBoxLayout, QLabel,
+                               QPlainTextEdit, QProgressBar, QPushButton,
+                               QVBoxLayout)
+
+STYLE = '''
+QDialog { background: #111111; color: #f2f2f2; }
+QLabel { color: #eeeeee; background: transparent; }
+QLabel#heading { font-size: 22px; font-weight: 600; }
+QLabel#note { color: #bdbdbd; }
+QPlainTextEdit { background: #1d1d1d; color: #dedede; border: 1px solid #484848;
+                 border-radius: 5px; padding: 7px; }
+QPushButton { color: #eeeeee; background: #242424; border: 1px solid #626262;
+              border-radius: 6px; padding: 9px 16px; min-width: 90px; }
+QPushButton:hover { border-color: #a0a0a0; }
+QPushButton:focus { border: 2px solid #8fbee8; padding: 8px 15px; }
+QPushButton#delete { background: #9a302c; border-color: #c45b55; color: white; }
+QPushButton#delete:hover { background: #b13a34; }
+QPushButton:disabled { color: #888888; background: #262626; border-color: #424242; }
+QProgressBar { background: #242424; color: #eeeeee; border: 1px solid #555555;
+               border-radius: 4px; min-height: 10px; }
+QProgressBar::chunk { background: #438fcf; }
+'''
+
+EXPLANATION = (
+    'File contents will be overwritten and the selected items removed without '
+    'using Trash. This is permanent deletion: there is no Undo. '
+    'Close applications using these files before continuing.'
+)
+LIMITS = (
+    'On SSDs and USB flash drives, older copies may remain. Backups and '
+    'snapshots are not removed. Links are removed without touching their targets.'
+)
+
+
+def plain(value) -> str:
+    """Display names as plain text, with control characters visibly escaped."""
+    text = str(value).encode('utf-8', 'backslashreplace').decode('utf-8')
+    return ''.join(c if c.isprintable() else repr(c)[1:-1] for c in text)
+
+
+def size_text(number: int) -> str:
+    value = float(number)
+    for unit in ('B', 'KiB', 'MiB', 'GiB', 'TiB'):
+        if value < 1024 or unit == 'TiB':
+            return f'{value:.1f} {unit}' if unit != 'B' else f'{int(value)} B'
+        value /= 1024
+
+
+def label(text: str, name='', parent=None) -> QLabel:
+    widget = QLabel(text, parent)
+    widget.setTextFormat(Qt.TextFormat.PlainText)
+    widget.setWordWrap(True)
+    if name:
+        widget.setObjectName(name)
+    return widget
+
+
+def prepare_dialog(dialog: QDialog, title: str) -> QVBoxLayout:
+    dialog.setWindowTitle('Bitcoin Core Vault — Permanent deletion')
+    dialog.setModal(True)
+    dialog.setStyleSheet(STYLE)
+    dialog.setMinimumWidth(450)
+    dialog.resize(620, 400)
+    layout = QVBoxLayout(dialog)
+    layout.setContentsMargins(24, 22, 24, 20)
+    layout.setSpacing(14)
+    layout.addWidget(label(title, 'heading'))
+    return layout
+
+
+class ConfirmDialog(QDialog):
+    def __init__(self, plan, parent=None):
+        super().__init__(parent)
+        outer = prepare_dialog(self, 'Permanent deletion')
+        counts = (f'{plan.files_count} files, {plan.dirs_count} folders, '
+                  f'{plan.links_count} links · {size_text(plan.total_bytes)} logical size')
+        outer.addWidget(label(counts))
+        outer.addWidget(label(EXPLANATION))
+        self.paths = QPlainTextEdit(self)
+        self.paths.setReadOnly(True)
+        self.paths.setAccessibleName('Selected items to permanently delete')
+        visible = [plain(p) for p in plan.display_paths[:100]]
+        if len(plan.display_paths) > 100:
+            visible.append(f'… and {len(plan.display_paths) - 100} more selected items')
+        self.paths.setPlainText('\n'.join(visible))
+        self.paths.setMinimumHeight(70)
+        self.paths.setMaximumHeight(110)
+        outer.addWidget(self.paths)
+        outer.addWidget(label(LIMITS, 'note'))
+        outer.addStretch(1)
+        buttons = QHBoxLayout()
+        buttons.addStretch(1)
+        self.cancel_button = QPushButton('Cancel', self)
+        self.delete_button = QPushButton('Permanently Delete', self)
+        self.delete_button.setObjectName('delete')
+        # Opening the menu and pressing Return must never start deletion.
+        self.cancel_button.setAutoDefault(False)
+        self.cancel_button.setDefault(True)
+        self.delete_button.setAutoDefault(False)
+        self.delete_button.setDefault(False)
+        self.cancel_button.clicked.connect(self.reject)
+        self.delete_button.clicked.connect(self.accept)
+        buttons.addWidget(self.cancel_button)
+        buttons.addWidget(self.delete_button)
+        outer.addLayout(buttons)
+        self.cancel_button.setFocus(Qt.FocusReason.OtherFocusReason)
+
+
+class Worker(QThread):
+    progress = Signal(dict)
+    done = Signal(object)
+
+    def __init__(self, engine, plan, parent=None):
+        super().__init__(parent)
+        self.engine, self.plan = engine, plan
+        self.cancel_event = threading.Event()
+
+    def run(self):
+        try:
+            result = self.engine.erase(self.plan, self.cancel_event, self.progress.emit)
+        except Exception as exc:
+            # The engine owns restoration of staged entries and detailed results.
+            # Never turn an unexpected error into an ordinary-delete fallback.
+            result = self.engine.Result(
+                status='error', completed_files=0, completed_links=0,
+                message='Deletion stopped unexpectedly. Check the selected folders '
+                        'for remaining items. ' + plain(exc), leftover_paths=[])
+        self.done.emit(result)
+
+
+class ProgressDialog(QDialog):
+    def __init__(self, worker, plan, parent=None):
+        super().__init__(parent)
+        self.worker, self.plan = worker, plan
+        self.result = None
+        outer = prepare_dialog(self, 'Permanently deleting')
+        self.status = label('Checking the selected items…')
+        outer.addWidget(self.status)
+        self.bar = QProgressBar(self)
+        self.bar.setRange(0, 0)
+        self.bar.setTextVisible(False)
+        outer.addWidget(self.bar)
+        self.current = QPlainTextEdit(self)
+        self.current.setReadOnly(True)
+        self.current.setAccessibleName('Item currently being permanently deleted')
+        self.current.setMinimumHeight(70)
+        self.current.setMaximumHeight(96)
+        outer.addWidget(self.current)
+        outer.addWidget(label('Stopping cannot restore contents already overwritten '
+                              'or items already deleted.', 'note'))
+        outer.addStretch(1)
+        row = QHBoxLayout()
+        row.addStretch(1)
+        self.stop_button = QPushButton('Stop', self)
+        self.stop_button.clicked.connect(self.request_stop)
+        row.addWidget(self.stop_button)
+        outer.addLayout(row)
+        worker.progress.connect(self.update_progress)
+        worker.done.connect(self.finished_work)
+        self.resize(620, 340)
+
+    def update_progress(self, event):
+        completed = event.get('completed_files', 0)
+        phase = event.get('phase', 'preparing')
+        verb = {'preparing': 'Checking items', 'overwriting': 'Overwriting file contents',
+                'removing': 'Removing items'}.get(phase, 'Deleting items')
+        self.status.setText(f'{verb} · {completed} of {self.plan.files_count} files completed')
+        self.current.setPlainText(plain(event.get('path', '')))
+
+    def request_stop(self):
+        self.worker.cancel_event.set()
+        self.stop_button.setEnabled(False)
+        self.stop_button.setText('Stopping…')
+
+    def reject(self):
+        if self.result is None:
+            self.request_stop()
+        else:
+            super().reject()
+
+    def closeEvent(self, event):
+        if self.result is None:
+            self.request_stop()
+            event.ignore()
+        else:
+            super().closeEvent(event)
+
+    def finished_work(self, result):
+        self.result = result
+        super().accept()
+
+
+def message(title: str, text: str):
+    dialog = QDialog()
+    dialog.setObjectName('PermanentDeletionMessage')
+    outer = prepare_dialog(dialog, title)
+    body = QPlainTextEdit(dialog)
+    body.setObjectName('messageBody')
+    body.setAccessibleName('Permanent deletion result and remaining items')
+    body.setReadOnly(True)
+    body.setPlainText('\n'.join(plain(line) for line in str(text).split('\n')))
+    body.setMinimumHeight(140)
+    body.setMaximumHeight(260)
+    outer.addWidget(body)
+    outer.addStretch(1)
+    row = QHBoxLayout()
+    row.addStretch(1)
+    button = QPushButton('Close', dialog)
+    button.clicked.connect(dialog.accept)
+    row.addWidget(button)
+    outer.addLayout(row)
+    dialog.resize(620, 400)
+    dialog.exec()
+
+
+def load_engine():
+    # /usr/local/bin -> /usr/lib, also valid inside the source includes tree.
+    path = Path(__file__).resolve().parents[2] / 'lib/core-vault-shred/engine.py'
+    spec = importlib.util.spec_from_file_location('core_vault_shred_engine', path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError('Permanent-deletion engine is unavailable.')
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def vault_paths(values: list[str]) -> list[str]:
+    account = pwd.getpwuid(os.getuid())
+    if os.geteuid() == 0 or account.pw_name != 'vault' or account.pw_uid != 1000:
+        raise RuntimeError('Run permanent deletion inside the Vault session, without sudo.')
+    home = Path(account.pw_dir)
+    if Path.home() != home or home != Path('/home/vault'):
+        raise RuntimeError('Vault account and home directory do not match.')
+    result = subprocess.run(['/usr/local/bin/core-vault-storage-check', '--session'],
+                            capture_output=True, timeout=15)
+    if result.returncode:
+        raise RuntimeError('Vault storage is not ready. Reopen Vault before deleting files.')
+    # Thunar's former named home shortcut can appear in an existing window. Map
+    # only these managed display aliases; arbitrary symlink parents stay rejected.
+    runtime = Path('/run/user/1000')
+    aliases = {
+        runtime / 'core-vault-places/Vault': home,
+        runtime / 'core-vault-core-file-dialogs/Bitcoin Core': home / '.bitcoin',
+    }
+    paths = []
+    for value in values:
+        path = Path(value)
+        if not path.is_absolute() or '..' in path.parts:
+            raise RuntimeError('Only absolute local file paths can be permanently deleted.')
+        for alias, target in aliases.items():
+            if path != alias and path.is_relative_to(alias):
+                if not alias.is_symlink() or alias.resolve() != target.resolve():
+                    raise RuntimeError('A Vault display shortcut changed. Reopen Files.')
+                path = target / path.relative_to(alias)
+                break
+        if path == home / '.bitcoin' or path.is_relative_to(home / '.bitcoin'):
+            raise RuntimeError('Please use Finish Private Session to remove wallet data after verified encrypted export. Wallets are already stored in RAM.')
+        paths.append(str(path))
+    return paths
+
+
+def session_lock() -> int:
+    runtime = Path('/run/user/1000')
+    info = runtime.lstat()
+    if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid():
+        raise RuntimeError('The Vault runtime directory is unavailable.')
+    fd = os.open(runtime / 'core-vault-shred.lock',
+                 os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600)
+    try:
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_nlink != 1:
+            raise RuntimeError('The permanent-deletion session lock is unsafe.')
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise RuntimeError('Permanent deletion is already open. Finish or cancel that operation first.')
+        return fd
+    except Exception:
+        os.close(fd)
+        raise
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('paths', nargs='+')
+    args = parser.parse_args()
+    app = QApplication(['core-vault-shred'])
+    app.setStyle('Fusion')
+    app.setFont(QFont('DejaVu Sans', 10))
+    lock_fd = None
+    try:
+        paths = vault_paths(args.paths)
+        lock_fd = session_lock()
+        engine = load_engine()
+        with engine.build_plan(paths) as plan:
+            confirm = ConfirmDialog(plan)
+            if confirm.exec() != QDialog.DialogCode.Accepted:
+                return 0
+            worker = Worker(engine, plan)
+            progress = ProgressDialog(worker, plan)
+            worker.start()
+            progress.exec()
+            worker.wait()
+            result = progress.result
+            if result is None:
+                raise RuntimeError('Deletion ended without a result. Check the selected folders.')
+            if result.status == 'completed':
+                return 0
+            text = result.message
+            if result.leftover_paths:
+                text += '\n\nRemaining items:\n' + '\n'.join(plain(p) for p in result.leftover_paths)
+            message('Deletion stopped' if result.status == 'cancelled' else 'Deletion incomplete', text)
+            return 1
+    except Exception as exc:
+        message('Deletion could not start', plain(exc))
+        return 1
+    finally:
+        if lock_fd is not None:
+            os.close(lock_fd)
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

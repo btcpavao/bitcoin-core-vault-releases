@@ -1,0 +1,12 @@
+[Unit]
+Description=Core Signer Offline Enforcement
+After=systemd-udevd.service nftables.service
+Before=display-manager.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/core-signer-offline
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

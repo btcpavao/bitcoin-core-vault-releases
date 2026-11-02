@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=Core Signer
+Description=Bitcoin Core Signer boot screen
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/core-signer
+ScriptFile=/usr/share/plymouth/themes/core-signer/core-signer.script

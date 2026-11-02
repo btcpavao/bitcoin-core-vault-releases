@@ -1,0 +1,11 @@
+[Unit]
+Description=Prepare an empty RAM-only Vault home
+Requires=run-core\x2dvault.mount core-signer-no-swap.service tmp.mount var-tmp.mount
+After=run-core\x2dvault.mount core-signer-no-swap.service live-config.service tmp.mount var-tmp.mount
+Before=home-vault.mount lightdm.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/libexec/core-vault-prepare
+RemainAfterExit=yes
+LimitCORE=0

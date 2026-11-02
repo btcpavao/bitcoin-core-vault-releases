@@ -1,0 +1,19 @@
+#!/bin/sh
+
+# Software-disable every radio device.
+rfkill block all 2>/dev/null || true
+
+# Keep loopback available for local Bitcoin Core RPC.
+ip link set lo up 2>/dev/null || true
+
+# Force every physical/virtual network interface down.
+for PATHNAME in /sys/class/net/*; do
+
+    [ -e "$PATHNAME" ] || continue
+
+    IFACE="$(basename "$PATHNAME")"
+
+    [ "$IFACE" = "lo" ] && continue
+
+    ip link set dev "$IFACE" down 2>/dev/null || true
+done

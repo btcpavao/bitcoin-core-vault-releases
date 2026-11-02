@@ -1,0 +1,31 @@
+#!/usr/bin/python3
+"""Terminate the appliance user, unmount fixed RAM mounts, then power off.
+
+Never recursively removes a user-controlled path. Never uses lazy unmount.
+Only invoked by the system service after the normal user's backup/finish UI.
+"""
+import os
+import subprocess
+import sys
+
+if os.geteuid() != 0 or len(sys.argv) != 2 or sys.argv[1] not in ('poweroff', 'reboot'):
+    raise SystemExit('Invalid session destruction request.')
+
+def call(args, *, optional=False, timeout=10):
+    result = subprocess.run(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=timeout)
+    if result.returncode and not optional:
+        raise RuntimeError('Private session teardown did not complete.')
+
+# Normal finish stops Core cleanly before requesting this service.
+# Emergency finish may still need systemd to terminate the user's processes.
+try:
+    call(['/usr/bin/systemctl', 'stop', 'lightdm.service'])
+    call(['/usr/bin/loginctl', 'terminate-user', 'vault'], optional=True)
+    call(['/usr/bin/systemctl', 'stop', 'user@1000.service'], optional=True)
+    call(['/usr/bin/systemctl', 'stop', 'home-vault.mount'])
+    call(['/usr/bin/systemctl', 'stop', r'run-core\x2dvault.mount'])
+    call(['/usr/bin/systemctl', 'stop', 'core-vault-prepare.service'], optional=True)
+finally:
+    # Power removal remains safe even if a busy mount prevented explicit teardown.
+    # Do not claim successful unmounting when a mount operation failed.
+    call(['/usr/bin/systemctl', '--no-block', sys.argv[1]])

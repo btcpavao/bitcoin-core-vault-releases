@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=Bitcoin Core Vault
+Comment=Dedicated offline Bitcoin Core Vault environment
+Exec=/usr/local/bin/core-vault-session
+Type=Application
+DesktopNames=CoreVault

@@ -1,0 +1,4 @@
+# One fixed privileged action; no shell, wildcards or generic systemctl access.
+# Keep the filename without a dot: sudoers ignores dotted filenames in this directory.
+Defaults:signer !requiretty
+signer ALL=(root) NOPASSWD: /usr/bin/systemctl --no-block poweroff

@@ -1,0 +1,228 @@
+name: Source and package checks
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: source-checks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-checks:
+    runs-on: ubuntu-24.04
+    container: debian:13
+    timeout-minutes: 15
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
+      PYTHONDONTWRITEBYTECODE: "1"
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Install checker dependencies
+        run: |
+          set -euo pipefail
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            bash ca-certificates git dpkg sudo util-linux \
+            python3 python3-yaml python3-pyside6.qtgui \
+            python3-pyside6.qtwidgets tar gpg
+          test "$(dpkg --print-architecture)" = amd64
+          . /etc/os-release
+          test "$VERSION_ID" = 13
+
+      - name: Check out source
+        # Pinned actions/checkout v4 commit; the job cannot publish repository content.
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Check source and reviewed package inputs
+        # These inspect sources and staged packages without installing Vault.
+        # Required inputs must be tracked, including the Calamares package.json.
+        # The Core file-dialog gate opens Qt widgets, so it remains a separate check.
+        run: |
+          set -euo pipefail
+          python3 tools/core-vault/check-backup.py --project "$PWD"
+          python3 tools/core-vault/check-private-session.py
+          python3 tools/core-vault/check-live.py
+          python3 tools/core-vault/check-media.py
+          python3 tools/core-vault/check-home-suite.py
+          python3 tools/core-vault/check-files-recovery.py
+          python3 tools/core-vault/check-places-v2.py
+          python3 tools/core-vault/check-shred.py --project "$PWD"
+          python3 tools/core-vault/check-bleachbit.py
+          python3 tools/core-vault/check-installer.py --prebuild
+
+      - name: Run backup unit tests
+        # Synthetic files, SQLite records and a simulated engine/control-flow backend.
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s tools/core-vault/backup-src/tests -v
+
+      - name: Run real multilayer GPG and TAR round trips
+        # Real archive encryption, header encryption, wrong-password rejection,
+        # restoration hashes and no-overwrite checks; synthetic input only.
+        run: |
+          set -euo pipefail
+          python3 tools/core-vault/backup-src/src/self-test.py
+
+      - name: Test private-session policy
+        # Mounts, RPC, clipboard and shutdown are mocked. SQLite/tar tests use
+        # synthetic data in /dev/shm. QtGui is imported only for clipboard enums.
+        run: |
+          set -euo pipefail
+          python3 tools/core-vault/test-private-session.py
+
+      - name: Run real GPG round trips and rejection checks
+        run: |
+          set -euo pipefail
+          python3 tools/core-vault/backup-src/src/gpg-self-test.py
+
+      - name: Check GPG failures without root privileges
+        # Root can read otherwise inaccessible fixtures; this runs those checks
+        # as an unprivileged test account instead of silently skipping them.
+        run: |
+          set -euo pipefail
+          useradd --no-create-home --shell /usr/sbin/nologin vault-test
+          vault_test_disk=$(mktemp -d /tmp/vault-disk-test.XXXXXX)
+          trap 'rm -rf "$vault_test_disk"' EXIT
+          chown vault-test:vault-test "$vault_test_disk"
+          runuser -u vault-test -- env VAULT_TEST_DISK_ROOT="$vault_test_disk" \
+            python3 -m unittest discover \
+            -s tools/core-vault/backup-src/tests -p test_gpg_backend.py -v
+
+      - name: Check native creation and recovery dialogs
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          set -euo pipefail
+          python3 tools/core-vault/backup-src/src/gui-test.py
+          python3 tools/core-vault/test-finish-session.py
+
+      - name: Check guide illustrations, navigation and text sizing
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          set -euo pipefail
+          python3 tools/core-vault/test-guide-visuals.py
+
+      - name: Test watch-only native dialog
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python3 tools/core-vault/test-watch-only-ui.py
+
+      # Boot, actual GUI, installation, filesystem isolation, physical media and
+      # recovery acceptance remain separate release checks against the final ISO.
+
+  core-wallet-recovery:
+    runs-on: ubuntu-24.04
+    container:
+      image: debian:13
+      # Disposable CI only: bubblewrap creates read-only host mounts and private
+      # RAM/network namespaces for synthetic wallets; no signing keys are stored.
+      options: --shm-size=512m --cap-add=SYS_ADMIN --security-opt seccomp=unconfined --security-opt apparmor=unconfined --security-opt systempaths=unconfined
+    timeout-minutes: 15
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
+      PYTHONDONTWRITEBYTECODE: "1"
+      # This unmodified static Core build includes minimal/xcb, not offscreen.
+      QT_QPA_PLATFORM: xcb
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Install real wallet test dependencies
+        run: |
+          set -euo pipefail
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            bash ca-certificates git python3 python3-pyside6.qtwidgets tar gpg \
+            bubblewrap xvfb xauth gdb libfontconfig1 libfreetype6 libpng16-16t64 \
+            libbrotli1 libbz2-1.0 libexpat1 zlib1g libgl1 fonts-dejavu-core
+
+      - name: Check out exact Core and integration sources
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Verify unmodified Core executable
+        run: |
+          set -euo pipefail
+          echo 'fcd4c1a3193e0cb4eec9d980c835d822ad726627b0c01281b13f5c3c1f593fcb  config/includes.chroot/usr/local/bin/bitcoin-qt' | sha256sum --check
+
+      - name: Test GPG backup, restoration and recovered-wallet PSBT signing
+        run: |
+          set -euo pipefail
+          python3 tools/core-vault/test-core-wallet-export.py \
+            --core-root config/includes.chroot --regtest
+
+  candidate-iso:
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/feature/gpg-encrypted-backups') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feature/watch-only-export')
+    needs: [source-checks, core-wallet-recovery, watch-only-regtest]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Check out reviewed candidate sources
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Build candidate in disposable Debian 13
+        # Scope privileged build operations to this disposable Docker builder;
+        # this does not install or mount anything on the user's Vault computer.
+        run: |
+          set -euo pipefail
+          sudo docker run --rm \
+            --cap-add=SYS_ADMIN --security-opt seccomp=unconfined \
+            --security-opt apparmor=unconfined --security-opt systempaths=unconfined \
+            --mount "type=bind,source=$GITHUB_WORKSPACE,target=/work" \
+            --workdir /work --env VAULT_CI_BUILD=1 \
+            debian:13 /bin/bash tools/core-vault/ci-build-candidate.sh
+
+      - name: Retain candidate and verification evidence
+        # Private review artifact, not a GitHub Release. Publication still
+        # requires the user's approval after boot/recovery acceptance.
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: bitcoin-core-vault-gpg-candidate-${{ github.sha }}
+          path: candidate-artifacts/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
+
+  watch-only-regtest:
+    runs-on: ubuntu-24.04
+    container:
+      image: debian:13
+      options: --shm-size=512m
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Install test dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates curl python3 gpg
+      - name: Verify and unpack pinned upstream Core 31.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --proto '=https' --tlsv1.2 --output /tmp/core.tar.gz https://bitcoincore.org/bin/bitcoin-core-31.1/bitcoin-31.1-x86_64-linux-gnu.tar.gz
+          echo 'b80d9c3e04da78fb6f0569685673418cf686fadba9042d926d13fb87ff503f9e  /tmp/core.tar.gz' | sha256sum --check
+          tar -xzf /tmp/core.tar.gz -C /tmp
+      - name: Test public pairing, private-material rejection and regtest PSBT
+        run: python3 tools/core-vault/test-watch-only.py --core-bin /tmp/bitcoin-31.1/bin

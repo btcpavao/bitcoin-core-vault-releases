@@ -1,0 +1,93 @@
+#!/usr/bin/python3
+"""Advanced read-only checks. --scan-persistent requires root in a test VM."""
+import argparse
+import os
+from pathlib import Path
+import sys
+sys.path.insert(0, '/usr/lib/core-vault')
+from runtime import check_storage, mount_at, ROOT, HOME, CORE, WALLETS
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--scan-persistent', action='store_true')
+args = parser.parse_args()
+failures = []
+
+def report(label, check):
+    try:
+        if check() is False:
+            raise RuntimeError('failed')
+        print('[PASS] ' + label)
+    except Exception:
+        failures.append(label)
+        print('[FAIL] ' + label)
+
+report('Private workspace, account HOME, wallets and tmp are protected tmpfs', check_storage)
+report('No active swap', lambda: len(Path('/proc/swaps').read_text().splitlines()) == 1)
+if Path('/etc/core-vault/installation.json').is_file():
+    def private_media_mountpoints():
+        mount=mount_at(Path('/media'), exact=True)
+        return mount['target']=='/media' and mount['fstype']=='tmpfs' and {'noswap','nosuid','nodev','noexec'}.issubset(mount['options'].split(','))
+    report('Removable-media mountpoint metadata stays in protected RAM', private_media_mountpoints)
+for target in ('sleep', 'suspend', 'hibernate', 'hybrid-sleep', 'suspend-then-hibernate'):
+    report(target + ' disabled', lambda target=target: os.path.islink('/etc/systemd/system/' + target + '.target') and os.readlink('/etc/systemd/system/' + target + '.target') == '/dev/null')
+report('Crash dumps disabled by kernel policy', lambda: Path('/proc/sys/kernel/core_pattern').read_text().strip() == '/dev/null')
+report('journald configured for volatile storage', lambda: 'Storage=volatile' in Path('/etc/systemd/journald.conf.d/core-signer.conf').read_text() and not Path('/var/log/journal').exists())
+
+def session_environment():
+    return all(os.environ.get(key) == expected for key, expected in {
+        'HOME': str(HOME), 'TMPDIR': str(ROOT / 'tmp'),
+        'XDG_CONFIG_HOME': str(HOME / '.config'), 'XDG_CACHE_HOME': str(HOME / '.cache'),
+        'XDG_DATA_HOME': str(HOME / '.local/share'), 'XDG_STATE_HOME': str(HOME / '.local/state')}.items())
+
+report('Sensitive application environment uses private RAM paths', session_environment)
+
+def core_paths():
+    found = False
+    for directory in Path('/proc').iterdir():
+        if not directory.name.isdigit():
+            continue
+        identified = False
+        try:
+            values = (directory / 'cmdline').read_bytes().split(b'\0')
+            if values[0] != b'/usr/local/bin/bitcoin-qt':
+                continue
+            identified = True
+            found = True
+            if b'-datadir=' + os.fsencode(CORE) not in values or b'-walletdir=' + os.fsencode(WALLETS) not in values:
+                return False
+            # Resolve the visible top mounts through Core's process root; bind
+            # namespaces may contain shadowed records with the same target.
+            core_root = Path('/proc') / directory.name / 'root'
+            if not os.statvfs(core_root).f_flag & os.ST_RDONLY:
+                return False
+            if not os.statvfs(core_root / 'dev').f_flag & os.ST_RDONLY:
+                return False
+            if not os.statvfs(core_root / 'dev/shm').f_flag & os.ST_RDONLY:
+                return False
+            if not os.statvfs(core_root / 'run/user/1000').f_flag & os.ST_RDONLY:
+                return False
+            environment = (directory / 'environ').read_bytes().split(b'\0')
+            if b'XDG_RUNTIME_DIR=/run/core-vault/state/core-runtime' not in environment:
+                return False
+        except (OSError, IndexError):
+            # An inaccessible or disappearing identified Core process cannot
+            # be certified as confined. The user can rerun after it closes.
+            if identified:
+                return False
+    print('[INFO] Core running' if found else '[INFO] Core is closed; launcher paths are checked by the source gate')
+    return True
+
+report('Running Core uses private HOME and read-only OS/device storage', core_paths)
+if args.scan_persistent:
+    def scan():
+        if os.geteuid() != 0:
+            raise RuntimeError('Run this scan as root in the disposable test VM.')
+        device = Path('/').stat().st_dev
+        def failed(error):
+            raise error
+        for base, directories, files in os.walk('/', followlinks=False, onerror=failed):
+            directories[:] = [name for name in directories if not (Path(base) / name).is_symlink() and (Path(base) / name).stat().st_dev == device]
+            if any(name == 'wallet.dat' or name.endswith('.core') for name in files):
+                return False
+        return True
+    report('No wallet.dat or dump filename on internal root filesystem', scan)
+sys.exit(1 if failures else 0)

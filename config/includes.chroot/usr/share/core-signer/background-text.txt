@@ -1,0 +1,2 @@
+Offline, stateless Bitcoin Core environment
+Session data lives only in RAM and does not persist after shutdown.

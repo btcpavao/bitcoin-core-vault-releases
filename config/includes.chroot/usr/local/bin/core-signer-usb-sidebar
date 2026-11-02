@@ -1,0 +1,59 @@
+#!/usr/bin/python3
+
+import os
+import time
+from pathlib import Path
+
+config_dir = Path(
+    os.environ.get(
+        "XDG_CONFIG_HOME",
+        str(Path.home() / ".config")
+    )
+)
+
+config_dir.mkdir(parents=True, exist_ok=True)
+
+conf = config_dir / "QtProject.conf"
+
+HOME = Path.home()
+MOUNT_ROOT = Path("/media/signer")
+
+last_content = None
+
+while True:
+
+    urls = [
+        "file:",
+        HOME.as_uri(),
+    ]
+
+    try:
+        if MOUNT_ROOT.is_dir():
+            mounts = sorted(
+                p for p in MOUNT_ROOT.iterdir()
+                if p.is_dir()
+            )
+
+            urls.extend(p.as_uri() for p in mounts)
+
+    except OSError:
+        pass
+
+    content = (
+        "[FileDialog]\n"
+        "sidebarWidth=140\n"
+        "viewMode=List\n"
+        f"lastVisited={HOME.as_uri()}\n"
+        f"history={HOME.as_uri()}\n"
+        "shortcuts=" + ", ".join(urls) + "\n"
+    )
+
+    if content != last_content:
+
+        tmp = conf.with_suffix(".tmp")
+        tmp.write_text(content)
+        os.replace(tmp, conf)
+
+        last_content = content
+
+    time.sleep(0.20)

@@ -1,0 +1,467 @@
+#!/usr/bin/python3
+"""One verified, window-addressed native Hide activation at Core startup.
+
+No global input, pointer movement, window activation, Core modification, wallet
+access, or persisted screenshots/OCR. Any uncertainty means no input. Qt's
+native overlay makes Hide its focused default button; Return invokes click().
+"""
+import argparse
+import atexit
+import csv
+import ctypes as C
+import hashlib
+import io
+import math
+import os
+from pathlib import Path
+import select
+import struct
+import subprocess
+import signal
+import sys
+import time
+
+CORE_SHA256 = 'd43632a3e54dfb181ba045db2a5b1ec2396a1acdda010e3b6d07b2e21c69c183'
+OFFICIAL_EXE = Path('/usr/local/bin/bitcoin-qt')
+PANEL_PHRASES = ('recent transactions may not yet be visible',
+                 'number of blocks left', 'last block time', 'progress')
+OCR_MAX_PNG = 64 * 1024 * 1024
+OCR_MAX_TSV = 4 * 1024 * 1024
+
+
+def ocr_worker(parent):
+    """Short-lived, memory-only OCR engine; no X11 connection or input API."""
+    # Linux PR_SET_PDEATHSIG keeps the child inside the observer's hard TTL,
+    # including SIGALRM termination. Check the parent again to close that race.
+    signal.signal(signal.SIGTERM, signal.SIG_DFL)
+    libc = C.CDLL(None)
+    libc.prctl.argtypes = [C.c_int, C.c_ulong, C.c_ulong, C.c_ulong, C.c_ulong]
+    libc.prctl.restype = C.c_int
+    if libc.prctl(1, signal.SIGTERM, 0, 0, 0) or os.getppid() != parent: return 1
+    signal.signal(signal.SIGALRM, signal.SIG_DFL)
+    signal.alarm(5)  # Also bound native engine initialization.
+    lib = C.CDLL('libtesseract.so.5')
+    # Resolve Leptonica through Tesseract's linked dependencies. Debian 13
+    # calls that library libleptonica.so.6; older systems used liblept.so.5.
+    lept = lib
+    for name, result, params in (
+        ('TessBaseAPICreate', C.c_void_p, []),
+        ('TessBaseAPIInit3', C.c_int, [C.c_void_p, C.c_char_p, C.c_char_p]),
+        ('TessBaseAPISetPageSegMode', None, [C.c_void_p, C.c_int]),
+        ('TessBaseAPISetImage2', None, [C.c_void_p, C.c_void_p]),
+        ('TessBaseAPIGetTsvText', C.c_void_p, [C.c_void_p, C.c_int]),
+        ('TessDeleteText', None, [C.c_void_p]),
+        ('TessBaseAPIClear', None, [C.c_void_p]),
+        ('TessBaseAPIClearAdaptiveClassifier', None, [C.c_void_p]),
+        ('TessBaseAPIDelete', None, [C.c_void_p]),
+    ):
+        fn = getattr(lib, name); fn.restype = result; fn.argtypes = params
+    lept.pixReadMem.restype = C.c_void_p
+    lept.pixReadMem.argtypes = [C.c_void_p, C.c_size_t]
+    lept.pixDestroy.restype = None
+    lept.pixDestroy.argtypes = [C.POINTER(C.c_void_p)]
+    api = lib.TessBaseAPICreate()
+    if not api: return 1
+    def read_exact(size):
+        data = bytearray()
+        while len(data) < size:
+            part = sys.stdin.buffer.read(size-len(data))
+            if not part: raise EOFError('OCR pipe closed')
+            data.extend(part)
+        return bytes(data)
+    try:
+        if lib.TessBaseAPIInit3(api, None, b'eng'): return 1
+        lib.TessBaseAPISetPageSegMode(api, 11)
+        while True:
+            signal.alarm(0)
+            if not select.select([sys.stdin], [], [], 5)[0]: return 0
+            signal.alarm(5)
+            request, size = struct.unpack('!II', read_exact(8))
+            if not 0 < size <= OCR_MAX_PNG: return 1
+            png = read_exact(size); raw = C.create_string_buffer(png)
+            pix = C.c_void_p(lept.pixReadMem(raw, len(png)))
+            if not pix: return 1
+            text = None
+            try:
+                # Each image gets independent recognition state, as with the
+                # prior CLI processes. Only immutable language data is reused.
+                lib.TessBaseAPIClearAdaptiveClassifier(api)
+                lib.TessBaseAPISetImage2(api, pix)
+                text = lib.TessBaseAPIGetTsvText(api, 0)
+                if not text: return 1
+                tsv = (b'level\tpage_num\tblock_num\tpar_num\tline_num\tword_num\t'
+                       b'left\ttop\twidth\theight\tconf\ttext\n') + C.string_at(text)
+                if len(tsv) > OCR_MAX_TSV: return 1
+                sys.stdout.buffer.write(struct.pack('!II', request, len(tsv)) + tsv)
+                sys.stdout.buffer.flush()
+            finally:
+                if text: lib.TessDeleteText(text)
+                lib.TessBaseAPIClear(api)
+                lept.pixDestroy(C.byref(pix))
+    finally:
+        lib.TessBaseAPIDelete(api)
+
+
+class Attributes(C.Structure):
+    _fields_ = [('x', C.c_int), ('y', C.c_int), ('width', C.c_int),
+                ('height', C.c_int), ('border_width', C.c_int), ('depth', C.c_int),
+                ('visual', C.c_void_p), ('root', C.c_ulong), ('class_', C.c_int),
+                ('bit_gravity', C.c_int), ('win_gravity', C.c_int),
+                ('backing_store', C.c_int), ('backing_planes', C.c_ulong),
+                ('backing_pixel', C.c_ulong), ('save_under', C.c_int),
+                ('colormap', C.c_ulong), ('map_installed', C.c_int),
+                ('map_state', C.c_int), ('all_event_masks', C.c_long),
+                ('your_event_mask', C.c_long), ('do_not_propagate_mask', C.c_long),
+                ('override_redirect', C.c_int), ('screen', C.c_void_p)]
+
+
+class Key(C.Structure):
+    _fields_ = [('type', C.c_int), ('serial', C.c_ulong), ('send_event', C.c_int),
+                ('display', C.c_void_p), ('window', C.c_ulong), ('root', C.c_ulong),
+                ('subwindow', C.c_ulong), ('time', C.c_ulong), ('x', C.c_int),
+                ('y', C.c_int), ('x_root', C.c_int), ('y_root', C.c_int),
+                ('state', C.c_uint), ('keycode', C.c_uint), ('same_screen', C.c_int)]
+
+
+class Event(C.Union):
+    _fields_ = [('key', Key), ('pad', C.c_long * 24)]
+
+
+class X11:
+    def __init__(self):
+        self.x = C.CDLL('libX11.so.6')
+        declarations = {
+            'XOpenDisplay': (C.c_void_p, [C.c_char_p]),
+            'XDefaultRootWindow': (C.c_ulong, [C.c_void_p]),
+            'XInternAtom': (C.c_ulong, [C.c_void_p, C.c_char_p, C.c_int]),
+            'XGetWindowProperty': (C.c_int, [C.c_void_p, C.c_ulong, C.c_ulong,
+                C.c_long, C.c_long, C.c_int, C.c_ulong, C.POINTER(C.c_ulong),
+                C.POINTER(C.c_int), C.POINTER(C.c_ulong), C.POINTER(C.c_ulong),
+                C.POINTER(C.POINTER(C.c_ubyte))]),
+            'XQueryTree': (C.c_int, [C.c_void_p, C.c_ulong, C.POINTER(C.c_ulong),
+                C.POINTER(C.c_ulong), C.POINTER(C.POINTER(C.c_ulong)), C.POINTER(C.c_uint)]),
+            'XGetWindowAttributes': (C.c_int, [C.c_void_p, C.c_ulong, C.POINTER(Attributes)]),
+            'XFree': (C.c_int, [C.c_void_p]),
+            'XKeysymToKeycode': (C.c_uint, [C.c_void_p, C.c_ulong]),
+            'XSendEvent': (C.c_int, [C.c_void_p, C.c_ulong, C.c_int, C.c_long, C.POINTER(Event)]),
+            'XSync': (C.c_int, [C.c_void_p, C.c_int]),
+            'XCloseDisplay': (C.c_int, [C.c_void_p]),
+        }
+        for name, (result, args) in declarations.items():
+            fn = getattr(self.x, name); fn.restype = result; fn.argtypes = args
+        # Windows can disappear between discovery and reads: avoid Xlib's
+        # process-ending default handler and reject that snapshot instead.
+        self.errors = 0
+        def error(_display, _event):
+            self.errors += 1
+            return 0
+        self.handler = C.CFUNCTYPE(C.c_int, C.c_void_p, C.c_void_p)(error)
+        self.x.XSetErrorHandler.argtypes = [C.c_void_p]
+        self.x.XSetErrorHandler(C.cast(self.handler, C.c_void_p))
+        self.display = self.x.XOpenDisplay(None)
+        if not self.display: raise RuntimeError('X11 unavailable')
+        self.root = self.x.XDefaultRootWindow(self.display)
+
+    def property(self, window, name):
+        atom = self.x.XInternAtom(self.display, name.encode('ascii'), 1)
+        if not atom: return None
+        actual = C.c_ulong(); fmt = C.c_int(); count = C.c_ulong(); remaining = C.c_ulong()
+        data = C.POINTER(C.c_ubyte)()
+        code = self.x.XGetWindowProperty(self.display, window, atom, 0, 4096, 0, 0,
+            C.byref(actual), C.byref(fmt), C.byref(count), C.byref(remaining), C.byref(data))
+        try:
+            if code or remaining.value or not actual.value: return None
+            if fmt.value == 32:
+                return tuple(C.cast(data, C.POINTER(C.c_ulong))[i] for i in range(count.value))
+            if fmt.value == 8: return C.string_at(data, count.value)
+            return None
+        finally:
+            if data: self.x.XFree(data)
+
+    def children(self, window):
+        root = C.c_ulong(); parent = C.c_ulong(); count = C.c_uint()
+        children = C.POINTER(C.c_ulong)()
+        ok = self.x.XQueryTree(self.display, window, C.byref(root), C.byref(parent),
+                             C.byref(children), C.byref(count))
+        try:
+            if not ok or count.value > 512:
+                raise RuntimeError('Window discovery scope unavailable')
+            return tuple(children[i] for i in range(count.value))
+        finally:
+            if children: self.x.XFree(children)
+
+    def attributes(self, window):
+        result = Attributes()
+        return result if self.x.XGetWindowAttributes(self.display, window, C.byref(result)) else None
+
+    def window(self, pid):
+        start_errors = self.errors
+        clients = self.property(self.root, '_NET_CLIENT_LIST')
+        if not isinstance(clients, tuple) or len(clients) > 512: return None
+        # WM-managed children sit below decoration windows; override-redirect
+        # menus sit directly below root. Read both without scanning other UI.
+        candidates = set(clients) | set(self.children(self.root))
+        owned = []
+        normal = self.x.XInternAtom(self.display, b'_NET_WM_WINDOW_TYPE_NORMAL', 1)
+        for wid in candidates:
+            attrs = self.attributes(wid)
+            if not attrs or attrs.map_state != 2: continue
+            cls = self.property(wid, 'WM_CLASS') or b''
+            wp = self.property(wid, '_NET_WM_PID')
+            trans = self.property(wid, 'WM_TRANSIENT_FOR')
+            if wp == (pid,) or b'bitcoin-qt' in cls.lower() or (trans and trans[0] in clients
+                    and self.property(trans[0], '_NET_WM_PID') == (pid,)):
+                owned.append(wid)
+        self.x.XSync(self.display, 0)
+        if self.errors != start_errors or len(owned) != 1: return None
+        wid = owned[0]
+        attrs = self.attributes(wid)
+        title = self.property(wid, '_NET_WM_NAME') or self.property(wid, 'WM_NAME')
+        cls = self.property(wid, 'WM_CLASS') or b''
+        if self.property(wid, '_NET_WM_PID') != (pid,) or b'bitcoin-qt' not in cls.lower(): return None
+        if not isinstance(title, bytes) or not (title == b'Bitcoin Core' or title.startswith(b'Bitcoin Core - ')):
+            return None
+        if len(title) > 512 or b'\n' in title or attrs.override_redirect: return None
+        if self.property(wid, '_NET_WM_WINDOW_TYPE') != (normal,): return None
+        if not (500 <= attrs.width <= 4096 and 400 <= attrs.height <= 2160): return None
+        self.x.XSync(self.display, 0)
+        if self.errors != start_errors: return None
+        return wid
+
+    def native_return(self, window):
+        keycode = self.x.XKeysymToKeycode(self.display, 0xff0d)
+        if not keycode: raise RuntimeError('Native key unavailable')
+        # Address only this X client window. Never XTest, pointer, focus, or
+        # global key injection. One press/release pair, with no retry.
+        for kind, mask in ((2, 1), (3, 2)):
+            event = Event()
+            event.key = Key(kind, 0, 1, self.display, window, self.root,
+                            0, 0, 0, 0, 0, 0, 0, keycode, 1)
+            if not self.x.XSendEvent(self.display, window, 0, mask, C.byref(event)):
+                raise RuntimeError('Native event rejected')
+        self.x.XSync(self.display, 0)
+
+
+class Identity:
+    def __init__(self, pid, expected):
+        self.pid = pid; self.expected = expected.resolve(strict=True)
+        self.birth = self.read_birth()
+        self.fingerprint = None
+        if self.uid() != os.getuid(): raise RuntimeError('Unexpected process owner')
+
+    def uid(self):
+        return Path('/proc', str(self.pid)).stat().st_uid
+
+    def read_birth(self):
+        stat = Path('/proc', str(self.pid), 'stat').read_text()
+        fields = stat[stat.rfind(')') + 2:].split()
+        if fields[0] in ('Z', 'X'): raise ProcessLookupError('Process exited')
+        return fields[19]
+
+    def check(self):
+        if self.uid() != os.getuid() or self.read_birth() != self.birth:
+            raise ProcessLookupError('Process changed')
+        actual = Path('/proc', str(self.pid), 'exe').resolve(strict=True)
+        if actual != self.expected: return False
+        st = actual.stat(); fingerprint = (st.st_dev, st.st_ino, st.st_size, st.st_mtime_ns)
+        if self.fingerprint is None:
+            with actual.open('rb') as binary:
+                digest = hashlib.file_digest(binary, 'sha256').hexdigest()
+            if digest != CORE_SHA256:
+                raise RuntimeError('Unexpected Core binary')
+            self.fingerprint = fingerprint
+        return fingerprint == self.fingerprint
+
+
+class Recognizer:
+    def __init__(self, prefix=None):
+        self.command = [sys.executable, str(Path(__file__).resolve()), '--ocr-worker', str(os.getpid())]
+        self.env = dict(os.environ)
+        self.env['OMP_THREAD_LIMIT'] = '1'
+        if prefix:
+            self.env['LD_LIBRARY_PATH'] = str(prefix / 'usr/lib/x86_64-linux-gnu')
+            self.env['TESSDATA_PREFIX'] = str(prefix / 'usr/share/tesseract-ocr/5/tessdata')
+        self.worker = None; self.request = 0
+        self.start_worker()  # Preload eng concurrently with Qt/Core startup.
+        atexit.register(self.close)
+        from PySide6.QtGui import QGuiApplication
+        self.app = QGuiApplication.instance() or QGuiApplication(['core-vault-hide-sync'])
+
+    def close(self):
+        if self.worker is None: return
+        worker = self.worker; self.worker = None
+        if worker.poll() is None:
+            worker.terminate()
+            try: worker.wait(timeout=.2)
+            except subprocess.TimeoutExpired:
+                worker.kill(); worker.wait(timeout=.2)
+        for stream in (worker.stdin, worker.stdout): stream.close()
+
+    def start_worker(self):
+        if self.worker is not None and self.worker.poll() is None: return
+        self.close()
+        self.worker = subprocess.Popen(self.command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                       stderr=subprocess.DEVNULL, env=self.env, bufsize=0)
+        for stream in (self.worker.stdin, self.worker.stdout): os.set_blocking(stream.fileno(), False)
+
+    def recognize(self, data, deadline):
+        self.start_worker()
+        if not 0 < len(data) <= OCR_MAX_PNG: raise RuntimeError('Recognition image out of bounds')
+        self.request += 1
+        request = self.request
+        def transfer(fd, size=None, payload=None):
+            result = bytearray(); offset = 0
+            while offset < (len(payload) if payload is not None else size):
+                remaining = deadline - time.monotonic()
+                if remaining <= 0: raise subprocess.TimeoutExpired(self.command, 5)
+                ready = select.select([] if payload is not None else [fd],
+                                      [fd] if payload is not None else [], [], remaining)
+                if not (ready[0] or ready[1]): raise subprocess.TimeoutExpired(self.command, 5)
+                if payload is not None:
+                    offset += os.write(fd, payload[offset:])
+                else:
+                    part = os.read(fd, size-offset)
+                    if not part: raise subprocess.TimeoutExpired(self.command, 5)
+                    result.extend(part); offset += len(part)
+            return bytes(result)
+        try:
+            transfer(self.worker.stdin.fileno(), payload=struct.pack('!II', request, len(data))+data)
+            response, size = struct.unpack('!II', transfer(self.worker.stdout.fileno(), size=8))
+            if response != request or not 0 < size <= OCR_MAX_TSV:
+                raise RuntimeError('Recognition response out of bounds')
+            return transfer(self.worker.stdout.fileno(), size=size)
+        except BrokenPipeError as exc:
+            self.close()
+            raise subprocess.TimeoutExpired(self.command, 5) from exc
+        except (OSError, RuntimeError, subprocess.TimeoutExpired):
+            self.close()  # Kill/reap expired engine; never reuse a stale reply.
+            raise
+
+    def capture(self, window):
+        from PySide6.QtCore import QBuffer, QByteArray, QIODevice
+        self.app.processEvents()
+        pixmap = self.app.primaryScreen().grabWindow(window)
+        if pixmap.isNull(): raise RuntimeError('Window capture unavailable')
+        data = QByteArray(); buffer = QBuffer(data); buffer.open(QIODevice.WriteOnly)
+        if not pixmap.save(buffer, 'PNG'): raise RuntimeError('Window capture failed')
+        return bytes(data)
+
+    def words(self, window, timeout=5):
+        # One budget includes capture, encoding and both recognition passes.
+        deadline = time.monotonic() + timeout
+        png = self.capture(window)
+        def recognize(data):
+            rows = csv.DictReader(io.StringIO(self.recognize(data, deadline).decode('utf-8')), delimiter='\t')
+            found = []
+            for row in rows:
+                text = row.get('text', '').strip().lower().strip('….,:;')
+                if text and float(row['conf']) >= 75:
+                    found.append((text, tuple(int(row[k]) for k in ('left', 'top', 'width', 'height'))))
+            if time.monotonic() >= deadline: raise subprocess.TimeoutExpired(self.command, timeout)
+            return found
+        words = recognize(png)
+        text = ' '.join(word for word, _ in words)
+        if all(phrase in text for phrase in PANEL_PHRASES) and not any(word == 'hide' for word, _ in words):
+            # Sparse full-window OCR can omit the isolated native Hide button
+            # in a maximized panel. Reuse the SAME captured pixels; the crop
+            # may supply only one high-confidence Hide, never panel phrases.
+            from PySide6.QtCore import QBuffer, QByteArray, QIODevice
+            from PySide6.QtGui import QImage
+            image = QImage.fromData(png)
+            if image.isNull(): raise RuntimeError('Window image unavailable')
+            top = 2 * image.height() // 3
+            cropped = image.copy(0, top, image.width(), image.height() - top)
+            data = QByteArray(); buffer = QBuffer(data); buffer.open(QIODevice.WriteOnly)
+            if not cropped.save(buffer, 'PNG'): raise RuntimeError('Window crop failed')
+            hide = [rect for word, rect in recognize(bytes(data)) if word == 'hide']
+            if len(hide) == 1:
+                left, y, width, height = hide[0]
+                words.append(('hide', (left, y + top, width, height)))
+        return words
+
+    @staticmethod
+    def panel(words):
+        text = ' '.join(word for word, _ in words)
+        return all(phrase in text for phrase in PANEL_PHRASES) and sum(w == 'hide' for w, _ in words) == 1
+
+    @staticmethod
+    def hidden(words):
+        tokens = {word for word, _ in words}
+        text = ' '.join(word for word, _ in words)
+        return {'file', 'help'} <= tokens and 'hide' not in tokens and all(
+            phrase not in text for phrase in PANEL_PHRASES[:3])
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--pid', type=int, required=True)
+    parser.add_argument('--test-exe', type=Path, help='Explicit developer test: same official binary only')
+    parser.add_argument('--ocr-prefix', type=Path, help='Explicit developer test: extracted Debian OCR package')
+    parser.add_argument('--timeout', type=float, default=20)
+    args = parser.parse_args()
+    if args.pid < 2 or not 1 <= args.timeout <= 20: parser.error('Invalid bounded startup scope')
+    # A kernel-enforced lifetime also covers blocked Xlib/Qt initialization.
+    # Default SIGALRM termination cannot be delayed by a Python callback.
+    signal.signal(signal.SIGALRM, signal.SIG_DFL)
+    signal.alarm(math.ceil(args.timeout + 2))
+    deadline = time.monotonic() + args.timeout
+    identity = Identity(args.pid, args.test_exe or OFFICIAL_EXE)
+    x = X11(); recognizer = Recognizer(args.ocr_prefix)
+    print('SYNC HIDE: bounded observation; no global input.', flush=True)
+    while time.monotonic() < deadline:
+        if not identity.check():
+            time.sleep(.1); continue  # Launcher has not exec'd Core yet.
+        window = x.window(args.pid)
+        if window is None:
+            time.sleep(.15); continue
+        remaining = deadline - time.monotonic()
+        if remaining <= .1: break
+        try:
+            words = recognizer.words(window, timeout=min(5, remaining))
+        except subprocess.TimeoutExpired:
+            time.sleep(.15); continue  # Retry observation only, within startup TTL.
+        if not recognizer.panel(words):
+            time.sleep(.15); continue
+        if not identity.check() or x.window(args.pid) != window: continue
+        remaining = deadline - time.monotonic()
+        if remaining <= .1: break
+        # Fresh recognition and identity/window recheck close the observation
+        # gap. X11 cannot atomically prove widget focus/state without Core's
+        # omitted AT-SPI bridge; concurrent Core dialogs therefore block.
+        try:
+            confirmed = recognizer.panel(recognizer.words(window, timeout=min(5, remaining)))
+        except subprocess.TimeoutExpired:
+            time.sleep(.15); continue
+        if not confirmed: continue
+        if not identity.check() or x.window(args.pid) != window: continue
+        if time.monotonic() >= deadline: break
+        x.native_return(window)
+        print('SYNC HIDE: native Return addressed once to verified Core window.', flush=True)
+        while time.monotonic() < deadline:
+            time.sleep(.35)
+            if not identity.check() or x.window(args.pid) != window: break
+            remaining = deadline - time.monotonic()
+            if remaining <= .1: break
+            try:
+                hidden = recognizer.hidden(recognizer.words(window, timeout=min(5, remaining)))
+            except subprocess.TimeoutExpired:
+                break  # Confirmation failed; never retry native input.
+            if hidden:
+                print('SYNC HIDE: native panel disappearance verified; helper finished.', flush=True)
+                return 0
+        print('SYNC HIDE: one action sent; disappearance unconfirmed; no retry.', flush=True)
+        return 1
+    print('SYNC HIDE: startup observation expired; no input sent.', flush=True)
+    return 2
+
+
+if __name__ == '__main__':
+    if len(sys.argv) == 3 and sys.argv[1] == '--ocr-worker':
+        try: raise SystemExit(ocr_worker(int(sys.argv[2])))
+        except (OSError, RuntimeError, ValueError, EOFError): raise SystemExit(1)
+    try:
+        raise SystemExit(main())
+    except (OSError, RuntimeError, ValueError, subprocess.SubprocessError) as exc:
+        # No OCR text, screenshots, argv, paths, or user input are logged.
+        print('SYNC HIDE: unavailable (' + type(exc).__name__ + '); helper finished.', flush=True)
+        raise SystemExit(2)

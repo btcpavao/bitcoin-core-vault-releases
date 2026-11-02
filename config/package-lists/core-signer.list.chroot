@@ -1,0 +1,60 @@
+# Core system
+systemd-sysv
+
+# Minimal graphics
+xserver-xorg-core
+xserver-xorg-input-libinput
+xinit
+xauth
+x11-xserver-utils
+openbox
+dbus-x11
+libgl1-mesa-dri
+fonts-dejavu-core
+
+# Removable media
+udisks2
+
+# Bitcoin Core 32.1 runtime libraries
+libbrotli1
+libbz2-1.0
+libc6
+libexpat1
+libfontconfig1
+libfreetype6
+libpng16-16t64
+zlib1g
+
+# Debian Live user creation
+user-setup
+
+# User runtime directory (/run/user/$UID)
+libpam-systemd
+
+# Kiosk startup automation
+xdotool
+
+# Hide mouse cursor during idle/startup
+
+# Branded graphical boot
+plymouth
+plymouth-themes
+
+# Graphical login manager for direct boot into X
+lightdm
+lightdm-gtk-greeter
+
+# Set branded background in X before Bitcoin Core appears
+feh
+udiskie
+polkitd
+acl
+nftables
+rfkill
+iproute2
+zenity
+python3
+python3-tk
+
+# Shutdown v2 runtime
+sudo

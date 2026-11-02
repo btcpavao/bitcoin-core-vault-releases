@@ -1,0 +1,113 @@
+#!/bin/sh
+set -eu
+
+python3 - <<'PY'
+from pathlib import Path
+
+B = (
+    Path("binary")
+    if Path("binary/live/filesystem.squashfs").is_file()
+    else Path(".")
+)
+
+if not (B / "live/filesystem.squashfs").is_file():
+    raise SystemExit(
+        "Expected binary/live/filesystem.squashfs was not generated."
+    )
+
+if (
+    (B / "live/vmlinuz").exists()
+    and (B / "live/initrd.img").exists()
+):
+    kernel = "/live/vmlinuz"
+    initrd = "/live/initrd.img"
+
+else:
+    kernels = list(
+        (B / "live").glob("vmlinuz-*")
+    )
+
+    if len(kernels) != 1:
+        raise SystemExit(
+            "Expected one unambiguous kernel."
+        )
+
+    k = kernels[0]
+    r = k.with_name(
+        k.name.replace(
+            "vmlinuz-",
+            "initrd.img-",
+            1,
+        )
+    )
+
+    if not r.is_file():
+        raise SystemExit(
+            "Matching initramfs missing."
+        )
+
+    kernel = "/live/" + k.name
+    initrd = "/live/" + r.name
+
+
+live = (
+    "boot=live components "
+    "username=vault hostname=core-vault "
+    "noroot nottyautologin noeject noswap "
+    "quiet splash loglevel=3 "
+    "systemd.show_status=false "
+    "rd.systemd.show_status=false "
+    "vt.global_cursor_default=0 toram"
+)
+
+iso = B / "isolinux/isolinux.cfg"
+grub = B / "boot/grub/grub.cfg"
+
+if not iso.is_file() or not grub.is_file():
+    raise SystemExit(
+        "Expected BIOS and UEFI boot configuration."
+    )
+
+
+iso.write_text(
+    f"""UI vesamenu.c32
+PROMPT 0
+TIMEOUT 0
+DEFAULT core-vault-live
+MENU TITLE Bitcoin Core Vault
+MENU COLOR screen 37;40 #ffffffff #ff000000 none
+MENU COLOR title 37;40 #ffffffff #ff000000 none
+MENU COLOR sel 30;47 #ff000000 #ffffffff none
+
+LABEL core-vault-live
+  MENU LABEL Start Bitcoin Core Vault (Live RAM)
+  KERNEL {kernel}
+  APPEND initrd={initrd} {live}
+"""
+)
+
+
+grub.write_text(
+    f"""set default=0
+set timeout=-1
+insmod all_video
+insmod gfxterm
+terminal_output gfxterm
+set menu_color_normal=white/black
+set menu_color_highlight=black/white
+
+menuentry 'Start Bitcoin Core Vault (Live RAM)' {{
+    linux {kernel} {live}
+    initrd {initrd}
+}}
+"""
+)
+
+# Dedicated install session: no toram, no Vault application startup.
+install = live.replace(" toram", "") + " core-vault.install=1"
+with iso.open("a") as f:
+    f.write(f"\nLABEL core-vault-install\n  MENU LABEL Install Bitcoin Core Vault\n  KERNEL {kernel}\n  APPEND initrd={initrd} {install}\n")
+with grub.open("a") as f:
+    f.write(f"\nmenuentry 'Install Bitcoin Core Vault' {{\n    linux {kernel} {install}\n    initrd {initrd}\n}}\n")
+print("BITCOIN CORE VAULT LIVE + INSTALL BIOS/UEFI MENUS WRITTEN")
+PY

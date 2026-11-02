@@ -1,0 +1,206 @@
+#!/usr/bin/python3
+
+import os
+import pathlib
+import pwd
+import shutil
+import subprocess
+import sys
+
+
+def print_log_tail(log_path, lines=120):
+    try:
+        content = log_path.read_text(
+            encoding="utf-8",
+            errors="replace"
+        ).splitlines()
+
+        print(
+            "\n=== CALAMARES INSTALLER LOG — LAST LINES ===",
+            file=sys.stderr
+        )
+
+        for line in content[-lines:]:
+            print(line, file=sys.stderr)
+
+        print(
+            "=== END CALAMARES LOG ===\n",
+            file=sys.stderr
+        )
+
+    except Exception as exc:
+        print(
+            f"Could not read Calamares log: {exc}",
+            file=sys.stderr
+        )
+
+
+def main():
+
+    if os.geteuid() != 0 or len(sys.argv) != 1:
+        raise RuntimeError(
+            "This fixed installer launcher requires root and no arguments."
+        )
+
+    cmdline = pathlib.Path("/proc/cmdline").read_text().split()
+
+    if (
+        "boot=live" not in cmdline
+        or "core-vault.install=1" not in cmdline
+    ):
+        raise RuntimeError(
+            "Installer is available only from the dedicated "
+            "Live installation boot entry."
+        )
+
+    squashfs = pathlib.Path(
+        "/run/live/medium/live/filesystem.squashfs"
+    )
+
+    if not squashfs.is_file():
+        raise RuntimeError(
+            "Immutable installation image not found. "
+            "Keep the boot USB connected."
+        )
+
+    if pathlib.Path(
+        "/etc/core-vault/installation.json"
+    ).exists():
+        raise RuntimeError(
+            "Installer launcher is not permitted in an installed system."
+        )
+
+    # A read-only squashfs is required; never copy the mutable live overlay.
+    mount_info = subprocess.check_output([
+        '/usr/bin/findmnt', '--noheadings', '--output', 'FSTYPE,OPTIONS',
+        '--target', str(squashfs)], text=True).strip().split()
+    if len(mount_info) != 2 or 'ro' not in mount_info[1].split(','):
+        raise RuntimeError('The installation medium must be mounted read-only.')
+
+    vault = pwd.getpwnam("vault")
+
+    if os.environ.get("SUDO_UID") != str(vault.pw_uid):
+        raise RuntimeError(
+            "Installer must be requested by the local vault session."
+        )
+
+    display = os.environ.get("DISPLAY", "")
+
+    if (
+        not display.startswith(":")
+        or not display[1:].replace(".", "").isdigit()
+    ):
+        raise RuntimeError(
+            "Only the local X display is supported."
+        )
+
+    auth = pathlib.Path(
+        os.environ.get(
+            "XAUTHORITY",
+            str(
+                pathlib.Path(vault.pw_dir)
+                / ".Xauthority"
+            )
+        )
+    )
+
+    if (
+        auth.is_symlink()
+        or not auth.is_file()
+        or auth.stat().st_uid != vault.pw_uid
+        or auth.stat().st_size > 1048576
+    ):
+        raise RuntimeError(
+            "Local X authorization file is missing "
+            "or has the wrong owner."
+        )
+
+    run = pathlib.Path(
+        "/run/core-vault-installer"
+    )
+
+    if run.is_symlink():
+        raise RuntimeError("Unsafe installer runtime directory.")
+
+    run.mkdir(
+        mode=0o700,
+        exist_ok=True
+    )
+
+    run.chmod(0o700)
+    os.chown(run, 0, 0)
+
+    newauth = run / "Xauthority"
+
+    if newauth.is_symlink():
+        raise RuntimeError("Unsafe X authorization copy.")
+    shutil.copyfile(auth, newauth)
+
+    newauth.chmod(0o600)
+
+    version = subprocess.check_output(
+        [
+            "/usr/bin/dpkg-query",
+            "-W",
+            "-f=${Version}",
+            "calamares",
+        ],
+        text=True,
+    ).strip()
+
+    if version != "3.3.14-1+corevault4":
+        raise RuntimeError(
+            "The reviewed Bitcoin Core Vault Calamares package "
+            "is not installed."
+        )
+
+    env = {
+        "PATH": "/usr/sbin:/usr/bin:/sbin:/bin",
+        "HOME": "/root",
+        "USER": "root",
+        "LOGNAME": "root",
+        "DISPLAY": display,
+        "XAUTHORITY": str(newauth),
+        "LANG": "en_US.UTF-8",
+        "LC_ALL": "en_US.UTF-8",
+        "LANGUAGE": "en",
+        "QT_QPA_PLATFORM": "xcb",
+        "QT_QUICK_BACKEND": "software",
+        "XDG_RUNTIME_DIR": "/run/core-vault-installer",
+    }
+
+    log = run / "installer.log"
+
+    with log.open(
+        "a",
+        encoding="utf-8"
+    ) as stream:
+
+        result = subprocess.run(
+            [
+                "/usr/bin/calamares",
+                "-d",
+            ],
+            env=env,
+            stdout=stream,
+            stderr=subprocess.STDOUT,
+        )
+
+    if result.returncode != 0:
+        print_log_tail(log)
+
+    return result.returncode
+
+
+if __name__ == "__main__":
+
+    try:
+        sys.exit(main())
+
+    except Exception as exc:
+        print(
+            "Bitcoin Core Vault installer launcher error:",
+            str(exc),
+            file=sys.stderr,
+        )
+        sys.exit(1)

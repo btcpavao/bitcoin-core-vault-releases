@@ -1,0 +1,22 @@
+Debian Open Use Logo
+Copyright (c) 1999 Software in the Public Interest, Inc.
+Original artwork by Raul Silva.
+
+Upstream notice: https://www.debian.org/logos/
+Original SVG: https://www.debian.org/logos/openlogo-nd.svg
+
+For the identified logo assets in this directory, Core Signer OS selects the
+Creative Commons Attribution-ShareAlike 3.0 Unported license offered upstream.
+The complete license text accompanies this notice in CC-BY-SA-3.0.txt:
+https://creativecommons.org/licenses/by-sa/3.0/
+
+Identified original: openlogo-nd.svg.
+Identified adaptations: debian-white.svg and debian-white.png.
+Changes: the artwork was recolored white, reframed and repositioned. The PNG
+was rendered from the adapted SVG. The twelve adapted SVG outlines normalize
+exactly to the original's twelve outlines; only rendering/framing changed.
+The adapted SVG and PNG are distributed under CC BY-SA 3.0 Unported.
+
+Only the identified Debian logo assets are covered by this notice.
+Attribution does not imply sponsorship or endorsement by Debian, Software
+in the Public Interest, Inc., or Raul Silva.

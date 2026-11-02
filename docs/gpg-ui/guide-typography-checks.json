@@ -1,0 +1,326 @@
+[
+  {
+    "size": [
+      1366,
+      768
+    ],
+    "section": "Home & keyboard",
+    "body_pt": 14.0,
+    "horizontal_scroll": 0
+  },
+  {
+    "size": [
+      1366,
+      768
+    ],
+    "section": "Bitcoin Core",
+    "body_pt": 14.0,
+    "horizontal_scroll": 0
+  },
+  {
+    "size": [
+      1366,
+      768
+    ],
+    "section": "KeePassXC",
+    "body_pt": 14.0,
+    "horizontal_scroll": 0
+  },
+  {
+    "size": [
+      1366,
+      768
+    ],
+    "section": "Brasero",
+    "body_pt": 14.0,
+    "horizontal_scroll": 0
+  },
+  {
+    "size": [
+      1366,
+      768
+    ],
+    "section": "Print & Labels",
+    "body_pt": 14.0,
+    "horizontal_scroll": 0
+  },
+  {
+    "size": [
+      1366,
+      768
+    ],
+    "section": "Files",
+    "body_pt": 14.0,
+    "horizontal_scroll": 0
+  },
+  {
+    "size": [
+      1366,
+      768
+    ],
+    "section": "Editor",
+    "body_pt": 14.0,
+    "horizontal_scroll": 0
+  },
+  {
+    "size": [
+      1366,
+      768
+    ],
+    "section": "Terminal",
+    "body_pt": 14.0,
+    "horizontal_scroll": 0
+  },
+  {
+    "size": [
+      1366,
+      768
+    ],
+    "section": "Private Workspace",
+    "body_pt": 14.0,
+    "horizontal_scroll": 0
+  },
+  {
+    "size": [
+      1366,
+      768
+    ],
+    "section": "USB & optical media",
+    "body_pt": 14.0,
+    "horizontal_scroll": 0
+  },
+  {
+    "size": [
+      1366,
+      768
+    ],
+    "section": "Create & encrypt a wallet",
+    "body_pt": 14.0,
+    "horizontal_scroll": 0
+  },
+  {
+    "size": [
+      1366,
+      768
+    ],
+    "section": "Generate a passphrase",
+    "body_pt": 14.0,
+    "horizontal_scroll": 0
+  },
+  {
+    "size": [
+      1366,
+      768
+    ],
+    "section": "Encryption security levels",
+    "body_pt": 14.0,
+    "horizontal_scroll": 0
+  },
+  {
+    "size": [
+      1366,
+      768
+    ],
+    "section": "Backup & verify",
+    "body_pt": 14.0,
+    "horizontal_scroll": 0
+  },
+  {
+    "size": [
+      1366,
+      768
+    ],
+    "section": "Finish Private Session",
+    "body_pt": 14.0,
+    "horizontal_scroll": 0
+  },
+  {
+    "size": [
+      1366,
+      768
+    ],
+    "section": "Sign a PSBT offline",
+    "body_pt": 14.0,
+    "horizontal_scroll": 0
+  },
+  {
+    "size": [
+      1366,
+      768
+    ],
+    "section": "Recovery / inheritance",
+    "body_pt": 14.0,
+    "horizontal_scroll": 0
+  },
+  {
+    "size": [
+      1366,
+      768
+    ],
+    "section": "Decrypt Backup",
+    "body_pt": 14.0,
+    "horizontal_scroll": 0
+  },
+  {
+    "size": [
+      1024,
+      768
+    ],
+    "section": "Home & keyboard",
+    "body_pt": 14.0,
+    "horizontal_scroll": 0
+  },
+  {
+    "size": [
+      1024,
+      768
+    ],
+    "section": "Bitcoin Core",
+    "body_pt": 14.0,
+    "horizontal_scroll": 0
+  },
+  {
+    "size": [
+      1024,
+      768
+    ],
+    "section": "KeePassXC",
+    "body_pt": 14.0,
+    "horizontal_scroll": 0
+  },
+  {
+    "size": [
+      1024,
+      768
+    ],
+    "section": "Brasero",
+    "body_pt": 14.0,
+    "horizontal_scroll": 0
+  },
+  {
+    "size": [
+      1024,
+      768
+    ],
+    "section": "Print & Labels",
+    "body_pt": 14.0,
+    "horizontal_scroll": 0
+  },
+  {
+    "size": [
+      1024,
+      768
+    ],
+    "section": "Files",
+    "body_pt": 14.0,
+    "horizontal_scroll": 0
+  },
+  {
+    "size": [
+      1024,
+      768
+    ],
+    "section": "Editor",
+    "body_pt": 14.0,
+    "horizontal_scroll": 0
+  },
+  {
+    "size": [
+      1024,
+      768
+    ],
+    "section": "Terminal",
+    "body_pt": 14.0,
+    "horizontal_scroll": 0
+  },
+  {
+    "size": [
+      1024,
+      768
+    ],
+    "section": "Private Workspace",
+    "body_pt": 14.0,
+    "horizontal_scroll": 0
+  },
+  {
+    "size": [
+      1024,
+      768
+    ],
+    "section": "USB & optical media",
+    "body_pt": 14.0,
+    "horizontal_scroll": 0
+  },
+  {
+    "size": [
+      1024,
+      768
+    ],
+    "section": "Create & encrypt a wallet",
+    "body_pt": 14.0,
+    "horizontal_scroll": 0
+  },
+  {
+    "size": [
+      1024,
+      768
+    ],
+    "section": "Generate a passphrase",
+    "body_pt": 14.0,
+    "horizontal_scroll": 0
+  },
+  {
+    "size": [
+      1024,
+      768
+    ],
+    "section": "Encryption security levels",
+    "body_pt": 14.0,
+    "horizontal_scroll": 0
+  },
+  {
+    "size": [
+      1024,
+      768
+    ],
+    "section": "Backup & verify",
+    "body_pt": 14.0,
+    "horizontal_scroll": 0
+  },
+  {
+    "size": [
+      1024,
+      768
+    ],
+    "section": "Finish Private Session",
+    "body_pt": 14.0,
+    "horizontal_scroll": 0
+  },
+  {
+    "size": [
+      1024,
+      768
+    ],
+    "section": "Sign a PSBT offline",
+    "body_pt": 14.0,
+    "horizontal_scroll": 0
+  },
+  {
+    "size": [
+      1024,
+      768
+    ],
+    "section": "Recovery / inheritance",
+    "body_pt": 14.0,
+    "horizontal_scroll": 0
+  },
+  {
+    "size": [
+      1024,
+      768
+    ],
+    "section": "Decrypt Backup",
+    "body_pt": 14.0,
+    "horizontal_scroll": 0
+  }
+]

@@ -1,0 +1,6 @@
+This plugin does not support propagateSizeHints()
+PASS 800x600: 10 centered cards, custom hover help, visible footer
+PASS 1024x768: 10 centered cards, custom hover help, visible footer
+PASS 1280x800: 10 centered cards, custom hover help, visible footer
+PASS 1920x1080: 10 centered cards, custom hover help, visible footer
+VAULT HOME SUITE QT SELF-TEST PASSED

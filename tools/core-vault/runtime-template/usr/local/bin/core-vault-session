@@ -1,0 +1,114 @@
+#!/bin/sh
+# desktop-fix-v3: start exactly one WM and panel; preserve user data policy.
+set -eu
+# Resolve display density before any GUI starts; preserve the native video mode.
+if [ "${CORE_DISPLAY_READY:-}" != 1 ]; then
+    exec /usr/local/bin/core-display-scale -- "$0" "$@"
+fi
+umask 077
+ulimit -c 0
+: "${XDG_RUNTIME_DIR:?Missing runtime directory}"
+
+# VAULT_CALAMARES_V1: installer and desktop use separate sessions.
+case " $(cat /proc/cmdline) " in
+    *" core-vault.install=1 "*) exec /usr/local/bin/core-vault-installer-session ;;
+esac
+
+# The account home is mounted before LightDM, so application libraries that use
+# getpwuid() instead of HOME also resolve to RAM. Never use a disk home fallback.
+export HOME=/home/vault
+export XDG_CONFIG_HOME="$HOME/.config"
+export XDG_CACHE_HOME="$HOME/.cache"
+export XDG_DATA_HOME="$HOME/.local/share"
+export XDG_STATE_HOME="$HOME/.local/state"
+export TMPDIR=/run/core-vault/tmp
+export TMP="$TMPDIR" TEMP="$TMPDIR"
+export HISTFILE=/dev/null
+export PYTHONDONTWRITEBYTECODE=1
+
+# Refuse a disk-backed fallback for Private Workspace in installed mode.
+if ! /usr/local/bin/core-vault-storage-check --session >"$XDG_RUNTIME_DIR/core-vault-storage.log" 2>&1; then
+    /usr/bin/zenity --error --no-markup --title="Bitcoin Core Vault — Storage check" \
+        --text="Private Workspace or storage policy is not ready. The Vault desktop will not open. See core-vault-storage.log in the runtime directory." || true
+    exit 1
+fi
+
+# VAULT_ENCRYPTED_BACKUP_V2: before Thunar starts, without restarting any app.
+if ! /usr/bin/core-vault-backup-setup >"$XDG_RUNTIME_DIR/core-vault-backup-setup.log" 2>&1; then
+    /usr/bin/zenity --error --no-markup --title="Bitcoin Core Vault — Backup setup" \
+        --text="Encrypted backup actions could not be configured. See core-vault-backup-setup.log in the runtime directory." || true
+    exit 1
+fi
+
+PRIVATE="$HOME/Private Workspace"
+mkdir -p "$PRIVATE" || exit 1
+chmod 0700 "$PRIVATE" || exit 1
+
+# VAULT_FILE_PLACES_V3
+# Initialize named Places entries before any application opens Thunar.
+/usr/local/bin/core-vault-file-places --apply \
+    >>"$XDG_RUNTIME_DIR/core-vault-file-places.log" 2>&1 || {
+    printf '%s\n' 'Vault Places setup failed; see core-vault-file-places.log in the runtime directory.' >&2
+}
+
+
+# Stock Core file chooser: data directory and volatile workspace favorites.
+/usr/local/bin/core-vault-core-file-dialogs --apply \
+    >>"$XDG_RUNTIME_DIR/core-vault-core-file-dialogs.log" 2>&1 || {
+    printf '%s\n' 'Vault file chooser setup failed; see core-vault-core-file-dialogs.log.' >&2
+}
+
+# Set the initial lock state once; later user changes remain under their control.
+/usr/local/bin/core-vault-numlock >"$XDG_RUNTIME_DIR/core-vault-numlock.log" 2>&1 || {
+    printf '%s\n' 'Num Lock setup unavailable; see core-vault-numlock.log.' >&2
+}
+
+xset -dpms 2>/dev/null || true
+xset s off 2>/dev/null || true
+xset s noblank 2>/dev/null || true
+xsetroot -solid black
+
+mkdir -p "$HOME/.config/udiskie" || exit 1
+cat > "$HOME/.config/udiskie/config.yml" <<'UDISKIE'
+device_config:
+  - options: [nosuid, nodev, noexec, sync]
+UDISKIE
+/usr/bin/udiskie --automount --no-notify --no-tray --no-password-prompt \
+    --no-file-manager >"$XDG_RUNTIME_DIR/core-vault-udiskie.log" 2>&1 &
+MEDIA_PID=$!
+HOME_PID=
+PANEL_PID=
+OPENBOX_PID=
+cleanup() {
+    for pid in "$HOME_PID" "$PANEL_PID" "$OPENBOX_PID" "$MEDIA_PID"; do
+        [ -z "$pid" ] || kill "$pid" 2>/dev/null || true
+    done
+}
+trap cleanup EXIT
+trap 'exit 0' HUP INT TERM
+
+# Direct Openbox invocation avoids a second panel from implicit autostart.
+/usr/bin/openbox --config-file /usr/share/core-vault/openbox.xml \
+    >"$XDG_RUNTIME_DIR/core-vault-openbox.log" 2>&1 &
+OPENBOX_PID=$!
+tries=0
+until xprop -root _NET_SUPPORTING_WM_CHECK 2>/dev/null | grep -Eq '0x[1-9a-fA-F][0-9a-fA-F]*'; do
+    if ! kill -0 "$OPENBOX_PID" 2>/dev/null; then
+        exit 1
+    fi
+    tries=$((tries + 1))
+    [ "$tries" -lt 100 ] || exit 1
+    sleep 0.1
+done
+
+/usr/local/bin/core-vault-taskbar \
+    >"$XDG_RUNTIME_DIR/core-vault-taskbar.log" 2>&1 &
+PANEL_PID=$!
+
+while kill -0 "$OPENBOX_PID" 2>/dev/null; do
+    /usr/local/bin/core-vault-home >>"$XDG_RUNTIME_DIR/core-vault-home.log" 2>&1 &
+    HOME_PID=$!
+    wait "$HOME_PID" || true
+    HOME_PID=
+    sleep 1
+done

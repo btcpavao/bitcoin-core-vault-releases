@@ -1,0 +1,12 @@
+#!/usr/bin/python3
+"""Narrow privileged entry point: no paths, scripts or arbitrary unit names."""
+import os
+import subprocess
+import sys
+
+if os.geteuid() != 0 or os.environ.get('SUDO_USER') != 'vault':
+    raise SystemExit('Use the Vault finish action as the Vault account.')
+if len(sys.argv) != 2 or sys.argv[1] not in ('poweroff', 'reboot'):
+    raise SystemExit('Expected poweroff or reboot.')
+subprocess.run(['/usr/bin/systemctl', 'start', '--no-block',
+                'core-vault-end-session@' + sys.argv[1] + '.service'], check=True)

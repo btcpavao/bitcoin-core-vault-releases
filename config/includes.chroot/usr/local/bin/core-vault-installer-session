@@ -1,0 +1,169 @@
+#!/bin/sh
+set -eu
+# Resolve display density before any GUI starts; preserve the native video mode.
+if [ "${CORE_DISPLAY_READY:-}" != 1 ]; then
+    exec /usr/local/bin/core-display-scale -- "$0" "$@"
+fi
+
+
+##############################################################################
+# MODE
+##############################################################################
+
+case " $(cat /proc/cmdline) " in
+
+    *" core-vault.install=1 "*)
+        ;;
+
+    *)
+        exec /usr/local/bin/core-vault-session
+        ;;
+
+esac
+
+
+##############################################################################
+# INSTALLER SESSION
+##############################################################################
+
+export LANG=en_US.UTF-8
+export LANGUAGE=en
+
+: "${XDG_RUNTIME_DIR:?Missing local runtime directory}"
+
+LOG="$XDG_RUNTIME_DIR/core-vault-installer-launch.log"
+
+# Match the Vault desktop's initial keyboard state before the installer opens.
+/usr/local/bin/core-vault-numlock >"$XDG_RUNTIME_DIR/core-vault-numlock.log" 2>&1 || {
+    printf '%s\n' 'Num Lock setup unavailable; see core-vault-numlock.log.' >&2
+}
+
+
+##############################################################################
+# BACKGROUND
+##############################################################################
+
+/usr/bin/xsetroot -solid black
+
+
+##############################################################################
+# WINDOW MANAGER
+##############################################################################
+
+/usr/bin/openbox --config-file /usr/share/core-vault/openbox.xml &
+
+WM_PID=$!
+
+trap '
+    kill "$WM_PID" 2>/dev/null || true
+' EXIT
+
+
+##############################################################################
+# INSTALLER LOOP
+##############################################################################
+
+while :; do
+
+    RC=0
+
+    : > "$LOG"
+
+    /usr/bin/sudo \
+        -n \
+        -- \
+        /usr/local/sbin/core-vault-installer \
+        >>"$LOG" 2>&1 \
+        || RC=$?
+
+
+    ##########################################################################
+    # SUCCESSFUL SYSTEM STOP / REBOOT
+    ##########################################################################
+
+    STATE="$(
+        /usr/bin/systemctl is-system-running \
+            2>/dev/null || true
+    )"
+
+    if [ "$STATE" = "stopping" ]; then
+
+        while :; do
+            sleep 60
+        done
+
+    fi
+
+
+    ##########################################################################
+    # INSTALLER FAILURE — SHOW THE ACTUAL LOG
+    ##########################################################################
+
+    if [ "$RC" -ne 0 ]; then
+
+        /usr/bin/zenity \
+            --text-info \
+            --title="Bitcoin Core Vault Installer — Diagnostic Log" \
+            --width=1000 \
+            --height=700 \
+            --filename="$LOG" \
+            --ok-label="Close log" \
+            || true
+
+    fi
+
+
+    ##########################################################################
+    # RETRY / POWER OFF
+    ##########################################################################
+
+    if /usr/bin/zenity \
+        --question \
+        --no-markup \
+        --width=620 \
+        --title="Bitcoin Core Vault Installer" \
+        --ok-label="Open installer again" \
+        --cancel-label="Power off" \
+        --text="The installer has closed (status $RC).
+
+No installation is restarted automatically.
+
+If the installer failed, inspect the diagnostic log before retrying."
+
+    then
+
+        continue
+
+    fi
+
+
+    ##########################################################################
+    # POWER OFF
+    ##########################################################################
+
+    if /usr/bin/sudo \
+        -n \
+        -- \
+        /usr/bin/systemctl \
+        --no-block \
+        poweroff \
+        >>"$LOG" 2>&1
+
+    then
+
+        while :; do
+            sleep 60
+        done
+
+    fi
+
+    /usr/bin/zenity \
+        --error \
+        --no-markup \
+        --text="Power-off request failed.
+
+See:
+$LOG" \
+        || true
+
+done

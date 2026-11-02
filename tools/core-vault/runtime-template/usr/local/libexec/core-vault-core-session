@@ -1,0 +1,43 @@
+#!/bin/sh
+# The fixed inner command of Core's read-only filesystem namespace.
+set -eu
+umask 077
+ulimit -c 0
+if [ "$(id -u)" -ne 1000 ] || [ "$HOME" != /home/vault ]; then
+    printf '%s\n' 'Please launch Bitcoin Core from the Vault desktop account.' >&2
+    exit 1
+fi
+case ",$(/usr/bin/findmnt --uniq --noheadings --output OPTIONS --target /)," in
+    *,ro,*) ;;
+    *) printf '%s\n' 'Bitcoin Core filesystem isolation is not active.' >&2; exit 1 ;;
+esac
+/usr/local/bin/core-vault-storage-check --session --core >/dev/null
+
+# VAULT_CORE_NATIVE_HIDE_V2
+# This shell is the real app PID inside bubblewrap. Exec preserves that PID,
+# so the bounded observer addresses only the verified official Core window.
+/usr/local/bin/core-vault-hide-sync --pid "$$" \
+    >"$XDG_RUNTIME_DIR/core-vault-hide-sync.log" 2>&1 3>&- &
+# GUI create/open wallet records its startup setting. Allow that write only
+# in the checked RAM home; explicit offline arguments below take precedence.
+exec /usr/local/bin/bitcoin-qt \
+    -datadir="$HOME/.bitcoin" \
+    -walletdir="$HOME/.bitcoin/wallets" \
+    -server=1 \
+    -rpcport=8332 \
+    -rpcbind=127.0.0.1 \
+    -rpcallowip=127.0.0.1 \
+    -settings=/home/vault/.bitcoin/settings.json \
+    -networkactive=0 \
+    -maxconnections=0 \
+    -listen=0 \
+    -listenonion=0 \
+    -dns=0 \
+    -dnsseed=0 \
+    -fixedseeds=0 \
+    -discover=0 \
+    -natpmp=0 \
+    -walletbroadcast=0 \
+    -prune=550 \
+    -splash=0 \
+    -lang=en

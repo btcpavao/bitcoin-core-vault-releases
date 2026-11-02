@@ -1,0 +1,28 @@
+#!/usr/bin/python3
+"""Fail closed when private HOME/Core/session storage is not RAM-backed."""
+import argparse
+import json
+from pathlib import Path
+import sys
+sys.path.insert(0, '/usr/lib/core-vault')
+from runtime import check_storage, check_core_mounts
+parser = argparse.ArgumentParser(description=__doc__)
+mode = parser.add_mutually_exclusive_group(required=True)
+mode.add_argument('--session', action='store_true')
+mode.add_argument('--installed', action='store_true')
+parser.add_argument('--core', action='store_true',
+                    help='Also reject nested mounts inside Core writable RAM directories.')
+args = parser.parse_args()
+try:
+    report = Path('/etc/core-vault/installation.json')
+    if args.installed or report.exists():
+        data = json.loads(report.read_text())
+        if data.get('stage') != 'installed-checks-passed' or data.get('storage') != 'persistent-os-with-ram-only-private-home-v1':
+            raise RuntimeError('Installed image has not passed the RAM-only policy checks.')
+    check_storage()
+    if args.core:
+        check_core_mounts()
+    print('VAULT STORAGE CHECK PASSED: HOME, Core wallets, session state and temporary files are in RAM.')
+except Exception:
+    print('VAULT STORAGE CHECK FAILED: private RAM storage is not ready.', file=sys.stderr)
+    sys.exit(1)

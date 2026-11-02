@@ -1,0 +1,48 @@
+#!/usr/bin/python3
+"""Prepare only fixed directories inside the independently verified RAM mount."""
+import json
+import os
+from pathlib import Path
+import pwd
+import shutil
+import subprocess
+
+ROOT = Path('/run/core-vault')
+rows = json.loads(subprocess.check_output(
+    ['/usr/bin/findmnt', '-J', '-M', str(ROOT), '-o', 'TARGET,FSTYPE,OPTIONS'], text=True))['filesystems']
+if len(rows) != 1 or rows[0]['fstype'] != 'tmpfs' or not {'noswap', 'nodev', 'nosuid', 'noexec'}.issubset(rows[0]['options'].split(',')):
+    raise SystemExit('Private session mount is missing or unsafe.')
+if Path('/proc/swaps').read_text().splitlines()[1:]:
+    raise SystemExit('Swap must be inactive before private session preparation.')
+account = pwd.getpwnam('vault')
+if (account.pw_uid, account.pw_gid, account.pw_dir) != (1000, 1000, '/home/vault'):
+    raise SystemExit('Unexpected Vault account.')
+os.umask(0o077)
+for name in ('home', 'home/.bitcoin', 'home/.bitcoin/wallets', 'home/Private Workspace',
+             'home/.config', 'home/.cache', 'home/.local', 'home/.local/share', 'home/.local/state',
+             'export', 'tmp', 'state', 'state/core-runtime'):
+    path = ROOT / name
+    if path.is_symlink() or (path.exists() and not path.is_dir()):
+        raise SystemExit('Unexpected private session directory.')
+    path.mkdir(mode=0o700, parents=True, exist_ok=True)
+    path.chmod(0o700)
+    os.chown(path, 1000, 1000)
+# Copy only the immutable image's application defaults; never an old user's home.
+# Refuse links and special objects in the seed to keep the copy auditable.
+seed = Path('/etc/skel')
+for source in sorted(seed.rglob('*')):
+    if source.is_symlink() or not (source.is_dir() or source.is_file()):
+        raise SystemExit('Unexpected object in immutable home template.')
+    rel = source.relative_to(seed)
+    if any(part in ('.bitcoin', '.cache', '.local') for part in rel.parts):
+        continue
+    dest = ROOT / 'home' / rel
+    if dest.exists():
+        continue
+    if source.is_dir():
+        dest.mkdir(mode=0o700, parents=True, exist_ok=True)
+    else:
+        dest.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        shutil.copyfile(source, dest)
+        dest.chmod(0o600)
+    os.chown(dest, 1000, 1000)

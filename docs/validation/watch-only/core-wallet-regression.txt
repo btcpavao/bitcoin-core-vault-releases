@@ -1,0 +1,13 @@
+{"application_test_only": true, "fixture_gpg_ownership_adaptation": true, "public_binary_copy_only": true, "stock_gpg_sha256": "7c9d2f9416aabcd10199e2984439f49612644a948279ac56bdf70d69c8958ddf"}
+[PASS] Unencrypted Core wallet -> encrypted gpg -> restored labelled wallet
+[PASS] Unloaded unencrypted wallet exports without load/unload side effects
+[PASS] Synthetic regtest funding and PSBT signing validated by Core
+[PASS] Parent-path wallet is inventoried and exported while loaded and unloaded
+[PASS] Recovered encrypted wallet signs a funded PSBT accepted by Core
+[PASS] Official Core creates and encrypts a descriptor/SQLite wallet
+[PASS] Official backupwallet -> gpg -> verified wallet read-back
+[PASS] Wrong archive passphrase rejected
+[PASS] Official restorewallet recovers the labelled address
+[PASS] Export digest remains valid after clean Core shutdown
+[PASS] Closed Core unencrypted wallet -> encrypted gpg -> restored labelled wallet
+{"application_test_only": true, "backup_format": "gpg", "core_sha256": "fcd4c1a3193e0cb4eec9d980c835d822ad726627b0c01281b13f5c3c1f593fcb", "wallet_digest": "2da91579c1a04fde36ec9283eb7d71f5f607cb218f1c6c5fa17c0cbf6dc12889", "archive_sha256": "f1300532a729fc08509b8ac74c10c1c1ed4ec3f0e814ef9769c1002491d344eb"}

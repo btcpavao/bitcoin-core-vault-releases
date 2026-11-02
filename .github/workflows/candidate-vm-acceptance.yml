@@ -1,0 +1,142 @@
+name: Candidate VM evidence
+
+# A separate branch keeps this optional evidence job from cancelling the
+# source/build workflow on feature/gpg-encrypted-backups. Push after its candidate
+# artifact exists. workflow_run is unsuitable until this file is on main.
+on:
+  push:
+    branches: [ci/gpg-candidate-vm-acceptance]
+  workflow_dispatch:
+    inputs:
+      producer_run_id:
+        description: Successful Source and package checks run containing the candidate
+        required: true
+        default: '38429097399'
+      producer_sha:
+        description: Exact candidate producer commit
+        required: true
+        default: 'bd5fd3e7c24057111221b0f5729f9f27355b154a'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  candidate-vm:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        firmware: [bios, uefi]
+    env:
+      PRODUCER_RUN: ${{ inputs.producer_run_id || '38429097399' }}
+      PRODUCER_SHA: ${{ inputs.producer_sha || 'bd5fd3e7c24057111221b0f5729f9f27355b154a' }}
+    steps:
+      - name: Check out the evidence harness
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - name: Validate exact successful candidate artifact
+        id: candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          python3 - <<'PY'
+          import json, os, re, urllib.request
+          run, sha = os.environ['PRODUCER_RUN'], os.environ['PRODUCER_SHA']
+          assert re.fullmatch(r'[0-9]+', run) and re.fullmatch(r'[0-9a-f]{40}', sha)
+          base = 'https://api.github.com/repos/' + os.environ['REPOSITORY']
+          def get(path):
+              request = urllib.request.Request(base + path, headers={
+                  'Authorization': 'Bearer ' + os.environ['GH_TOKEN'],
+                  'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28'})
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  return json.load(response)
+          record = get('/actions/runs/' + run)
+          assert record['head_sha'] == sha and record['head_branch'] == 'feature/gpg-encrypted-backups'
+          assert record['status'] == 'completed' and record['conclusion'] == 'success'
+          name = 'bitcoin-core-vault-gpg-candidate-' + sha
+          matches = [a for a in get('/actions/runs/' + run + '/artifacts')['artifacts']
+                     if a['name'] == name and not a['expired']]
+          assert len(matches) == 1
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write('name=' + name + '\n')
+          PY
+
+      - name: Download the private candidate evidence
+        # Official actions/download-artifact v5, resolved to this exact commit.
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
+        with:
+          name: ${{ steps.candidate.outputs.name }}
+          path: candidate-artifacts
+          github-token: ${{ github.token }}
+          run-id: ${{ env.PRODUCER_RUN }}
+
+      - name: Verify candidate provenance and checksums
+        run: |
+          cd candidate-artifacts
+          sha256sum --check SHA256SUMS
+          python3 - <<'PY'
+          import json, os
+          m = json.load(open('candidate-manifest.json'))
+          assert m['source_commit'] == os.environ['PRODUCER_SHA']
+          assert m['release_published'] is False
+          for outcome in m['validation']['iso_content_gates'].values():
+              assert outcome == 'passed'
+          PY
+
+      - name: Install disposable runner VM tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            qemu-system-x86 qemu-utils ovmf mtools python3-pil tesseract-ocr tesseract-ocr-eng
+
+      - name: Detect already-usable runner acceleration
+        id: accelerator
+        run: |
+          python3 - <<'PY'
+          import fcntl, json, os, stat
+          mode, api, observation = 'tcg', None, 'KVM was not already usable by this ordinary runner.'
+          descriptor = None
+          try:
+              descriptor = os.open('/dev/kvm', os.O_RDWR | os.O_CLOEXEC | os.O_NOFOLLOW)
+              info = os.fstat(descriptor)
+              assert stat.S_ISCHR(info.st_mode) and os.major(info.st_rdev) == 10 and os.minor(info.st_rdev) == 232
+              api = fcntl.ioctl(descriptor, 0xAE00, 0)  # KVM_GET_API_VERSION; no VM or privilege change.
+              assert api == 12
+              mode, observation = 'kvm', 'Existing ordinary-runner KVM access and API version 12 verified.'
+          except (OSError, AssertionError):
+              pass
+          finally:
+              if descriptor is not None:os.close(descriptor)
+          print(json.dumps({'accelerator':mode,'kvm_api':api,'observation':observation}))
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write('mode=' + mode + '\n')
+          PY
+
+      - name: Collect normal Live, installation, installed and native GUI evidence
+        run: |
+          set -euo pipefail
+          ISO_SHA=$(python3 -c 'import json; m=json.load(open("candidate-artifacts/candidate-manifest.json")); print(next(a["sha256"] for a in m["assets"] if a["name"].endswith(".iso")))')
+          python3 tools/core-vault/ci-vm-acceptance.py \
+            --iso "$PWD/candidate-artifacts/bitcoin-core-vault-gpg-candidate-amd64.iso" \
+            --sha256 "$ISO_SHA" --firmware '${{ matrix.firmware }}' --accel '${{ steps.accelerator.outputs.mode }}' --install --gui --scan --reset \
+            --output "$RUNNER_TEMP/vault-candidate-${{ matrix.firmware }}"
+
+      - name: Retain covered checks and failure screenshots
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: vault-candidate-vm-${{ matrix.firmware }}-${{ env.PRODUCER_SHA }}
+          path: |
+            ${{ runner.temp }}/vault-candidate-${{ matrix.firmware }}/**/*.json
+            ${{ runner.temp }}/vault-candidate-${{ matrix.firmware }}/**/*.png
+            ${{ runner.temp }}/vault-candidate-${{ matrix.firmware }}/**/*.log
+          if-no-files-found: warn
+          retention-days: 7
+
+      # Complete GUI creation/recovery/Finish, forensic scan and hardware
+      # results are not inferred from the covered Live/installation probes.

@@ -1,0 +1,221 @@
+#!/usr/bin/python3
+"""Local printing and media-label helper for Bitcoin Core Vault."""
+from __future__ import annotations
+
+from datetime import date
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QFont, QTextDocument
+from PySide6.QtPrintSupport import QPrintDialog, QPrinter, QPrinterInfo
+from PySide6.QtWidgets import (
+    QApplication, QComboBox, QDialog, QFileDialog, QFormLayout, QHBoxLayout,
+    QLabel, QLineEdit, QMessageBox, QPushButton, QTextEdit, QVBoxLayout, QWidget
+)
+
+STYLE = '''
+QWidget { background: #0b0b0b; color: #f2f2f2; }
+QLabel#Title { font-size: 24px; font-weight: 700; }
+QLabel#Subtitle, QLabel#Status { color: #aaa; }
+QPushButton { background: #171717; color: white; border: 1px solid #3a3a3a; border-radius: 7px; padding: 9px 14px; }
+QPushButton:hover { background: #242424; }
+QLineEdit, QTextEdit, QComboBox { background: #151515; color: white; border: 1px solid #444; border-radius: 5px; padding: 6px; }
+'''
+
+RECOVERY_TEMPLATE = 'BITCOIN WALLET RECOVERY INSTRUCTIONS\n\nWallet / owner: ______________________________\nDate prepared: _______________________________\nLast recovery test: __________________________\n\nWHAT THIS IS FOR\nUse this page to find the backup and recover access to the Bitcoin wallet.\n\nWHAT YOU NEED\n[ ] Main wallet backup: ___________________________________________\n[ ] Second backup: _______________________________________________\n[ ] Other backup or important file: _______________________________\n[ ] Where the password or passphrase is kept: _____________________\n\nHOW TO RECOVER\n1. Find one of the wallet backups listed above.\n2. Find the password or passphrase kept in its separate location.\n2a. Open the .gpg backup with Decrypt Encrypted Backup. Enter all external passphrases in any order and recover wallet.dat into Private Workspace. Keep the separate Bitcoin Core wallet passphrase available if the wallet uses one.\n3. Use Bitcoin Core to restore the wallet.dat backup file.\n4. Check one known receiving address against your records to make sure it is the correct wallet.\n5. When the recovery test is complete, write the date and result below.\n\nRECOVERY TEST\nDate: ______________________\nResult / notes: __________________________________________________\n__________________________________________________________________\n\nOTHER NOTES\n__________________________________________________________________\n__________________________________________________________________\n__________________________________________________________________\n'
+
+
+def printers():
+    return QPrinterInfo.availablePrinters()
+
+
+def choose_printer(parent):
+    if not printers():
+        QMessageBox.information(parent, 'No printer configured',
+                                'No local printer is configured. Connect a USB printer and use Printer Setup.')
+        return None
+    printer = QPrinter(QPrinter.HighResolution)
+    dialog = QPrintDialog(printer, parent)
+    dialog.setWindowTitle('Select printer')
+    if dialog.exec() != QDialog.Accepted:
+        return None
+    return printer
+
+
+def print_text(parent, title, text):
+    printer = choose_printer(parent)
+    if printer is None:
+        return
+    printer.setDocName(title)
+    doc = QTextDocument()
+    doc.setDefaultFont(QFont('DejaVu Sans', 11))
+    doc.setPlainText(text)
+    doc.print_(printer)
+
+
+class RecoveryDialog(QDialog):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.setWindowTitle('Recovery Instructions')
+        self.resize(760, 620)
+        self.setStyleSheet(STYLE)
+        layout = QVBoxLayout(self)
+        note = QLabel('Fill in the blanks, review the instructions, then print.')
+        note.setObjectName('Subtitle')
+        layout.addWidget(note)
+        self.editor = QTextEdit()
+        self.editor.setPlainText(RECOVERY_TEMPLATE)
+        layout.addWidget(self.editor, 1)
+        buttons = QHBoxLayout()
+        print_button = QPushButton('Print')
+        print_button.clicked.connect(lambda: print_text(self, 'Bitcoin custody recovery instructions', self.editor.toPlainText()))
+        close = QPushButton('Close')
+        close.clicked.connect(self.close)
+        buttons.addStretch(1)
+        buttons.addWidget(print_button)
+        buttons.addWidget(close)
+        layout.addLayout(buttons)
+
+
+class LabelDialog(QDialog):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.setWindowTitle('Media Label')
+        self.resize(560, 430)
+        self.setStyleSheet(STYLE)
+        outer = QVBoxLayout(self)
+        form = QFormLayout()
+        self.media = QComboBox()
+        self.media.addItems(['USB', 'SSD', 'CD', 'DVD', 'M-DISC'])
+        self.name = QLineEdit('Bitcoin Vault Backup')
+        self.copy = QLineEdit('Copy 1 of 3')
+        self.created = QLineEdit(date.today().isoformat())
+        self.verified = QLineEdit('')
+        self.notes = QTextEdit()
+        self.notes.setFixedHeight(90)
+        form.addRow('Media', self.media)
+        form.addRow('Label', self.name)
+        form.addRow('Copy', self.copy)
+        form.addRow('Created', self.created)
+        form.addRow('Last verified', self.verified)
+        form.addRow('Notes', self.notes)
+        outer.addLayout(form)
+        buttons = QHBoxLayout()
+        print_button = QPushButton('Print Label')
+        print_button.clicked.connect(self.do_print)
+        close = QPushButton('Close')
+        close.clicked.connect(self.close)
+        buttons.addStretch(1)
+        buttons.addWidget(print_button)
+        buttons.addWidget(close)
+        outer.addLayout(buttons)
+
+    def do_print(self):
+        text = (
+            f'BITCOIN CORE VAULT — {self.media.currentText()}\n\n'
+            f'{self.name.text()}\n'
+            f'{self.copy.text()}\n\n'
+            f'Created: {self.created.text()}\n'
+            f'Last verified: {self.verified.text() or "________________"}\n\n'
+            f'{self.notes.toPlainText()}\n'
+        )
+        print_text(self, 'Bitcoin Vault media label', text)
+
+
+class PrintCenter(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle('Print & Labels')
+        self.resize(720, 520)
+        self.setStyleSheet(STYLE)
+        outer = QVBoxLayout(self)
+        title = QLabel('Print & Labels')
+        title.setObjectName('Title')
+        outer.addWidget(title)
+        sub = QLabel('Local printing for recovery instructions and physical backup media.')
+        sub.setObjectName('Subtitle')
+        outer.addWidget(sub)
+        warning = QLabel('USB/local printers only in the Vault workflow. Printing a secret creates another physical copy of that secret.')
+        warning.setWordWrap(True)
+        warning.setObjectName('Subtitle')
+        outer.addWidget(warning)
+        outer.addSpacing(12)
+
+        for label, handler in (
+            ('Print a document', self.print_document),
+            ('Recovery Instructions', self.recovery),
+            ('Media Label', self.media_label),
+            ('Print Test Page', self.test_page),
+            ('Printer Setup', self.printer_setup),
+        ):
+            button = QPushButton(label)
+            button.clicked.connect(handler)
+            outer.addWidget(button)
+        outer.addStretch(1)
+        self.status = QLabel()
+        self.status.setObjectName('Status')
+        outer.addWidget(self.status)
+        refresh = QPushButton('Refresh printers')
+        refresh.clicked.connect(self.refresh)
+        outer.addWidget(refresh)
+        self.refresh()
+
+    def refresh(self):
+        names = [p.printerName() for p in printers()]
+        self.status.setText('Configured printers: ' + (', '.join(names) if names else 'none'))
+
+    def printer_setup(self):
+        command = shutil.which('system-config-printer')
+        if not command:
+            QMessageBox.warning(self, 'Printer Setup unavailable', 'system-config-printer is not installed.')
+            return
+        try:
+            subprocess.Popen([command], start_new_session=True)
+        except OSError as exc:
+            QMessageBox.warning(self, 'Printer Setup failed', str(exc))
+
+    def print_document(self):
+        path, _ = QFileDialog.getOpenFileName(self, 'Print a document', str(Path.home()),
+                                               'Documents (*.txt *.pdf);;Text files (*.txt);;PDF files (*.pdf)')
+        if not path:
+            return
+        p = Path(path)
+        if p.suffix.lower() == '.txt':
+            try:
+                print_text(self, p.name, p.read_text(errors='replace'))
+            except OSError as exc:
+                QMessageBox.warning(self, 'Cannot read document', str(exc))
+            return
+        if p.suffix.lower() == '.pdf':
+            printer = choose_printer(self)
+            if printer is None:
+                return
+            lp = shutil.which('lp')
+            if not lp:
+                QMessageBox.warning(self, 'Printing unavailable', 'The CUPS lp command is not installed.')
+                return
+            result = subprocess.run([lp, '-d', printer.printerName(), str(p)], capture_output=True, text=True)
+            if result.returncode:
+                QMessageBox.warning(self, 'Print failed', result.stderr or result.stdout)
+            else:
+                QMessageBox.information(self, 'Print job sent', result.stdout.strip() or 'The PDF was sent to the printer.')
+
+    def recovery(self):
+        RecoveryDialog(self).exec()
+
+    def media_label(self):
+        LabelDialog(self).exec()
+
+    def test_page(self):
+        print_text(self, 'Bitcoin Core Vault test page',
+                   'Bitcoin Core Vault\n\nLocal printer test page\n\n' + date.today().isoformat())
+
+app = QApplication(sys.argv)
+app.setStyle('Fusion')
+app.setFont(QFont('DejaVu Sans', 10))
+window = PrintCenter()
+window.show()
+sys.exit(app.exec())

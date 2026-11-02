@@ -1,0 +1,62 @@
+# Bitcoin Core Vault — Debian packages
+
+# Desktop/application tools
+# KeePassXC comes from the pinned, signature-verified upstream AppImage.
+libusb-1.0-0
+brasero
+thunar
+mousepad
+xfce4-terminal
+
+# Helper GUI runtime
+python3
+python3-pyside6.qtwidgets
+qt6-svg-plugins
+bubblewrap
+
+# Removable media
+udisks2
+udiskie
+
+# Optical media / filesystem support
+e2fsprogs
+dosfstools
+util-linux
+
+# Existing minimal graphical stack is inherited from Signer base.
+#
+tint2
+hicolor-icon-theme
+adwaita-icon-theme
+
+# X11 desktop readiness and geometry diagnostics
+x11-utils
+brasero-cdrkit
+eject
+cups
+cups-client
+cups-pk-helper
+system-config-printer
+printer-driver-gutenprint
+python3-pyside6.qtprintsupport
+
+# Vault Places settings (no full Xfce desktop).
+xfconf
+at-spi2-core
+gir1.2-atspi-2.0
+python3-gi
+
+# Encrypted Backup: stock Debian runtime; local integration package is staged separately.
+gpg
+zenity
+python3-pexpect
+exfatprogs
+xdg-utils
+
+# Recognize only the native Core startup panel before one addressed Hide action.
+tesseract-ocr
+tesseract-ocr-eng
+
+# File shredding uses the stock Debian GNU shred engine.
+coreutils
+tar

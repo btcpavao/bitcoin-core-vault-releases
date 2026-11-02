@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+<!-- Transparent background; printer glyph without a dark square icon canvas. -->
+<rect x="17" y="7" width="30" height="19" rx="2" fill="#f2f4f6" stroke="#aab8c4" stroke-width="2"/>
+<path d="M21 13h22M21 18h15" stroke="#90a1ae" stroke-width="2" stroke-linecap="round"/>
+<rect x="9" y="23" width="46" height="28" rx="5" fill="#b6c7d1" stroke="#8295a3" stroke-width="2"/>
+<rect x="15" y="29" width="34" height="11" rx="2" fill="#465e6d"/>
+<circle cx="46" cy="28" r="2.2" fill="#f7931a"/>
+<rect x="17" y="36" width="30" height="21" rx="2" fill="#f8fafb" stroke="#aab8c4" stroke-width="2"/>
+<path d="M23 44h18M23 49h13" stroke="#7e97a8" stroke-width="2" stroke-linecap="round"/>
+</svg>

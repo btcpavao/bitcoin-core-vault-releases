@@ -1,0 +1,16 @@
+[Unit]
+Description=Bitcoin Core Vault volatile private session
+DefaultDependencies=no
+After=local-fs.target
+Conflicts=umount.target
+Before=umount.target
+Before=core-vault-prepare.service lightdm.service
+
+[Mount]
+What=tmpfs
+Where=/run/core-vault
+Type=tmpfs
+Options=noswap,nodev,nosuid,noexec,mode=0700,uid=1000,gid=1000,size=50%
+
+[Install]
+WantedBy=multi-user.target

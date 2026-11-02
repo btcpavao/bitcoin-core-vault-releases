@@ -1,0 +1,47 @@
+#!/bin/sh
+set -eu
+VERSION=$(dpkg-query -W -f='${Version}' calamares)
+case "$VERSION" in 3.3.14-*+coreoffline1) ;; *) echo "Unreviewed installer package: $VERSION" >&2; exit 1;; esac
+for MODULE in partition keyboard summary mount unpackfs machineid fstab initramfs bootloader umount finished; do
+    test -f "/usr/lib/x86_64-linux-gnu/calamares/modules/$MODULE/module.desc"
+done
+for BIN in /usr/bin/calamares /usr/sbin/grub-install /usr/sbin/grub-mkconfig \
+    /usr/bin/sudo /usr/bin/python3 /usr/bin/rsync \
+    /usr/local/sbin/core-offline-installer /usr/local/bin/core-offline-entry; do
+    test -x "$BIN"
+done
+command -v unsquashfs >/dev/null
+test -f /usr/lib/x86_64-linux-gnu/qt6/plugins/platforms/libqxcb.so
+if ldd /usr/bin/calamares | grep -q 'not found'; then
+    echo 'Missing Calamares runtime library' >&2
+    exit 1
+fi
+chown -R root:root /etc/calamares /usr/lib/core-offline-installer
+chown root:root /usr/local/sbin/core-offline-installer /usr/local/bin/core-offline-entry \
+    /usr/share/core-signer/lightdm-display-setup.sh /etc/sudoers.d/80-core-offline-installer
+chmod 0755 /usr/local/sbin/core-offline-installer /usr/local/bin/core-offline-entry \
+    /usr/share/core-signer/lightdm-display-setup.sh
+chmod 0440 /etc/sudoers.d/80-core-offline-installer
+/usr/sbin/visudo -c
+# Generate English locale once. The keyboard layout is an independent setting.
+printf '%s\n' 'en_US.UTF-8 UTF-8' > /etc/locale.gen
+/usr/sbin/locale-gen
+/usr/bin/python3 - <<'PY'
+import ast, hashlib, json
+from pathlib import Path
+import yaml
+settings=yaml.safe_load(Path('/etc/calamares/settings.conf').read_text())
+assert settings['prompt-install'] is True
+assert settings['sequence'][0]['show']==['keyboard','partition','summary']
+for p in Path('/etc/calamares').rglob('*.conf'):
+    yaml.safe_load(p.read_text())
+for p in Path('/usr/lib/core-offline-installer').rglob('*.py'):
+    ast.parse(p.read_text(),str(p))
+ast.parse(Path('/usr/local/sbin/core-offline-installer').read_text())
+# Verify all already-working payload scripts were not silently replaced.
+expected=json.loads(Path('/etc/core-offline/expected-preserved.json').read_text())
+for name,digest in expected.items():
+    got=hashlib.sha256(Path('/'+name).read_bytes()).hexdigest()
+    if got!=digest: raise SystemExit('Working Core component unexpectedly changed: '+name)
+print('CORE OFFLINE INSTALLER BUILD CHECKS PASSED')
+PY

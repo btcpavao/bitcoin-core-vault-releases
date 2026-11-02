@@ -1,0 +1,10 @@
+[Unit]
+Description=Destroy Bitcoin Core Vault private session and finish
+After=multi-user.target
+OnFailure=poweroff.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/libexec/core-vault-destroy %i
+TimeoutStartSec=90
+LimitCORE=0

@@ -1,0 +1,578 @@
+[
+  {
+    "viewport": [
+      800,
+      600
+    ],
+    "section": "Home & keyboard",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      800,
+      600
+    ],
+    "section": "Bitcoin Core",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      800,
+      600
+    ],
+    "section": "KeePassXC",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      800,
+      600
+    ],
+    "section": "Brasero",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      800,
+      600
+    ],
+    "section": "Print & Labels",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      800,
+      600
+    ],
+    "section": "Files",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      800,
+      600
+    ],
+    "section": "Editor",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      800,
+      600
+    ],
+    "section": "Terminal",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      800,
+      600
+    ],
+    "section": "Private Workspace",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      800,
+      600
+    ],
+    "section": "USB & optical media",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      800,
+      600
+    ],
+    "section": "Create & encrypt a wallet",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      800,
+      600
+    ],
+    "section": "Generate a passphrase",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      800,
+      600
+    ],
+    "section": "Encryption security levels",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      800,
+      600
+    ],
+    "section": "Backup & verify",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      800,
+      600
+    ],
+    "section": "Finish Private Session",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      800,
+      600
+    ],
+    "section": "Sign a PSBT offline",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      800,
+      600
+    ],
+    "section": "Recovery / inheritance",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      800,
+      600
+    ],
+    "section": "Decrypt Backup",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1024,
+      768
+    ],
+    "section": "Home & keyboard",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1024,
+      768
+    ],
+    "section": "Bitcoin Core",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1024,
+      768
+    ],
+    "section": "KeePassXC",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1024,
+      768
+    ],
+    "section": "Brasero",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1024,
+      768
+    ],
+    "section": "Print & Labels",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1024,
+      768
+    ],
+    "section": "Files",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1024,
+      768
+    ],
+    "section": "Editor",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1024,
+      768
+    ],
+    "section": "Terminal",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1024,
+      768
+    ],
+    "section": "Private Workspace",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1024,
+      768
+    ],
+    "section": "USB & optical media",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1024,
+      768
+    ],
+    "section": "Create & encrypt a wallet",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1024,
+      768
+    ],
+    "section": "Generate a passphrase",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1024,
+      768
+    ],
+    "section": "Encryption security levels",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1024,
+      768
+    ],
+    "section": "Backup & verify",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1024,
+      768
+    ],
+    "section": "Finish Private Session",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1024,
+      768
+    ],
+    "section": "Sign a PSBT offline",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1024,
+      768
+    ],
+    "section": "Recovery / inheritance",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1024,
+      768
+    ],
+    "section": "Decrypt Backup",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1366,
+      768
+    ],
+    "section": "Home & keyboard",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1366,
+      768
+    ],
+    "section": "Bitcoin Core",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1366,
+      768
+    ],
+    "section": "KeePassXC",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1366,
+      768
+    ],
+    "section": "Brasero",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1366,
+      768
+    ],
+    "section": "Print & Labels",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1366,
+      768
+    ],
+    "section": "Files",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1366,
+      768
+    ],
+    "section": "Editor",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1366,
+      768
+    ],
+    "section": "Terminal",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1366,
+      768
+    ],
+    "section": "Private Workspace",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1366,
+      768
+    ],
+    "section": "USB & optical media",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1366,
+      768
+    ],
+    "section": "Create & encrypt a wallet",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1366,
+      768
+    ],
+    "section": "Generate a passphrase",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1366,
+      768
+    ],
+    "section": "Encryption security levels",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1366,
+      768
+    ],
+    "section": "Backup & verify",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1366,
+      768
+    ],
+    "section": "Finish Private Session",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1366,
+      768
+    ],
+    "section": "Sign a PSBT offline",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1366,
+      768
+    ],
+    "section": "Recovery / inheritance",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1366,
+      768
+    ],
+    "section": "Decrypt Backup",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1920,
+      1080
+    ],
+    "section": "Home & keyboard",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1920,
+      1080
+    ],
+    "section": "Bitcoin Core",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1920,
+      1080
+    ],
+    "section": "KeePassXC",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1920,
+      1080
+    ],
+    "section": "Brasero",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1920,
+      1080
+    ],
+    "section": "Print & Labels",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1920,
+      1080
+    ],
+    "section": "Files",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1920,
+      1080
+    ],
+    "section": "Editor",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1920,
+      1080
+    ],
+    "section": "Terminal",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1920,
+      1080
+    ],
+    "section": "Private Workspace",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1920,
+      1080
+    ],
+    "section": "USB & optical media",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1920,
+      1080
+    ],
+    "section": "Create & encrypt a wallet",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1920,
+      1080
+    ],
+    "section": "Generate a passphrase",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1920,
+      1080
+    ],
+    "section": "Encryption security levels",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1920,
+      1080
+    ],
+    "section": "Backup & verify",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1920,
+      1080
+    ],
+    "section": "Finish Private Session",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1920,
+      1080
+    ],
+    "section": "Sign a PSBT offline",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1920,
+      1080
+    ],
+    "section": "Recovery / inheritance",
+    "status": "PASS"
+  },
+  {
+    "viewport": [
+      1920,
+      1080
+    ],
+    "section": "Decrypt Backup",
+    "status": "PASS"
+  }
+]

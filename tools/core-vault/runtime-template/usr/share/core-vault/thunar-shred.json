@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "package": "thunar",
+  "version": "4.20.2-1+deb13u1+corevault1",
+  "architecture": "amd64",
+  "package_file": "config/packages.chroot/thunar_4.20.2-1+deb13u1+corevault1_amd64.deb",
+  "package_sha256": "1cf16b20f4b72e9bf0c4cee76630e51d72bf3026057269df193d724a29f7cbf5",
+  "fix": "native-permanent-delete-helper",
+  "source_archive": "usr/share/doc/thunar/core-vault-source/Thunar-core-vault-source.tar.xz",
+  "patch": "usr/share/doc/thunar/core-vault-source/core-vault-permanent-delete.patch",
+  "build_recipe": "usr/share/doc/thunar/core-vault-source/README.md",
+  "files": {
+    "usr/bin/thunar": "ae317acc943003bf3736f5e4206f536d67bc0a74184327be1dd3e1db703b4378",
+    "usr/share/doc/thunar/copyright": "2eb3da7b9b78e1a42c64b806c2a760111b4e892c5632c8387d705fc041f526f9",
+    "usr/share/doc/thunar/core-vault-source/README.md": "7f183af7e720876b2147b73de244fbf901e1d4a49d6f8cf1fad65ff2009a6c0b",
+    "usr/share/doc/thunar/core-vault-source/Thunar-core-vault-source.tar.xz": "1136ba32c8a8c9e7ea4b31115dfa8afa523dd3c46e91330943b5d8c85a02b6e8",
+    "usr/share/doc/thunar/core-vault-source/apt-source-metadata.txt": "7935db5178353ea43eae25494f954a7be3475942d471bb2066d91c1107d61ce7",
+    "usr/share/doc/thunar/core-vault-source/build-acceptance.json": "eab7553bae81de1ebf82c36d7acc4d835390e58976e938306c65b84d9684f86c",
+    "usr/share/doc/thunar/core-vault-source/build-thunar.py": "8edbc9ab891e9822bdde44ea5001041ce4f67f42c09ff87c896a97f14ee8c765",
+    "usr/share/doc/thunar/core-vault-source/core-vault-permanent-delete.patch": "7d12eed583a2f052d78d4fa9258d15976d02c3b936b83171d04dbf11a79b902d",
+    "usr/share/doc/thunar/core-vault-source/corresponding-source-manifest.json": "a5ac8f4936ae309e5b71c80ce5972746261c5418b133139a487ac6bae1bf0ded",
+    "usr/share/doc/thunar/core-vault-source/deps-manifest.json": "7f6f75337a4663bdf6c14b6bc2c86dd791d246e9cce541f879663b1e5bf08d22",
+    "usr/share/doc/thunar/core-vault-source/package-thunar.py": "fe862d577108e3baf0909e706daabb68b4fa5ae35852fceefb807e889f5f1ae5",
+    "usr/share/doc/thunar/core-vault-source/patch-thunar.py": "68e401e051e326f8a558e3c49efcd7a960e07a538405ab10a016e93086ed2999",
+    "usr/share/doc/thunar/core-vault-source/prepare-private-prefix.py": "9cad458d5ea5f06dfaada96e35185510b712264bff2172d2bfba974a8e8670e8",
+    "usr/share/doc/thunar/core-vault-source/private-prefix-runtime-links.json": "f0d7060023694c8b376ac60aa19a74ead3afd2060613b4607aeb05f2f48a6e2e",
+    "usr/share/doc/thunar/core-vault-source/test-dispatch.py": "b4ee59bfeab29c85230810cbe8e3420b5d54637ea13bc53218673bb04c417409",
+    "usr/share/doc/thunar/core-vault-source/thunar_4.20.2-1+deb13u1.debian.tar.xz": "dbca892cd73420dd2446c3194af52181053978fa053ef4fcd63e80457164cd63",
+    "usr/share/doc/thunar/core-vault-source/thunar_4.20.2-1+deb13u1.dsc": "703377152a65fae04f7f52c21aa5df070a988d67022645dca289771f6a564071",
+    "usr/share/doc/thunar/core-vault-source/thunar_4.20.2.orig.tar.bz2": "71376f6d7ba4998943c412f374db16ec9b709610acd4d27ecb1eef3aca82af05"
+  },
+  "stock_package_sha256": "7aadd1f69704d80b54ce3e08fd57bdeb62592df8eeffa7b9a1e853553e54efc1",
+  "stock_regular_payload_changed": [
+    "usr/bin/thunar"
+  ],
+  "stock_dependencies_unchanged": true,
+  "source_input_files": {
+    "tools/core-vault/thunar/build-thunar.py": "8edbc9ab891e9822bdde44ea5001041ce4f67f42c09ff87c896a97f14ee8c765",
+    "tools/core-vault/thunar/package-thunar.py": "fe862d577108e3baf0909e706daabb68b4fa5ae35852fceefb807e889f5f1ae5",
+    "tools/core-vault/thunar/patch-thunar.py": "68e401e051e326f8a558e3c49efcd7a960e07a538405ab10a016e93086ed2999",
+    "tools/core-vault/thunar/prepare-private-prefix.py": "9cad458d5ea5f06dfaada96e35185510b712264bff2172d2bfba974a8e8670e8",
+    "tools/core-vault/thunar/test-dispatch.py": "b4ee59bfeab29c85230810cbe8e3420b5d54637ea13bc53218673bb04c417409"
+  }
+}

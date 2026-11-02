@@ -1,0 +1,10 @@
+{
+  "version": "KeePassXC 2.7.10",
+  "scope": "Stock host app with image profile; VM acceptance pending",
+  "launch-0-checkbox-enabled": false,
+  "launch-0-paste-after-31s": true,
+  "launch-1-checkbox-enabled": false,
+  "launch-1-paste-after-31s": true,
+  "launch-2-checkbox-enabled": true,
+  "enabled-timeout-cleared": true
+}

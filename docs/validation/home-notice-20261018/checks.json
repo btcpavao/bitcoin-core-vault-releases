@@ -1,0 +1,20 @@
+[
+  {
+    "resolution": [
+      800,
+      600
+    ],
+    "explicit_line_break": true,
+    "warning_visible": true,
+    "no_scrollbar": true
+  },
+  {
+    "resolution": [
+      1366,
+      768
+    ],
+    "explicit_line_break": true,
+    "warning_visible": true,
+    "no_scrollbar": true
+  }
+]

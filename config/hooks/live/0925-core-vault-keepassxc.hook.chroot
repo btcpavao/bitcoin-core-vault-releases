@@ -1,0 +1,27 @@
+#!/bin/sh
+set -eu
+test -L /usr/bin/keepassxc
+test "$(readlink /usr/bin/keepassxc)" = /opt/keepassxc/current/usr/bin/keepassxc
+APPDIR=$(readlink -f /opt/keepassxc/current)
+export APPDIR
+export LD_LIBRARY_PATH="$APPDIR/usr/lib"
+export QT_PLUGIN_PATH="$APPDIR/usr/plugins"
+export QT_QPA_PLATFORM_PLUGIN_PATH="$APPDIR/usr/plugins/platforms"
+export QT_QPA_PLATFORM=xcb
+python3 - <<'VERIFY'
+from pathlib import Path
+import json
+r=json.loads(Path('/opt/keepassxc/current/upstream-release.json').read_text())
+assert r['version']=='2.8.0'
+assert r['sha256']=='3ab1bfbb422272334b48057e6bfc984c839375d9a1cd9350c4ea62ca0b55ca5f'
+assert r['primary_signer']=='BF5A669F2272CF4324C1FDA8CFB4C2166397D0D2'
+VERIFY
+for binary in "$APPDIR/usr/bin/keepassxc" "$APPDIR/usr/plugins/platforms/libqxcb.so"; do
+    if ldd "$binary" | grep -q 'not found'; then
+        echo 'The verified KeePassXC application has a missing runtime library.' >&2
+        exit 1
+    fi
+done
+runuser -u nobody -- test -x "$APPDIR/usr/bin/keepassxc"
+runuser -u nobody -- test -r "$APPDIR/upstream-release.json"
+echo 'VAULT KEEPASSXC 2.8.0 RUNTIME CLOSURE AND PUBLIC PERMISSIONS PASSED'

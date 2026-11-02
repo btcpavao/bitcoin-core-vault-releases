@@ -1,0 +1,6 @@
+{
+  "source_bundle": "bitcoin-core-vault-installer-input-20260930-143606-037001.zip",
+  "sha256": "f3753c0c082e3a4d9b771d82ff862fef64235fb101e69874b75e43e3e77c15d0",
+  "base_calamares": "3.3.14-1",
+  "local_version": "3.3.14-1+corevault1"
+}

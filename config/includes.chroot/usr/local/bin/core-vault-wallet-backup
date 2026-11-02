@@ -1,0 +1,73 @@
+#!/usr/bin/python3
+"""Create a verified encrypted wallet export without plaintext disk staging."""
+import os
+import subprocess
+from pathlib import Path
+import sys
+sys.path.insert(0, '/usr/lib/core-vault')
+sys.path.insert(0, '/usr/lib/core-vault-backup')
+from runtime import check_storage, wallet_files, check_loaded_wallet_coverage, PRIVATE
+from export import export_wallet
+from backup import harden, dialog, message, Cancelled, BackupError, validate_password, Progress, backup_destination
+from password_dialog import get_backup_request
+
+def main():
+    harden()
+    if os.geteuid() == 0:
+        raise RuntimeError('Please use the Vault desktop account.')
+    check_storage()
+    wallets = wallet_files()
+    check_loaded_wallet_coverage(wallets)
+    if not wallets:
+        raise RuntimeError('Please create or restore a wallet in Bitcoin Core first.')
+    names = list(wallets)
+    if len(names) == 1:
+        wallet = names[0]
+    else:
+        # Use numeric IDs so arbitrary wallet names are never parsed as options.
+        selected = dialog('--list', '--title=Select wallet to back up', '--hide-column=1',
+            '--column=ID', '--column=Wallet', *[value for i, name in enumerate(names) for value in (str(i), name or '(default wallet)')])
+        wallet = names[int(selected)]
+    default = PRIVATE
+    def validate(value):
+        try:
+            validate_password(value)
+        except Exception as exc:
+            raise ValueError(str(exc)) from None
+    request = get_backup_request(validate, default / 'wallet.dat.gpg', items=[wallets[wallet]])
+    if request is None:
+        raise Cancelled()
+    destination, password = request
+    request = None
+    destination = backup_destination(destination)
+    progress = Progress()
+    try:
+        result = export_wallet(wallet, destination, password, progress=progress)
+    finally:
+        password = None
+        progress.close()
+    # Only the successful, verified RAM-workspace workflow opens Files.
+    # A destination on removable/persistent media retains its existing result
+    # message instead. Resolving parents avoids symlink/path-prefix confusion.
+    if result.parent.resolve(strict=True).is_relative_to(PRIVATE.resolve(strict=True)):
+        try:
+            subprocess.Popen(['/usr/bin/thunar', str(PRIVATE)],
+                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                             stderr=subprocess.DEVNULL, close_fds=True,
+                             start_new_session=True)
+        except OSError:
+            # Encryption succeeded even if a file manager could not start.
+            message('Encrypted wallet backup created and verified:\n' + str(result) +
+                    '\n\nOpen Files to find the archive in Private Workspace.')
+        return
+    message('Encrypted wallet backup created and verified:\n' + str(result) +
+            '\n\nPlease store independent copies and keep the required passphrases separately. Backup verification does not replace a scheduled wallet recovery drill.')
+
+try:
+    main()
+except Cancelled:
+    pass
+except Exception as exc:
+    # Error text from our own validation only; backend output never reaches logs.
+    message(str(exc) if isinstance(exc, (RuntimeError, BackupError)) else 'The wallet backup did not finish. Your private session and existing backups remain available.', error=True)
+    sys.exit(1)

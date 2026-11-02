@@ -1,0 +1,11 @@
+test_01_locked_public_export_and_metadata (__main__.Interop.test_01_locked_public_export_and_metadata) ... ok
+test_02_watch_import_next_address_and_change_equivalence (__main__.Interop.test_02_watch_import_next_address_and_change_equivalence) ... ok
+test_03_corruption_schema_and_unsupported_policy (__main__.Interop.test_03_corruption_schema_and_unsupported_policy) ... ok
+test_04_private_descriptors_rejected_before_canonicalization (__main__.Interop.test_04_private_descriptors_rejected_before_canonicalization) ... ok
+test_05_plain_and_gpg_export_no_overwrite (__main__.Interop.test_05_plain_and_gpg_export_no_overwrite) ... ok
+test_06_real_psbt_watch_only_sign_finalize_broadcast (__main__.Interop.test_06_real_psbt_watch_only_sign_finalize_broadcast) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 3.134s
+
+OK

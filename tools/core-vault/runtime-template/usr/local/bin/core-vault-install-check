@@ -1,0 +1,41 @@
+#!/usr/bin/python3
+"""Post-boot read-only acceptance checks, run inside installed Vault."""
+from pathlib import Path
+import json,os,pwd,subprocess,sys
+try:
+    p=Path('/etc/core-vault/installation.json')
+    if not p.is_file(): raise RuntimeError('Boot the INSTALLED VM without its ISO first.')
+    obj=json.loads(p.read_text())
+    if obj.get('stage')!='installed-checks-passed': raise RuntimeError('Installer verification incomplete.')
+    subprocess.run(['/usr/local/bin/core-vault-storage-check','--installed'],check=True)
+    mount=json.loads(subprocess.check_output(['/usr/bin/findmnt','-J','-M','/media',
+        '-o','TARGET,FSTYPE,OPTIONS'],text=True))['filesystems']
+    if len(mount)!=1 or mount[0]['target']!='/media' or mount[0]['fstype']!='tmpfs' or not {'noswap','nosuid','nodev','noexec'}.issubset(mount[0]['options'].split(',')):
+        raise RuntimeError('Removable-media mountpoint metadata has a persistent fallback.')
+    if os.getuid()!=1000 or pwd.getpwuid(os.getuid()).pw_name!='vault':
+        raise RuntimeError('Expected autologin as vault (UID 1000).')
+    for name in ('/usr/bin/calamares','/usr/local/sbin/core-vault-installer',
+                 '/etc/calamares','/etc/sudoers.d/80-core-vault-installer'):
+        if Path(name).exists(): raise RuntimeError('Installer was not removed: '+name)
+    flags=Path('/proc/cmdline').read_text().split()
+    if any(f in ('boot=live','toram') or '.install=' in f for f in flags):
+        raise RuntimeError('Installed system still uses Live/installer boot options.')
+    for unit in ('nftables.service','core-signer-offline.service','core-signer-no-swap.service',
+                 'core-vault-workspace-check.service'):
+        subprocess.run(['/usr/bin/systemctl','is-active','--quiet',unit],check=True)
+    subprocess.run(['/usr/bin/sudo','-n','-l','--','/usr/local/sbin/core-vault-end-session','poweroff'],check=True)
+    subprocess.run(['/usr/bin/sudo','-n','-l','--','/usr/local/sbin/core-vault-end-session','reboot'],check=True)
+    for name in ('/usr/bin/core-vault-backup','/usr/bin/core-vault-backup-setup',
+                 '/usr/bin/core-vault-backup-self-test','/usr/bin/core-vault-gpg-self-test',
+                 '/usr/bin/tar','/usr/bin/gpg'):
+        if not os.access(name,os.X_OK): raise RuntimeError('Missing backup tool: '+name)
+    if not Path('/etc/core-vault-backup.require-private-workspace').is_file():
+        raise RuntimeError('Backup workspace policy marker missing.')
+    for name in ('/usr/bin/veracrypt','/etc/sudoers.d/92-core-vault-veracrypt'):
+        if Path(name).exists(): raise RuntimeError('Retired container integration remains: '+name)
+    print('VAULT INSTALLED BOOT CHECK PASSED')
+    print('Next: create dummy markers in HOME, Core and Private Workspace. Finish the session,')
+    print('boot without the ISO again: every session marker must be absent.')
+    print('This check is not a full security audit or a substitute for application/recovery tests.')
+except Exception as exc:
+    print('VAULT INSTALLED BOOT CHECK FAILED:',exc,file=sys.stderr);sys.exit(1)

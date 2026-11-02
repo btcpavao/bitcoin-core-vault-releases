@@ -1,0 +1,60 @@
+{
+  "base_commit": "110f8ccd651408145de6ec4acd6a1ad70b84309c",
+  "scope": "Source/regtest/offscreen Qt checks only; exact-image and physical-media acceptance pending",
+  "core_version": 310100,
+  "upstream_archive": "bitcoin-31.1-x86_64-linux-gnu.tar.gz",
+  "upstream_archive_sha256": "b80d9c3e04da78fb6f0569685673418cf686fadba9042d926d13fb87ff503f9e",
+  "signatures_verified_against_existing_local_keyring": [
+    "152812300785C96444D3334D17565732E08E5E41",
+    "E777299FC265DD04793070EB944D35F9AC3DB76A",
+    "D1DBF2C4B96F2DEBF4C16654410108112E7EA81F",
+    "0AD83877C1F0CD1EE9BD660AD7CC770B81FD22A8",
+    "F4FC70F07310028424EFC20A8E4256593F177720",
+    "5B286407E1EA6FE01CF9AF48BF131C2D0536F8AC",
+    "E61773CD6E01040E2F1BD78CE7E2984B6289C93A",
+    "9EDAFF80E080659604F4A76B2EBB056FD847F8A7",
+    "67AA5B46E7AF78053167FE343B8F814A784218F8",
+    "ED9BDF7AD6A55E232E84524257FF9BDBCC301009",
+    "A8FC55F3B04BA3146F3492E79303B33A305224CB"
+  ],
+  "tests": {
+    "regtest_integration": "6 passed",
+    "existing_backup": "57 passed",
+    "home": "4 viewport sizes passed",
+    "guide": "19 chapters x 4 sizes passed",
+    "private_session": "passed",
+    "new_native_dialog": "passed",
+    "isolated_core_gpg_restore_and_signing": "passed"
+  },
+  "limitations": [
+    "Regtest storage policy is explicitly substituted for disposable fixtures.",
+    "Both PSBT roles use one isolated daemon; no two-VM transfer acceptance.",
+    "Qt render/event tests do not establish screen-reader or physical GUI behavior.",
+    "No new ISO has been built or released. Node OS is not implemented."
+  ],
+  "files": {
+    "backup-tests-corrected.txt": "0a3a774f57f8d3246cebed0d8b4c3ed53c29961c692fd18836652a4c5a0c1435",
+    "check-backup.py.txt": "d413a5828b905b4aadf70175234729d46c9340be8ff7356119f984bd3147597f",
+    "check-bleachbit.py.txt": "6c9a347406b55d0334f7ddcf0b18b7eb2c942d899290d522a7436d0d885c8896",
+    "check-files-recovery.py.txt": "6da4d3ec8f3715fe69023031a486cc1dd3ea43fbc29d032740f178c5a6ceac65",
+    "check-home-suite.py.txt": "a557ccca29664bc78d129f5e2a2b0d227ed08d8c4912b2a90a54b51bfc7bca94",
+    "check-live.py.txt": "e5e56798c37b40208524c31c52ad3120e8e2391e5799fd625eda5bfb3b3a968b",
+    "check-media.py.txt": "e19660395afdd6eab46a1178a08b6ef1b2ef5c84f0721187bb515cee2b3bf074",
+    "check-places-v2.py.txt": "e8881999a4d432462e079c46b9537c192ffecc8156333b8dab038761220bee04",
+    "check-private-session.py.txt": "d8e95047a855e44441a51ca0eb4e40f9b17fceace2be36dc241bc57b899c06ea",
+    "check-shred.py.txt": "1cf53af3eed056bf8eafd086a10f628ffe8bfbd995068b83f8d923effc4eff07",
+    "core-wallet-regression.txt": "82f9634486cf5d1951ec58a7e47a875478c91341b44f9faedcf525bfcd8ac876",
+    "export-1024x768.png": "d2e3cd95c65baaf3a574bf5d919bcef2acf97890ea32e2dc9fcc1113603868b6",
+    "export-800x600.png": "fd9ef6269d9e88657c851d23a6595640ca22927a3f31c6489b7c4ba0a01044ae",
+    "guide.txt": "f899972df2e6a9e9c85d492b3da46aa71966429e8d6cebb9ae160205348142de",
+    "home.txt": "f70745e5a1f54319051c0aea387a2f9f142228e6eedb9b7a73359508aa92d638",
+    "installer.txt": "d23039fc620b962d8fba81551608452389276dd19124d6c2947be69ae4db81f6",
+    "private-session.txt": "a2f3d9bbe49c4bcfbed35e6a3a23f7177fb69be3e8f69278d8a3d80b1904d53d",
+    "watch-only-ui.txt": "4a901161f8aa35cc45c3a2a80f8de7f1c71a789f56ecf0abe4b19eeb550da0f0",
+    "watch-only.txt": "454484011893836b41f57eab596354ec4b655112a365f279fe6581247a6be021"
+  },
+  "tested_binaries_match_verified_archive": {
+    "bitcoind": "986e63b3c8770f08d0059820ad3dd085d1ab9e1bea23946c243f858a06888a08",
+    "bitcoin-cli": "4e3a0fde23ec768a61cdd193602be937b29b6e8f21bcb614af87a2786bf86034"
+  }
+}

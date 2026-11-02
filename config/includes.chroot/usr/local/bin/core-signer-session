@@ -1,0 +1,661 @@
+#!/bin/sh
+set -u
+
+
+##############################################################################
+# DISPLAY
+##############################################################################
+
+xset -dpms 2>/dev/null || true
+xset s off 2>/dev/null || true
+xset s noblank 2>/dev/null || true
+
+if [ -z "${XDG_RUNTIME_DIR:-}" ]; then
+    exit 1
+fi
+
+
+##############################################################################
+# VOLATILE SESSION
+##############################################################################
+
+SESSION_ROOT="$XDG_RUNTIME_DIR/core-signer"
+
+mkdir -p \
+    "$SESSION_ROOT/home" \
+    "$SESSION_ROOT/config" \
+    "$SESSION_ROOT/cache" \
+    "$SESSION_ROOT/data" \
+    "$SESSION_ROOT/datadir"
+
+chmod 700 \
+    "$SESSION_ROOT" \
+    "$SESSION_ROOT/home" \
+    "$SESSION_ROOT/config" \
+    "$SESSION_ROOT/cache" \
+    "$SESSION_ROOT/data" \
+    "$SESSION_ROOT/datadir"
+
+export HOME="$SESSION_ROOT/home"
+export XDG_CONFIG_HOME="$SESSION_ROOT/config"
+export XDG_CACHE_HOME="$SESSION_ROOT/cache"
+export XDG_DATA_HOME="$SESSION_ROOT/data"
+
+
+##############################################################################
+# BITCOIN CORE DEFAULT SETTINGS
+##############################################################################
+
+#
+# Bitcoin Core's GUI-only settings live in QSettings.
+# Mainnet uses:
+#
+#   organization: Bitcoin
+#   application:  Bitcoin-Qt
+#
+# Seed Coin Control ON for every fresh stateless boot.
+#
+
+mkdir -p "$XDG_CONFIG_HOME/Bitcoin"
+
+if [ ! -e "$XDG_CONFIG_HOME/Bitcoin/Bitcoin-Qt.conf" ]; then
+
+    cat > "$XDG_CONFIG_HOME/Bitcoin/Bitcoin-Qt.conf" <<'BITCOIN_QT_SETTINGS'
+[General]
+fCoinControlFeatures=true
+enable_psbt_controls=true
+BITCOIN_QT_SETTINGS
+
+fi
+
+#
+# The Network -> "Allow incoming connections" checkbox represents
+# Bitcoin Core's persistent "listen" setting.
+#
+# Seed it OFF so the GUI agrees with the actual offline configuration.
+#
+
+if [ ! -e "$SESSION_ROOT/datadir/settings.json" ]; then
+
+    cat > "$SESSION_ROOT/datadir/settings.json" <<'BITCOIN_NODE_SETTINGS'
+{
+    "listen": false
+}
+BITCOIN_NODE_SETTINGS
+
+fi
+
+
+##############################################################################
+# USB
+##############################################################################
+
+mkdir -p "$XDG_CONFIG_HOME/udiskie"
+
+cat > "$XDG_CONFIG_HOME/udiskie/config.yml" <<'UDISKIE'
+device_config:
+  - options: [nosuid, nodev, noexec, sync]
+UDISKIE
+
+#
+# Convenient generic path inside Home.
+#
+
+ln -sfn /media/signer "$HOME/USB"
+
+#
+# Automount removable media.
+#
+
+/usr/bin/udiskie \
+    --automount \
+    --no-notify \
+    --no-tray \
+    --no-password-prompt \
+    --no-file-manager \
+    >"$SESSION_ROOT/udiskie.log" 2>&1 &
+
+UDISKIE_PID=$!
+
+#
+# Keep Qt's file-dialog sidebar synchronized with attached USB media.
+#
+
+/usr/local/bin/core-signer-usb-sidebar \
+    >"$SESSION_ROOT/usb-sidebar.log" 2>&1 &
+
+SIDEBAR_PID=$!
+
+
+##############################################################################
+# OPENBOX
+##############################################################################
+
+mkdir -p "$XDG_CONFIG_HOME/openbox"
+
+cat > "$XDG_CONFIG_HOME/openbox/rc.xml" <<'OPENBOX'
+<?xml version="1.0" encoding="UTF-8"?>
+<openbox_config xmlns="http://openbox.org/3.4/rc">
+
+  <applications>
+
+    <!-- Only the MAIN Bitcoin Core window is forced fullscreen. -->
+    <application title="Bitcoin Core*" type="normal">
+      <decor>no</decor>
+      <fullscreen>yes</fullscreen>
+      <focus>yes</focus>
+    </application>
+
+    <!--
+      Qt dialogs such as Options, Backup Wallet, Restore Wallet,
+      Create Wallet, encryption dialogs, etc. remain ordinary dialogs.
+    -->
+    <application type="dialog">
+      <decor>yes</decor>
+      <layer>above</layer>
+      <focus>yes</focus>
+    </application>
+
+  </applications>
+
+  <keyboard>
+
+    <!-- Emergency return to the Bitcoin Core main window -->
+    <keybind key="F12">
+      <action name="Execute">
+        <command>/usr/local/bin/core-signer-restore</command>
+      </action>
+    </keybind>
+
+    <!-- Safely unmount removable media -->
+    <keybind key="F9">
+      <action name="Execute">
+        <command>/usr/local/bin/core-signer-eject-usb</command>
+      </action>
+    </keybind>
+
+  </keyboard>
+
+</openbox_config>
+OPENBOX
+
+
+##############################################################################
+# BACKGROUND + WINDOW MANAGER
+##############################################################################
+
+xsetroot -solid black
+
+openbox-session &
+
+OPENBOX_PID=$!
+
+
+##############################################################################
+# START ONE BITCOIN CORE INSTANCE
+##############################################################################
+
+start_core()
+{
+    #
+    # Show the branded cover while Core initializes.
+    #
+
+    /usr/local/bin/core-signer-brand-screen &
+
+    COVER_PID=$!
+
+    COVER_WINDOW=""
+
+    for i in $(seq 1 200); do
+
+        COVER_WINDOW="$(
+            xdotool search \
+                --pid "$COVER_PID" \
+                2>/dev/null |
+            head -n 1 || true
+        )"
+
+        [ -n "$COVER_WINDOW" ] && break
+
+        sleep 0.05
+    done
+
+    #
+    # A restart after cancelling shutdown uses the same volatile datadir.
+    # Remove only the old log so "Done loading" refers to THIS launch.
+    #
+
+    rm -f "$SESSION_ROOT/datadir/debug.log"
+
+    #
+    # Start official upstream Bitcoin Core.
+    #
+
+    /usr/local/bin/bitcoin-qt \
+        -datadir="$SESSION_ROOT/datadir" \
+        -networkactive=0 \
+        -maxconnections=0 \
+        -listen=0 \
+        -listenonion=0 \
+        -dns=0 \
+        -dnsseed=0 \
+        -fixedseeds=0 \
+        -discover=0 \
+        -natpmp=0 \
+        -walletbroadcast=0 \
+        -prune=550 \
+        -splash=0 &
+
+    CORE_PID=$!
+
+    CORE_WINDOW=""
+
+    for i in $(seq 1 400); do
+
+        CORE_WINDOW="$(
+            xdotool search \
+                --pid "$CORE_PID" \
+                2>/dev/null |
+            head -n 1 || true
+        )"
+
+        [ -n "$CORE_WINDOW" ] && break
+
+        sleep 0.05
+    done
+
+    if [ -n "$CORE_WINDOW" ]; then
+        printf '%s\n' "$CORE_WINDOW" \
+            > "$SESSION_ROOT/core-window-id"
+    fi
+
+    if [ -n "$COVER_WINDOW" ]; then
+        xdotool windowraise "$COVER_WINDOW" \
+            >/dev/null 2>&1 || true
+    fi
+
+
+    ##########################################################################
+    # WAIT UNTIL CORE IS READY
+    ##########################################################################
+
+    for i in $(seq 1 600); do
+
+        if [ -f "$SESSION_ROOT/datadir/debug.log" ] &&
+           grep -q "Done loading" \
+             "$SESSION_ROOT/datadir/debug.log" \
+             2>/dev/null; then
+
+            break
+        fi
+
+        if ! kill -0 "$CORE_PID" 2>/dev/null; then
+
+            kill "$COVER_PID" 2>/dev/null || true
+            wait "$CORE_PID"
+            return $?
+        fi
+
+        if [ -n "$COVER_WINDOW" ]; then
+            xdotool windowraise "$COVER_WINDOW" \
+                >/dev/null 2>&1 || true
+        fi
+
+        sleep 0.1
+
+    done
+
+    sleep 1
+
+
+    ##########################################################################
+    # HIDE INITIAL SYNC OVERLAY WHILE USER STILL SEES THE COVER
+    ##########################################################################
+
+    if [ -n "$CORE_WINDOW" ]; then
+
+        xdotool windowfocus "$CORE_WINDOW" \
+            >/dev/null 2>&1 || true
+
+        if [ -n "$COVER_WINDOW" ]; then
+            xdotool windowraise "$COVER_WINDOW" \
+                >/dev/null 2>&1 || true
+        fi
+
+        for i in $(seq 1 12); do
+
+            xdotool key --clearmodifiers Escape \
+                >/dev/null 2>&1 || true
+
+            if [ -n "$COVER_WINDOW" ]; then
+                xdotool windowraise "$COVER_WINDOW" \
+                    >/dev/null 2>&1 || true
+            fi
+
+            sleep 0.15
+        done
+    fi
+
+
+    ##########################################################################
+    # REVEAL CLEAN CORE
+    ##########################################################################
+
+    if kill -0 "$COVER_PID" 2>/dev/null; then
+        kill "$COVER_PID" 2>/dev/null || true
+    fi
+
+    if [ -n "$CORE_WINDOW" ]; then
+        xdotool windowactivate --sync "$CORE_WINDOW" \
+            >/dev/null 2>&1 || true
+    fi
+
+
+    ##########################################################################
+    # APPLIANCE GUARD
+    #
+    # Restore the main window only when NO window belonging to bitcoin-qt
+    # is visible.
+    #
+    # This means:
+    #
+    #   accidental Minimize -> Core returns
+    #
+    # but:
+    #
+    #   Options
+    #   Backup Wallet
+    #   Restore Wallet
+    #   Create Wallet
+    #   encryption/passphrase dialogs
+    #
+    # are left completely alone.
+    ##########################################################################
+
+    (
+        while kill -0 "$CORE_PID" 2>/dev/null; do
+
+            if [ -n "$CORE_WINDOW" ]; then
+
+                VISIBLE="$(
+                    xdotool search \
+                        --onlyvisible \
+                        --pid "$CORE_PID" \
+                        2>/dev/null || true
+                )"
+
+                if [ -z "$VISIBLE" ]; then
+
+                    xdotool windowmap "$CORE_WINDOW" \
+                        >/dev/null 2>&1 || true
+
+                    xdotool windowactivate \
+                        --sync "$CORE_WINDOW" \
+                        >/dev/null 2>&1 || true
+                fi
+            fi
+
+            sleep 0.4
+
+        done
+    ) &
+
+    GUARD_PID=$!
+
+
+    ##########################################################################
+    # WAIT FOR USER TO EXIT CORE
+    ##########################################################################
+
+    wait "$CORE_PID"
+    CORE_STATUS=$?
+
+    kill "$GUARD_PID" 2>/dev/null || true
+
+    rm -f "$SESSION_ROOT/core-window-id"
+
+    return "$CORE_STATUS"
+}
+
+
+##############################################################################
+# VERIFIED SHUTDOWN STATE MACHINE
+##############################################################################
+
+while :; do
+
+    ##########################################################################
+    # RUN BITCOIN CORE
+    ##########################################################################
+
+    start_core
+    CORE_RESULT=$?
+
+    rm -f "$SESSION_ROOT/core-window-id"
+
+    xsetroot -solid black || true
+
+
+    ##########################################################################
+    # SHUTDOWN / RETURN DECISION
+    ##########################################################################
+
+    while :; do
+
+        RESULT="$(
+            /usr/local/bin/core-signer-shutdown-dialog \
+                2>>"$SESSION_ROOT/shutdown-launch.log"
+        )"
+
+        DIALOG_RC=$?
+
+        ######################################################################
+        # DIALOG FAILURE
+        ######################################################################
+
+        if [ "$DIALOG_RC" -ne 0 ]; then
+
+            /usr/bin/zenity \
+                --error \
+                --no-markup \
+                --title="Core Signer — Shutdown Error" \
+                --width=620 \
+                --text="The shutdown dialog failed with status $DIALOG_RC.
+
+Bitcoin Core has not been restarted automatically.
+
+Log:
+$SESSION_ROOT/shutdown-launch.log" \
+                || true
+
+            sleep 1
+            continue
+        fi
+
+
+        ######################################################################
+        # RETURN TO BITCOIN CORE
+        ######################################################################
+
+        if [ "$RESULT" = "return" ]; then
+
+            #
+            # Leave the inner shutdown loop.
+            # The outer loop immediately starts Bitcoin Core again
+            # using the SAME volatile RAM datadir.
+            #
+
+            break
+        fi
+
+
+        ######################################################################
+        # SHUTDOWN
+        ######################################################################
+
+        if [ "$RESULT" = "shutdown" ]; then
+
+            #
+            # Flush pending filesystem writes first.
+            #
+
+            /usr/bin/sync
+
+            #
+            # Perform the one privileged action explicitly allowed
+            # by our sudoers rule.
+            #
+
+            if /usr/bin/sudo \
+                -n \
+                -- \
+                /usr/bin/systemctl \
+                --no-block \
+                poweroff \
+                >>"$SESSION_ROOT/shutdown-launch.log" 2>&1
+            then
+
+                #
+                # systemctl accepted the request.
+                #
+                # Give systemd a moment to enter stopping state.
+                #
+
+                sleep 1
+
+                SYSTEM_STATE="$(
+                    /usr/bin/systemctl is-system-running \
+                        2>/dev/null || true
+                )"
+
+                #
+                # Once shutdown is accepted we MUST NOT restart Core.
+                #
+                # Normally this process will simply be killed by systemd
+                # a moment later as the machine powers off.
+                #
+
+                if [ "$SYSTEM_STATE" = "stopping" ]; then
+
+                    while :; do
+                        sleep 60
+                    done
+
+                fi
+
+                #
+                # Some systems may tear down the user session before
+                # is-system-running visibly reports "stopping".
+                # Give shutdown a little more time before declaring failure.
+                #
+
+                sleep 4
+
+                SYSTEM_STATE="$(
+                    /usr/bin/systemctl is-system-running \
+                        2>/dev/null || true
+                )"
+
+                if [ "$SYSTEM_STATE" = "stopping" ]; then
+
+                    while :; do
+                        sleep 60
+                    done
+
+                fi
+
+
+                ################################################################
+                # systemctl returned success but shutdown did not begin.
+                ################################################################
+
+                /usr/bin/zenity \
+                    --question \
+                    --no-markup \
+                    --title="Core Signer — Shutdown Error" \
+                    --width=650 \
+                    --ok-label="Retry Shutdown" \
+                    --cancel-label="Return to Bitcoin Core" \
+                    --text="The power-off command returned success, but systemd did not enter shutdown state.
+
+Current system state:
+$SYSTEM_STATE
+
+Choose Retry Shutdown to try again, or Return to Bitcoin Core.
+
+Log:
+$SESSION_ROOT/shutdown-launch.log"
+
+                ERROR_CHOICE=$?
+
+                if [ "$ERROR_CHOICE" -eq 0 ]; then
+                    #
+                    # Retry: return to shutdown dialog.
+                    #
+                    continue
+                else
+                    #
+                    # Explicit Return to Core.
+                    #
+                    break
+                fi
+
+            else
+
+                POWER_RC=$?
+
+                ################################################################
+                # Actual poweroff command was rejected.
+                ################################################################
+
+                /usr/bin/zenity \
+                    --question \
+                    --no-markup \
+                    --title="Core Signer — Shutdown Error" \
+                    --width=650 \
+                    --ok-label="Retry Shutdown" \
+                    --cancel-label="Return to Bitcoin Core" \
+                    --text="The power-off command failed with status $POWER_RC.
+
+Choose Retry Shutdown to try again, or Return to Bitcoin Core.
+
+Log:
+$SESSION_ROOT/shutdown-launch.log"
+
+                ERROR_CHOICE=$?
+
+                if [ "$ERROR_CHOICE" -eq 0 ]; then
+                    continue
+                else
+                    break
+                fi
+
+            fi
+
+        fi
+
+
+        ######################################################################
+        # UNKNOWN DIALOG RESULT
+        ######################################################################
+
+        /usr/bin/zenity \
+            --error \
+            --no-markup \
+            --title="Core Signer — Shutdown Error" \
+            --width=620 \
+            --text="Unexpected shutdown dialog result:
+
+$RESULT
+
+Bitcoin Core has not been restarted automatically." \
+            || true
+
+    done
+
+    #
+    # We reach this point ONLY after an explicit Return to Bitcoin Core.
+    #
+
+done

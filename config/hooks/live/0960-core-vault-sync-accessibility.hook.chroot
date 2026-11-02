@@ -1,0 +1,21 @@
+#!/bin/sh
+set -eu
+# Runtime availability only. Actual Core visible-to-hidden proof is a separate GUI test.
+for package in tesseract-ocr tesseract-ocr-eng python3-pyside6.qtwidgets; do
+    test "$(dpkg-query -W -f='${Status}' "$package")" = 'install ok installed'
+done
+test -x /usr/bin/tesseract
+test -s /usr/share/tesseract-ocr/5/tessdata/eng.traineddata
+/usr/bin/tesseract --list-langs 2>/dev/null | grep -qx eng
+/usr/bin/python3 - <<'CHECK'
+import ast,ctypes
+from pathlib import Path
+from PySide6.QtGui import QGuiApplication, QImage
+from PySide6.QtCore import QBuffer, QIODevice
+p=Path('/usr/local/bin/core-vault-hide-sync')
+ast.parse(p.read_text(),str(p))
+ctypes.CDLL('libX11.so.6')
+assert 'VAULT_CORE_NATIVE_HIDE_V2' in Path('/usr/local/libexec/core-vault-core-session').read_text()
+print('VAULT NATIVE HIDE RUNTIME AVAILABILITY CHECK PASSED')
+print('This content check does not prove actual Core GUI auto-Hide.')
+CHECK

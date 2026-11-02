@@ -1,0 +1,12 @@
+#!/bin/sh
+set -eu
+
+# Runs inside the image chroot. Git records only the executable bit; a clean
+# checkout cannot preserve 0440. Normalize the reviewed Vault policies before
+# the earlier Signer hook validates the complete /etc/sudoers configuration.
+for policy in /etc/sudoers.d/80-core-vault-installer /etc/sudoers.d/91-core-vault-poweroff; do
+    test -f "$policy"
+    test ! -L "$policy"
+    chown root:root "$policy"
+    chmod 0440 "$policy"
+done

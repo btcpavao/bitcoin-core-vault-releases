@@ -1,0 +1,7 @@
+// Bitcoin Core Vault: allow the active local Vault user to configure local printers.
+polkit.addRule(function(action, subject) {
+    if (subject.user == "vault" && subject.local && subject.active &&
+        action.id.indexOf("org.opensuse.cupspkhelper.mechanism.") === 0) {
+        return polkit.Result.YES;
+    }
+});

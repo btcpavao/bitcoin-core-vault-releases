@@ -1,0 +1,20 @@
+#!/bin/sh
+set -eu
+
+command -v cupsd >/dev/null
+command -v lp >/dev/null
+command -v system-config-printer >/dev/null
+python3 -c 'from PySide6.QtPrintSupport import QPrinter, QPrinterInfo'
+
+# Network printer discovery is unnecessary in an offline Vault.
+if systemctl list-unit-files cups-browsed.service >/dev/null 2>&1; then
+    systemctl mask cups-browsed.service >/dev/null 2>&1 || true
+fi
+
+systemctl enable cups.service >/dev/null 2>&1 || true
+
+grep -q '^Listen localhost:631$' /etc/cups/cupsd.conf
+grep -q '^Browsing No$' /etc/cups/cupsd.conf
+grep -q '^DefaultShared No$' /etc/cups/cupsd.conf
+
+echo 'BITCOIN CORE VAULT LOCAL PRINTING CHECK PASSED'

@@ -1,0 +1,4 @@
+#!/bin/sh
+set -eu
+
+plymouth-set-default-theme -R core-signer

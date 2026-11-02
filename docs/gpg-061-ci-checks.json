@@ -1,0 +1,47 @@
+{
+  "product_commit": "d11f31b002386287ee7de6fbe1ec10476c9343b6",
+  "date_utc": "2026-10-14",
+  "run_id": 38572164208,
+  "run_url": "https://github.com/btcpavao/bitcoin-core-vault/actions/runs/38572164208",
+  "backup_package_version": "0.6.1",
+  "backup_package_sha256": "496c7166dcaa0cfe45f4bbe2c3dbe303197699a5e2ec118496068c807e5b2baf",
+  "source_job": {
+    "id": 115879901408,
+    "result": "success",
+    "unit_tests": {
+      "total": 98,
+      "passed": 97,
+      "skipped": 1,
+      "reason": "Unreadable-file DAC case under root"
+    },
+    "unprivileged_gpg_tests": {
+      "passed": 24
+    },
+    "private_session_tests": {
+      "passed": 22
+    },
+    "qt_dialog_tests": {
+      "passed": 33
+    },
+    "real_7z_checks": "passed",
+    "real_gpg_checks": "passed"
+  },
+  "core_wallet_job": {
+    "id": 115879901062,
+    "result": "success",
+    "formats": [
+      "7z",
+      "gpg"
+    ],
+    "restoration": "passed",
+    "recovered_wallet_signing": "passed"
+  },
+  "real_bind_mount_regression": {
+    "checks": 6,
+    "result": "passed",
+    "dialogs_substituted": true,
+    "installed_code_modified": false
+  },
+  "candidate_iso_acceptance": "pending until corrected image is built and tested",
+  "release_published": false
+}

@@ -1,0 +1,18 @@
+[
+  {
+    "resolution": [
+      800,
+      600
+    ],
+    "warning_fully_visible": true,
+    "scrollbar": false
+  },
+  {
+    "resolution": [
+      1366,
+      768
+    ],
+    "warning_fully_visible": true,
+    "scrollbar": false
+  }
+]

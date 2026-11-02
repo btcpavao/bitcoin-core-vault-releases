@@ -1,0 +1,209 @@
+#!/usr/bin/python3
+"""Confirm RAM-session loss twice, wait five minutes, then stop Core and finish."""
+import argparse
+import math
+import os
+from pathlib import Path
+import subprocess
+import sys
+import time
+
+sys.path.insert(0, '/usr/lib/core-vault')
+from runtime import rpc, CORE
+from PySide6.QtCore import Qt, QTimer, QLockFile
+from PySide6.QtGui import QClipboard, QFont
+from PySide6.QtWidgets import (QApplication, QDialog, QHBoxLayout, QLabel,
+                              QMessageBox, QPushButton, QVBoxLayout)
+
+COUNTDOWN_SECONDS = 300
+STYLE = """
+QWidget { background:#191919; color:#f0f0f0; }
+QLabel { background:transparent; }
+QPushButton { background:#272727; border:1px solid #626262;
+ border-radius:5px; padding:9px 16px; min-height:24px; }
+QPushButton:hover { border-color:#aaa; }
+QPushButton:focus { border:2px solid #8fbee8; padding:8px 15px; }
+QLabel#countdown { font-size:48px; font-weight:600; }
+"""
+
+def core_running():
+    for directory in Path('/proc').iterdir():
+        if not directory.name.isdigit():
+            continue
+        try:
+            values = (directory / 'cmdline').read_bytes().split(b'\0')
+            if values[0] == b'/usr/local/bin/bitcoin-qt' and b'-datadir=' + os.fsencode(CORE) in values:
+                return True
+        except (OSError, IndexError):
+            pass
+    return False
+
+
+def stop_core():
+    if not core_running():
+        return
+    rpc('stop')
+    deadline = time.monotonic() + 30
+    while core_running():
+        if time.monotonic() >= deadline:
+            raise RuntimeError('Bitcoin Core has not closed yet. The private workspace is still available. Please close Core and try again.')
+        QApplication.processEvents()
+        time.sleep(0.1)
+
+
+def confirmation(restart, stage):
+    action = 'Restart' if restart else 'Shut down'
+    if stage == 1:
+        title = 'Save before you ' + action.lower()
+        message = (
+            'Wallets, passphrases, files and unsaved changes kept only in this RAM session '
+            'will be lost when you ' + action.lower() + '.\n\n'
+            'Please save current wallet backups and everything else you need to external '
+            'media, and keep all required passphrases separately recoverable. '
+            'Copies already saved on external media will remain.\n\n'
+            'Continue only after saving what you need. Vault will not ask you to re-enter '
+            'passphrases or check backups during shutdown.'
+        )
+        proceed_text = "I've saved what I need"
+    else:
+        title = action + ' this private session?'
+        message = (
+            'Anything still stored only in this RAM session will be unavailable after '
+            + ('restarting' if restart else 'shutting down') + '.\n\n'
+            'Your confirmation does not verify your backups. Please continue only if you '
+            'are sure you have saved everything you need.\n\n'
+            'A five-minute countdown starts next. You can cancel and keep working, '
+            'or choose to ' + action.lower() + ' immediately.'
+        )
+        proceed_text = 'Start 5-minute ' + ('restart' if restart else 'shutdown') + ' countdown'
+    dialog = QMessageBox(QMessageBox.Icon.Warning, title, message)
+    cancel = dialog.addButton('Keep session open', QMessageBox.ButtonRole.RejectRole)
+    proceed = dialog.addButton(proceed_text, QMessageBox.ButtonRole.AcceptRole)
+    dialog.setDefaultButton(cancel)
+    dialog.setEscapeButton(cancel)
+    proceed.setAutoDefault(False)
+    dialog.exec()
+    return dialog.clickedButton() == proceed
+
+
+class CountdownDialog(QDialog):
+    """UI-only countdown. No cleanup or power action occurs inside this dialog."""
+    def __init__(self, restart=False, *, clock=None):
+        super().__init__()
+        self.clock = clock or time.monotonic
+        self.deadline = self.clock() + COUNTDOWN_SECONDS
+        self.finished_once = False
+        self.setWindowTitle('Restart countdown' if restart else 'Shutdown countdown')
+        self.resize(580, 350)
+        self.setMinimumWidth(440)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 22, 24, 22)
+        layout.setSpacing(18)
+        heading = QLabel('Restarting in' if restart else 'Shutting down in')
+        heading.setFont(QFont('DejaVu Sans', 16))
+        layout.addWidget(heading)
+        self.remaining = QLabel()
+        self.remaining.setObjectName('countdown')
+        self.remaining.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.remaining.setAccessibleName('Time remaining')
+        layout.addWidget(self.remaining)
+        note = QLabel('The private session is still open. Please cancel this countdown if '
+                      'you need more time to save backups, passphrases or other files.\n\n'
+                      'At zero, Bitcoin Core closes, the clipboard is cleared and the RAM '
+                      'session ends. Unsaved session data will be lost.')
+        note.setWordWrap(True)
+        layout.addWidget(note)
+        buttons = QHBoxLayout()
+        self.cancel_button = QPushButton('Cancel countdown')
+        self.now_button = QPushButton('Restart now' if restart else 'Shut down now')
+        for button in (self.cancel_button, self.now_button):
+            button.setAutoDefault(False)
+            button.setDefault(False)
+            buttons.addWidget(button)
+        layout.addLayout(buttons)
+        self.cancel_button.clicked.connect(self.reject)
+        self.now_button.clicked.connect(self.accept)
+        self.cancel_button.setFocus()
+        self.timer = QTimer(self)
+        self.timer.setInterval(1000)
+        self.timer.timeout.connect(self.tick)
+        self.tick()
+        self.timer.start()
+
+    def tick(self):
+        if self.finished_once:
+            return
+        seconds = max(0, math.ceil(self.deadline - self.clock()))
+        self.remaining.setText(f'{seconds // 60:02d}:{seconds % 60:02d}')
+        if seconds == 0:
+            self.accept()
+
+    def done(self, result):
+        if self.finished_once:
+            return
+        self.finished_once = True
+        self.timer.stop()
+        super().done(result)
+
+    def closeEvent(self, event):
+        self.reject()
+        event.accept()
+
+
+def perform_finish(restart):
+    # No destructive work starts until both confirmations and countdown acceptance.
+    # A Core stop failure leaves the workspace available; it never forces shutdown.
+    stop_core()
+    clipboard = QApplication.instance().clipboard()
+    clipboard.clear(QClipboard.Mode.Clipboard)
+    if clipboard.supportsSelection():
+        clipboard.clear(QClipboard.Mode.Selection)
+    subprocess.run(['/usr/bin/sudo', '-n', '/usr/local/sbin/core-vault-end-session',
+                    'reboot' if restart else 'poweroff'], check=True, timeout=15)
+
+
+def finish_session(restart):
+    if not confirmation(restart, 1):
+        return False
+    if not confirmation(restart, 2):
+        return False
+    countdown = CountdownDialog(restart)
+    if countdown.exec() != QDialog.DialogCode.Accepted:
+        return False
+    perform_finish(restart)
+    return True
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--restart', action='store_true')
+    args = parser.parse_args()
+    app = QApplication(sys.argv)
+    app.setStyle('Fusion')
+    app.setFont(QFont('DejaVu Sans', 12))
+    app.setStyleSheet(STYLE)
+    app.setQuitOnLastWindowClosed(False)
+    if os.geteuid() == 0:
+        QMessageBox.warning(None, 'Private session still active', 'Please use the Vault desktop account.')
+        return 1
+    # Restart and shutdown share one lock: repeated clicks cannot schedule two actions.
+    lock = QLockFile(str(Path('/run/user') / str(os.getuid()) / 'core-vault-finish.lock'))
+    lock.setStaleLockTime(0)
+    if not lock.tryLock(0):
+        QMessageBox.information(None, 'Finish already open',
+            'A confirmation or countdown is already open. Please use that window, or cancel it before choosing another power action.')
+        return 0
+    try:
+        finish_session(args.restart)
+        return 0
+    except Exception as exc:
+        QMessageBox.warning(None, 'Private session still active',
+            str(exc) if isinstance(exc, RuntimeError) else
+            'The session could not be finished. Please keep the workspace open and save anything you need before trying again.')
+        return 1
+    finally:
+        lock.unlock()
+
+
+if __name__ == '__main__':
+    sys.exit(main())

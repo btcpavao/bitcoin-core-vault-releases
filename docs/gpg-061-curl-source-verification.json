@@ -1,0 +1,31 @@
+{
+  "status": "passed",
+  "source_package": "curl",
+  "source_version": "8.14.1-2+deb13u7",
+  "files": [
+    {
+      "name": "curl_8.14.1-2+deb13u7.dsc",
+      "bytes": 3263,
+      "sha256": "a559b829ff852b2ee1ac0e448b5d9c18e0f94875bc820d037609d4d807ac6f57"
+    },
+    {
+      "name": "curl_8.14.1-2+deb13u7.debian.tar.xz",
+      "bytes": 75756,
+      "sha256": "e0f627ee2b9ae61078b2835edc25c8b94a0b57e180a1bc72dd8636ef260c370b"
+    },
+    {
+      "name": "curl_8.14.1.orig.tar.gz.asc",
+      "bytes": 488,
+      "sha256": "39cc2ec8ddc39d04e3e7101bbed46d858d0875cbb297a6bfa20959fa2bc7d5c7"
+    },
+    {
+      "name": "curl_8.14.1.orig.tar.gz",
+      "bytes": 4250332,
+      "sha256": "6766ada7101d292b42b8b15681120acd68effa4a9660935853cf6d61f0d984d4"
+    }
+  ],
+  "debian_inrelease_signature_verified": true,
+  "source_index_hash_matches_signed_inrelease": true,
+  "source_payloads_match_authenticated_index": true,
+  "source_unpacked_or_executed": false
+}

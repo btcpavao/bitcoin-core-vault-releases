@@ -1,0 +1,3 @@
+# Live-only fixed entry point. The executable verifies the boot flag and local UID.
+Defaults!/usr/local/sbin/core-offline-installer env_keep += "DISPLAY XAUTHORITY"
+vault ALL=(root) NOPASSWD: /usr/local/sbin/core-offline-installer ""

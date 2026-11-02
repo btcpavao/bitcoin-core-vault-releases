@@ -1,0 +1,3 @@
+This plugin does not support propagateSizeHints()
+PASS native Qt: layout, keyboard, close, wallet selection reset, asynchronous result and sanitized error.
+Not verified: screen-reader announcements, physical USB or installed VM boundary.

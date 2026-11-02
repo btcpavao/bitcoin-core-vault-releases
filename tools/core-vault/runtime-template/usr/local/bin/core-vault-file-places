@@ -1,0 +1,327 @@
+#!/usr/bin/python3
+"""Configure Bitcoin Core and Private Workspace in the Vault file manager.
+
+This changes shortcuts and Thunar visibility only. It never reads wallet files,
+renames the account, unmounts media, or hides ordinary removable USB volumes.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+from pathlib import Path
+import pwd
+import re
+import stat
+import subprocess
+import sys
+import tempfile
+import time
+
+PROP = '/hidden-bookmarks'
+DEVICE_PROP = '/hidden-devices'
+POLICY_VERSION = 'places-v3'
+BUILTIN_PLACES = ('computer:///', 'computer://', 'trash:///', 'trash://',
+                  'recent:///', 'recent://')
+BOOT_MEDIA_ROOTS = ('/run/live/medium', '/lib/live/mount/medium')
+
+
+def atomic_write(path: Path, content: bytes, mode: int = 0o600) -> None:
+    if path.is_symlink():
+        raise RuntimeError(f'Refusing to overwrite a symbolic link: {path}')
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, name = tempfile.mkstemp(prefix='.' + path.name + '.', dir=path.parent)
+    try:
+        with os.fdopen(fd, 'wb') as stream:
+            stream.write(content)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.chmod(name, mode)
+        os.replace(name, path)
+    finally:
+        if os.path.lexists(name):
+            os.unlink(name)
+
+
+def merge_bookmarks(text: str, home: Path, private: Path) -> str:
+    # Previous bookmarks are saved by configure(), without reading their targets.
+    return (f'{(home / ".bitcoin").as_uri()} Bitcoin Core\n'
+            f'{private.as_uri()} Private Workspace\n')
+
+
+def desktop_uri(home: Path, config: Path) -> str:
+    """Read the optional XDG Desktop name as data, never execute user-dirs.dirs."""
+    desktop = home / 'Desktop'
+    user_dirs = config / 'user-dirs.dirs'
+    if user_dirs.is_file() and not user_dirs.is_symlink():
+        for line in user_dirs.read_text(encoding='utf-8').splitlines():
+            match = re.fullmatch(r'XDG_DESKTOP_DIR="([^"\n]*)"', line.strip())
+            if not match:
+                continue
+            value = match.group(1)
+            if value == '$HOME':
+                desktop = home
+            elif value.startswith('$HOME/'):
+                desktop = home / value[6:]
+            elif value.startswith('/') and '$' not in value and '`' not in value:
+                desktop = Path(value)
+            break
+    return desktop.as_uri()
+
+
+def places_visibility(previous: list[str], home: Path, private: Path,
+                      config: Path, bookmarks: str) -> list[str]:
+    visible = {private.as_uri(), (home / '.bitcoin').as_uri(), 'file:///'}
+    preserved = [u for u in previous if u not in visible and
+                 not re.fullmatch(r'file:///run/user/[0-9]+/core-vault-places/Vault', u)]
+    hidden = [*preserved, home.as_uri(), *BUILTIN_PLACES,
+              desktop_uri(home, config)]
+    return [u for u in dict.fromkeys(hidden) if u not in visible]
+
+
+def parse_array(output: str) -> list[str]:
+    lines = output.splitlines()
+    if lines and re.fullmatch(r'Value is an array with [0-9]+ items:', lines[0]):
+        lines = lines[1:]
+        if lines and not lines[0]:
+            lines = lines[1:]
+        return [line for line in lines if line]
+    if not output.strip():
+        return []
+    if len(lines) == 1:
+        return [lines[0]]
+    raise RuntimeError('Unexpected xfconf output; visibility settings were not changed.')
+
+
+def query(arguments: list[str]) -> str:
+    env = dict(os.environ, LC_ALL='C', LANG='C')
+    result = subprocess.run(
+        ['/usr/bin/xfconf-query', '-c', 'thunar', *arguments],
+        env=env, capture_output=True, text=True, timeout=15,
+    )
+    if result.returncode:
+        raise RuntimeError('xfconf-query failed: ' + (result.stderr.strip() or result.stdout.strip()))
+    return result.stdout
+
+
+def hidden_values(run=query, prop=PROP) -> list[str]:
+    if prop not in run(['-l']).splitlines():
+        return []
+    return parse_array(run(['-p', prop]))
+
+
+def set_hidden(values: list[str], run=query, prop=PROP) -> None:
+    if not values:
+        if prop in run(['-l']).splitlines():
+            run(['-p', prop, '--reset'])
+        return
+    args = ['-p', prop, '--create', '--force-array']
+    for value in values:
+        args.extend(['--type', 'string', '--set', value])
+    run(args)
+
+
+def mount_records(text: str) -> list[dict[str, str]]:
+    """Parse kernel mount metadata; no mounted directory contents are inspected."""
+    def unescape(value: str) -> str:
+        return re.sub(r'\\([0-7]{3})', lambda m: chr(int(m[1], 8)), value)
+    records = []
+    for line in text.splitlines():
+        fields = line.split()
+        try:
+            split = fields.index('-')
+        except ValueError:
+            continue
+        if split < 6 or len(fields) < split + 3:
+            continue
+        records.append({'root': unescape(fields[4]), 'fstype': fields[split + 1],
+                        'source': unescape(fields[split + 2])})
+    return records
+
+
+def gio_device_records(monitor, Gio) -> list[dict[str, str | None]]:
+    """Match the exact identifier fallback order used by Debian Thunar."""
+    records = []
+    for volume in monitor.get_volumes():
+        mount = volume.get_mount()
+        root = mount.get_root().get_path() if mount is not None else None
+        identifier = volume.get_uuid()
+        if identifier is None:
+            identifier = volume.get_identifier(Gio.VOLUME_IDENTIFIER_KIND_UUID)
+        if identifier is None:
+            identifier = volume.get_name()
+        records.append({'kind': 'volume', 'id': identifier, 'root': root,
+                        'name': volume.get_name(),
+                        'unix': volume.get_identifier(Gio.VOLUME_IDENTIFIER_KIND_UNIX_DEVICE)})
+    for mount in monitor.get_mounts():
+        identifier = mount.get_uuid()
+        if identifier is None:
+            identifier = mount.get_name()
+        volume = mount.get_volume()
+        records.append({'kind': 'mount', 'id': identifier,
+                        'root': mount.get_root().get_path(), 'name': mount.get_name(),
+                        'unix': (volume.get_identifier(Gio.VOLUME_IDENTIFIER_KIND_UNIX_DEVICE)
+                                 if volume is not None else None)})
+    return records
+
+
+def selected_device_ids(records: list[dict], mounts: list[dict],
+                        private: Path) -> list[str]:
+    private_mount = any(m['root'] == str(private) and m['fstype'] == 'tmpfs' for m in mounts)
+    boot_sources = {m['source'] for m in mounts if m['root'] in BOOT_MEDIA_ROOTS}
+    selected = []
+    for record in records:
+        root, unix = record.get('root'), record.get('unix') or ''
+        is_private = (root in (str(private), str(private.parent), '/run/core-vault') and
+                      any(m['root'] == root and m['fstype'] == 'tmpfs' for m in mounts))
+        is_boot_medium = root in BOOT_MEDIA_ROOTS or unix in boot_sources
+        # The Debian live-build optical ISO can remain inserted after installation.
+        # Its name alone is never sufficient: a USB carrying that label stays visible.
+        is_debian_optical = (re.fullmatch(r'/dev/sr[0-9]+', unix) is not None and
+                             re.fullmatch(r'Debian trixie(?: [0-9][0-9 .:TZ+_-]*)?',
+                                          record.get('name') or '') is not None)
+        identifier = record.get('id')
+        if (is_private or is_boot_medium or is_debian_optical) and identifier:
+            selected.append(identifier)
+    return list(dict.fromkeys(selected))
+
+
+def managed_device_ids(private: Path) -> list[str]:
+    import gi
+    gi.require_version('Gio', '2.0')
+    from gi.repository import Gio, GLib
+
+    monitor = Gio.VolumeMonitor.get()
+    context = GLib.MainContext.default()
+    # Allow the GIO volume service's initial metadata reply before Thunar starts.
+    deadline = time.monotonic() + 1.0
+    while time.monotonic() < deadline:
+        while context.pending():
+            context.iteration(False)
+        time.sleep(0.02)
+    mounts = mount_records(Path('/proc/self/mountinfo').read_text(encoding='utf-8'))
+    return selected_device_ids(gio_device_records(monitor, Gio), mounts, private)
+
+
+def paths_from_session() -> tuple[Path, Path, Path]:
+    account = pwd.getpwuid(os.getuid())
+    if os.geteuid() == 0 or account.pw_name != 'vault':
+        raise RuntimeError('Run this helper inside the Vault session as vault, without sudo.')
+    home = Path.home()
+    if not home.is_absolute() or home.resolve() != Path(account.pw_dir).resolve():
+        raise RuntimeError('HOME does not match the local Vault account.')
+    value = os.environ.get('XDG_RUNTIME_DIR', '')
+    runtime = Path(value)
+    if not value or not runtime.is_absolute() or runtime.is_symlink() or not runtime.is_dir():
+        raise RuntimeError('A local XDG_RUNTIME_DIR is required.')
+    if runtime.stat().st_uid != os.getuid():
+        raise RuntimeError('The runtime directory is owned by another account.')
+    config = Path(os.environ.get('XDG_CONFIG_HOME') or str(home / '.config'))
+    if not config.is_absolute() or not config.resolve().is_relative_to(home.resolve()):
+        raise RuntimeError('The Vault configuration must be inside its own home directory.')
+    return home, runtime, config
+
+
+def configure(home: Path, runtime: Path, config: Path, run=query, devices=managed_device_ids) -> None:
+    bookmark = config / 'gtk-3.0/bookmarks'
+    legacy = home / '.gtk-bookmarks'
+    old_alias = runtime / 'core-vault-places/Vault'
+    core, private = home / '.bitcoin', home / 'Private Workspace'
+    for path in (bookmark, legacy, old_alias.parent, core, private):
+        if path.is_symlink():
+            raise RuntimeError(f'Unexpected symbolic link at managed path: {path}')
+    if os.path.lexists(old_alias):
+        if not old_alias.is_symlink() or old_alias.resolve() != home.resolve():
+            raise RuntimeError(f'Unexpected object at old Vault display alias: {old_alias}')
+    previous = {prop: (prop in run(['-l']).splitlines(), hidden_values(run, prop))
+                for prop in (PROP, DEVICE_PROP)}
+    old = bookmark.read_bytes() if bookmark.exists() else None
+    old_mode = stat.S_IMODE(bookmark.stat().st_mode) if old is not None else 0o600
+    source = old if old is not None else (legacy.read_bytes() if legacy.is_file() else b'')
+    new = merge_bookmarks(source.decode('utf-8'), home, private).encode('utf-8')
+    selected = devices(private)
+    desired = {
+        PROP: places_visibility(previous[PROP][1], home, private, config, new.decode('utf-8')),
+        DEVICE_PROP: list(dict.fromkeys([*previous[DEVICE_PROP][1], *selected])),
+    }
+    core.mkdir(mode=0o700, exist_ok=True)
+    private.mkdir(mode=0o700, exist_ok=True)
+    if old != new:
+        saved = bookmark.with_name('bookmarks.before-core-vault-places-v3')
+        if source and not saved.exists() and not saved.is_symlink():
+            atomic_write(saved, source)
+        atomic_write(bookmark, new, old_mode)
+    saved_visibility = bookmark.with_name('visibility.before-core-vault-places-v3.json')
+    if not saved_visibility.exists() and not saved_visibility.is_symlink():
+        atomic_write(saved_visibility, (json.dumps({
+            prop: {'property_existed': existed, 'values': values}
+            for prop, (existed, values) in previous.items()
+        }, indent=2) + '\n').encode('utf-8'))
+    try:
+        for prop in (PROP, DEVICE_PROP):
+            if previous[prop][1] != desired[prop]:
+                set_hidden(desired[prop], run, prop)
+        check(home, runtime, config, run, devices=lambda _: selected)
+    except Exception:
+        for prop, (existed, values) in previous.items():
+            try:
+                if existed and values:
+                    set_hidden(values, run, prop)
+                else:
+                    set_hidden([], run, prop)
+            except (OSError, RuntimeError, subprocess.SubprocessError):
+                print('Could not restore ' + prop + '; saved settings: '
+                      + str(saved_visibility), file=sys.stderr)
+        if old != new:
+            if old is None:
+                bookmark.unlink(missing_ok=True)
+            else:
+                atomic_write(bookmark, old, old_mode)
+        raise
+    # Retire only the former display symlink. Its home target is never touched.
+    if old_alias.is_symlink():
+        old_alias.unlink()
+
+
+def check(home: Path, runtime: Path, config: Path, run=query, devices=managed_device_ids) -> None:
+    core, private = home / '.bitcoin', home / 'Private Workspace'
+    if any(p.is_symlink() or not p.is_dir() for p in (core, private)):
+        raise RuntimeError('Bitcoin Core or Private Workspace directory is missing or redirected.')
+    text = (config / 'gtk-3.0/bookmarks').read_text(encoding='utf-8')
+    lines = text.splitlines()
+    expected = [f'{core.as_uri()} Bitcoin Core', f'{private.as_uri()} Private Workspace']
+    if lines != expected:
+        raise RuntimeError('Expected exactly Bitcoin Core then Private Workspace in Places.')
+    values = hidden_values(run)
+    if not {home.as_uri(), *BUILTIN_PLACES, desktop_uri(home, config)}.issubset(values):
+        raise RuntimeError('Built-in Computer, Trash, Recent or home/Desktop is not hidden.')
+    if any(uri in values for uri in (core.as_uri(), private.as_uri(), 'file:///')):
+        raise RuntimeError('A required Places entry or File System is hidden.')
+    if not set(devices(private)).issubset(hidden_values(run, DEVICE_PROP)):
+        raise RuntimeError('Private Workspace or the Vault boot medium is duplicated in Devices.')
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument('--apply', action='store_true')
+    mode.add_argument('--check', action='store_true')
+    args = parser.parse_args()
+    home, runtime, config = paths_from_session()
+    if args.apply:
+        configure(home, runtime, config)
+    else:
+        check(home, runtime, config)
+    print('VAULT FILE PLACES CHECK PASSED')
+    print('Bitcoin Core -> ' + str(home / '.bitcoin'))
+    print('Private Workspace -> ' + str(home / 'Private Workspace'))
+    print('Devices: File System visible; duplicate workspace and Vault boot medium hidden')
+    return 0
+
+
+if __name__ == '__main__':
+    try:
+        raise SystemExit(main())
+    except (OSError, RuntimeError, ValueError, ImportError, subprocess.SubprocessError) as exc:
+        print('VAULT FILE PLACES ERROR: ' + str(exc), file=sys.stderr)
+        raise SystemExit(1)

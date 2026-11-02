@@ -1,0 +1,8 @@
+{
+  "etc/sudoers.d/90-core-signer-poweroff": "8efc951d4be2bd6264c7940d33215edfec1cf53682c0c6ee5d0a0f1d5bf83d10",
+  "usr/local/bin/core-signer-eject-usb": "8da615e8cad55c739c28914f27e5fa0d62f423d62153ac5c19aba395f257fb37",
+  "usr/local/bin/core-signer-restore": "48afded7a2ac6119795dff8b54af72e40cae97d688087b6a7202d0059cd596a3",
+  "usr/local/bin/core-signer-session": "f5a455b9c38edc53926d0bd7c59f942d6606338b43c40c57c0f21ce1d60af431",
+  "usr/local/bin/core-signer-shutdown-dialog": "b58730438f4ed231482ae45ee3bb17be2292df1bb0aa637813ef67abbb217a5e",
+  "usr/local/bin/core-signer-usb-sidebar": "3a8d86db42c1d16b1c8683024c28152368f0329f2320b24cdb6b4c4c68470456"
+}

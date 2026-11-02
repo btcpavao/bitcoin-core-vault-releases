@@ -1,0 +1,54 @@
+#!/bin/sh
+# Only the image build chroot. Never run on the developer's host.
+set -eu
+test -x /usr/bin/bwrap
+chmod 0755 /usr/local/libexec/core-vault-prepare /usr/local/libexec/core-vault-destroy \
+    /usr/local/libexec/core-vault-core-session \
+    /usr/local/sbin/core-vault-end-session /usr/local/bin/core-vault-finish \
+    /usr/local/bin/core-vault-wallet-backup /usr/local/bin/core-vault-security-check \
+    /usr/local/bin/core-vault-keepassxc /usr/local/bin/core-vault-open-passphrase
+chown root:root /usr/local /usr/local/bin /usr/local/sbin /usr/local/libexec     /usr/local/libexec/core-vault-* /usr/local/sbin/core-vault-end-session     /usr/local/bin/core-vault-* /usr/lib/core-vault /usr/lib/core-vault/*.py     /etc/systemd/system /etc/systemd/system/core-vault-* /etc/systemd/system/*.mount
+chmod 0755 /usr/local /usr/local/bin /usr/local/sbin /usr/local/libexec /usr/lib/core-vault
+chmod 0644 /usr/lib/core-vault/*.py /etc/systemd/system/core-vault-* /etc/systemd/system/*.mount
+for unit in sleep.target suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target swap.target; do
+    systemctl mask "$unit"
+done
+systemctl enable home-vault.mount 'run-core\x2dvault.mount' tmp.mount var-tmp.mount
+# LightDM creates its authentication file in /run; every user's HOME is RAM.
+mkdir -p /etc/lightdm/lightdm.conf.d
+cat > /etc/lightdm/lightdm.conf.d/55-core-vault-volatile-auth.conf <<'AUTH'
+[LightDM]
+user-authority-in-system-dir=true
+AUTH
+mkdir -p /etc/skel/.config/gtk-3.0 /etc/skel/.config/keepassxc
+cat > /etc/skel/.config/gtk-3.0/settings.ini <<'GTK'
+[Settings]
+gtk-recent-files-enabled=false
+gtk-recent-files-max-age=0
+GTK
+cat > /etc/skel/.config/keepassxc/keepassxc.ini <<'KEEPASS'
+[General]
+ConfigVersion=2
+UpdateCheckMessageShown=true
+CheckForUpdates=false
+RememberLastDatabases=false
+RememberLastKeyFiles=false
+
+[GUI]
+CheckForUpdates=false
+
+[PasswordGenerator]
+Type=1
+WordCount=6
+WordList=eff_large.wordlist
+
+[Security]
+ClearClipboard=false
+ClearClipboardTimeout=10
+LockDatabaseIdle=true
+LockDatabaseIdleSeconds=120
+KEEPASS
+# No persistent journal, crash store or distribution logger for private output.
+systemctl mask rsyslog.service systemd-coredump.socket
+test ! -d /var/log/journal || rmdir /var/log/journal
+printf '%s\n' 'VAULT RAM-ONLY SESSION CHROOT CONFIGURATION PASSED'

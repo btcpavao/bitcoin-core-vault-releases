@@ -1,0 +1,11 @@
+#!/bin/sh
+
+RUNTIME="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+IDFILE="$RUNTIME/core-signer/core-window-id"
+
+[ -r "$IDFILE" ] || exit 0
+
+WINDOW="$(cat "$IDFILE")"
+
+xdotool windowmap "$WINDOW" >/dev/null 2>&1 || true
+xdotool windowactivate --sync "$WINDOW" >/dev/null 2>&1 || true

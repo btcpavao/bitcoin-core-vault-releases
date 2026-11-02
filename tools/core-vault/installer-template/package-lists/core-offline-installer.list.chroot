@@ -1,0 +1,18 @@
+# Installer runtime only. Compiler dependencies are isolated in the builder.
+calamares
+python3-yaml
+python3
+sudo
+locales
+keyboard-configuration
+xkb-data
+grub2-common
+grub-pc-bin
+grub-efi-amd64-bin
+efibootmgr
+dosfstools
+e2fsprogs
+rsync
+squashfs-tools
+util-linux
+kmod

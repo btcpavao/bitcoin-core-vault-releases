@@ -1,0 +1,125 @@
+#!/usr/bin/python3
+
+import tkinter as tk
+
+root = tk.Tk()
+
+root.overrideredirect(True)
+root.configure(bg="black")
+root.attributes("-topmost", True)
+
+root.update_idletasks()
+
+sw = root.winfo_screenwidth()
+sh = root.winfo_screenheight()
+
+root.geometry(f"{sw}x{sh}+0+0")
+
+
+main = tk.Frame(
+    root,
+    bg="black",
+)
+
+main.place(
+    relx=0.5,
+    rely=0.5,
+    anchor="center",
+)
+
+
+def photo(name):
+    return tk.PhotoImage(
+        file=f"/usr/share/core-signer/{name}"
+    )
+
+
+bitcoin = photo("bitcoin-ui.png")
+title = photo("boot-title.png")
+line1 = photo("boot-line1.png")
+line2 = photo("boot-line2.png")
+track = photo("progress-track.png")
+fill = photo("progress-fill.png")
+debian = photo("debian-ui.png")
+credit = photo("powered-by-debian.png")
+
+
+for image, pady in (
+    (bitcoin, (0, 14)),
+    (title, (0, 12)),
+    (line1, (0, 5)),
+    (line2, (0, 22)),
+):
+    label = tk.Label(
+        main,
+        image=image,
+        bg="black",
+        borderwidth=0,
+        highlightthickness=0,
+    )
+
+    label.image = image
+    label.pack(pady=pady)
+
+
+bar = tk.Canvas(
+    main,
+    width=480,
+    height=8,
+    bg="black",
+    borderwidth=0,
+    highlightthickness=0,
+)
+
+bar.pack()
+
+bar.create_image(
+    0,
+    0,
+    anchor="nw",
+    image=track,
+)
+
+bar.create_image(
+    1,
+    1,
+    anchor="nw",
+    image=fill,
+)
+
+
+footer = tk.Frame(
+    root,
+    bg="black",
+)
+
+footer.place(
+    relx=0.5,
+    rely=1.0,
+    y=-24,
+    anchor="s",
+)
+
+debian_label = tk.Label(
+    footer,
+    image=debian,
+    bg="black",
+    borderwidth=0,
+    highlightthickness=0,
+)
+
+debian_label.image = debian
+debian_label.pack(pady=(0, 5))
+
+credit_label = tk.Label(
+    footer,
+    image=credit,
+    bg="black",
+    borderwidth=0,
+    highlightthickness=0,
+)
+
+credit_label.image = credit
+credit_label.pack()
+
+root.mainloop()

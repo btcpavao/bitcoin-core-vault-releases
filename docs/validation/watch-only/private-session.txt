@@ -1,0 +1,25 @@
+test_active_disk_swap_is_rejected_before_private_paths (__main__.PrivateSessionTests.test_active_disk_swap_is_rejected_before_private_paths) ... ok
+test_core_mount_identity_only_ignores_missing_target_path (__main__.PrivateSessionTests.test_core_mount_identity_only_ignores_missing_target_path) ... ok
+test_core_mount_identity_uses_kernel_fdinfo_and_closes_descriptor (__main__.PrivateSessionTests.test_core_mount_identity_uses_kernel_fdinfo_and_closes_descriptor) ... ok
+test_core_mount_topology_allows_roots_and_unrelated_media (__main__.PrivateSessionTests.test_core_mount_topology_allows_roots_and_unrelated_media) ... ok
+test_core_mount_topology_fails_without_kernel_mount_identity (__main__.PrivateSessionTests.test_core_mount_topology_fails_without_kernel_mount_identity) ... ok
+test_core_mount_topology_ignores_hidden_descendant_records (__main__.PrivateSessionTests.test_core_mount_topology_ignores_hidden_descendant_records) ... ok
+test_core_mount_topology_rejects_every_nested_filesystem (__main__.PrivateSessionTests.test_core_mount_topology_rejects_every_nested_filesystem) ... ok
+test_disk_home_and_missing_noswap_are_rejected (__main__.PrivateSessionTests.test_disk_home_and_missing_noswap_are_rejected) ... ok
+test_encrypted_export_real_engine_and_reverification (__main__.PrivateSessionTests.test_encrypted_export_real_engine_and_reverification) ... ok
+test_logical_wallet_digest_survives_checkpoint (__main__.PrivateSessionTests.test_logical_wallet_digest_survives_checkpoint) ... ok
+test_plaintext_payload_is_rejected (__main__.PrivateSessionTests.test_plaintext_payload_is_rejected) ... ok
+test_receipt_atomic_write_and_link_refusal (__main__.PrivateSessionTests.test_receipt_atomic_write_and_link_refusal) ... ok
+test_shared_systemd_inaccessible_directory_is_outside_wallet_inventory (__main__.PrivateSessionTests.test_shared_systemd_inaccessible_directory_is_outside_wallet_inventory) ... ok
+test_unknown_owned_unreadable_ram_directory_still_blocks_inventory (__main__.PrivateSessionTests.test_unknown_owned_unreadable_ram_directory_still_blocks_inventory) ... ok
+test_unloaded_wallet_in_system_ram_scratch_is_inventoried (__main__.PrivateSessionTests.test_unloaded_wallet_in_system_ram_scratch_is_inventoried) ... ok
+test_unsupported_database_is_not_accepted (__main__.PrivateSessionTests.test_unsupported_database_is_not_accepted) ... ok
+test_wallet_inventory_includes_absolute_and_parent_paths (__main__.PrivateSessionTests.test_wallet_inventory_includes_absolute_and_parent_paths) ... ok
+test_wallet_inventory_rejects_symlink (__main__.PrivateSessionTests.test_wallet_inventory_rejects_symlink) ... ok
+test_wallet_inventory_unifies_bind_aliases (__main__.PrivateSessionTests.test_wallet_inventory_unifies_bind_aliases) ... ok
+test_xdg_parent_and_private_core_runtime_permissions_are_validated (__main__.PrivateSessionTests.test_xdg_parent_and_private_core_runtime_permissions_are_validated) ... ok
+
+----------------------------------------------------------------------
+Ran 20 tests in 1.072s
+
+OK

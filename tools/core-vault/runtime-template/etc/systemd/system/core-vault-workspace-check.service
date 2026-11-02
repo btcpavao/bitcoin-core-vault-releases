@@ -1,0 +1,10 @@
+[Unit]
+Description=Verify Bitcoin Core Vault private workspace before login
+Requires=core-signer-no-swap.service home-vault.mount tmp.mount var-tmp.mount
+After=local-fs.target core-signer-no-swap.service home-vault.mount tmp.mount var-tmp.mount
+Before=lightdm.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/core-vault-storage-check --session
+RemainAfterExit=yes

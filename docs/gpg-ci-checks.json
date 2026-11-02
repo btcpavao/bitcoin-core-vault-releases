@@ -1,0 +1,68 @@
+{
+  "schema": 1,
+  "scope": "Application and source CI; not candidate ISO or physical removable-media acceptance",
+  "source_commit": "9cb6d0e031e8fed722e875e3ba258ddd2de60ec5",
+  "run_id": 38400106816,
+  "run_url": "https://github.com/btcpavao/bitcoin-core-vault/actions/runs/38400106816",
+  "source_job": {
+    "id": 115305236642,
+    "status": "passed",
+    "unit_suite": {
+      "total": 98,
+      "passed": 97,
+      "skipped": 1,
+      "skip": "Unreadable-file DAC case under UID 0; independently passed in the 24-case unprivileged GPG suite"
+    },
+    "unprivileged_gpg_suite": {
+      "total": 24,
+      "passed": 24
+    },
+    "qt_dialog_suite": {
+      "total": 33,
+      "passed": 33
+    },
+    "private_policy_real_7z_suite": {
+      "total": 22,
+      "passed": 22
+    },
+    "existing_source_package_gates": "passed",
+    "stock_gpg_roundtrip_and_rejection": "passed"
+  },
+  "core_job": {
+    "id": 115305236994,
+    "status": "passed",
+    "core_version": "31.1",
+    "unmodified_core_sha256": "fcd4c1a3193e0cb4eec9d980c835d822ad726627b0c01281b13f5c3c1f593fcb",
+    "formats": [
+      "7z",
+      "gpg"
+    ],
+    "checks": [
+      "Unencrypted Core wallet externally encrypted and restored",
+      "Loaded/unloaded/closed wallet snapshots",
+      "No load/unload side effects for unloaded export",
+      "Wrong external passphrase rejected",
+      "Encrypted descriptor/SQLite wallet restored",
+      "Expected addresses and labels recovered",
+      "Recovered wallet signs funded regtest PSBT accepted by Core",
+      "Receipt logical digest remains valid after clean Core shutdown"
+    ],
+    "limitations": [
+      "Synthetic RAM wallets only",
+      "Storage attestation and destination media classification explicitly substituted by fixture",
+      "No actual VM/GUI Finish or installed acceptance"
+    ]
+  },
+  "candidate_build": {
+    "job_id": 115305709663,
+    "status": "failed",
+    "reason": "Git checkout cannot preserve sudoers 0440; earlier visudo rejected two 0644 Vault policies before the later normalization hook",
+    "followup": "New early chroot hook applies root:root and 0440 before complete visudo validation; no policy change or validation bypass"
+  },
+  "unverified": [
+    "Candidate BIOS/UEFI boot",
+    "Live and installed GUI/Finish acceptance",
+    "Windows/macOS recovery",
+    "Nested GPG-in-7z as a verified wallet export"
+  ]
+}

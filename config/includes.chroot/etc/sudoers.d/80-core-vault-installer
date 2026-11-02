@@ -1,0 +1,3 @@
+# Only the fixed, root-owned, Live-install launcher. No arguments.
+Defaults!/usr/local/sbin/core-vault-installer env_keep += "DISPLAY XAUTHORITY"
+vault ALL=(root) NOPASSWD: /usr/local/sbin/core-vault-installer ""

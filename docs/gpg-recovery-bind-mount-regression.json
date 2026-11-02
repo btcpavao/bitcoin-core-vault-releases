@@ -1,0 +1,31 @@
+{
+  "scope": "real mount/stock GPG regression, dialogs substituted",
+  "source_sha256": "e85f4db7e903b5491314c806f2bc3732bae2fa1325a53b4ab01fcb90a29c3e5c",
+  "checks": [
+    {
+      "check": "baseline-cross-bind-publication-fails-with-EXDEV",
+      "status": "PASS"
+    },
+    {
+      "check": "fixed-authenticated-recovery-publishes-exact-bytes-in-RAM",
+      "status": "PASS"
+    },
+    {
+      "check": "existing-output-refused-and-preserved",
+      "status": "PASS"
+    },
+    {
+      "check": "wrong-passphrase-publishes-nothing",
+      "status": "PASS"
+    },
+    {
+      "check": "cancel-publishes-nothing",
+      "status": "PASS"
+    },
+    {
+      "check": "original-encrypted-input-unchanged",
+      "status": "PASS"
+    }
+  ],
+  "status": "passed"
+}

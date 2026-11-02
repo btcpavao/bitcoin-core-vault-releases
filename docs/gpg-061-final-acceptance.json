@@ -1,0 +1,1575 @@
+{
+  "status": "passed-covered-checks",
+  "collected_utc": "2026-10-14T17:04:23.649694+00:00",
+  "iso_sha256": "ef6b210772d096e37a3ec6de5fb586b5d1af75e33f33e8ed6ab8425b15b2ae56",
+  "product_commit": "d11f31b002386287ee7de6fbe1ec10476c9343b6",
+  "firmware": {
+    "bios": {
+      "report_sha256": "5c219dcc1057dd593a2f6da0664c842723bcd3e291e90dd6eefec4fc6ce95762",
+      "harness_sha256": "f9030674e3dae691b1252c307267603de6d0ac758e209ae5c2e6947c185b68a7",
+      "gui_helper_sha256": "eefe4d5546009501d8409bb9939613d9f17c1daf0db4d03d99649d31a478838e",
+      "controller_extensions": [
+        {
+          "kind": "resume-incomplete-installation",
+          "driver": "resume-history/1791994113003790161/resume-acceptance.py",
+          "driver_sha256": "8d69e6938a4cfcda42075dd892bb2bfd876871e3a424bb108bc9cd62660e94b7",
+          "base_harness_sha256": "f9030674e3dae691b1252c307267603de6d0ac758e209ae5c2e6947c185b68a7",
+          "preserved_evidence": {
+            "live/phase-result.json": "14ad6a700837cba09577324835f79ba2845ba3e03ac2da415a3053158eee8cd3",
+            "forensic-950227746476456eb8225ebd6d7a7b1c/scan-result.json": "2a0b3bb50e216527b716b6f36ce7771242a770342d36debf17b3b8cc9fe41da6",
+            "live-reset-report": "28bab0fc79fe4e66ac7b2e0b3e6c3873bf09eac836a14c398c42ed876821ae9b"
+          },
+          "selector_change": "Installer text compares case-insensitively and uses actual enlarged control-strip pixels; exact words, disk identity and native clicks remain required."
+        },
+        {
+          "kind": "resume-incomplete-installation",
+          "driver": "resume-history/1791994330050022016/resume-acceptance.py",
+          "driver_sha256": "20468962ce7208f0bfa8ffbbfb8d1c0f8e781503e6c55aae5a8d6d8c356600ec",
+          "base_harness_sha256": "f9030674e3dae691b1252c307267603de6d0ac758e209ae5c2e6947c185b68a7",
+          "preserved_evidence": {
+            "live/phase-result.json": "14ad6a700837cba09577324835f79ba2845ba3e03ac2da415a3053158eee8cd3",
+            "forensic-950227746476456eb8225ebd6d7a7b1c/scan-result.json": "2a0b3bb50e216527b716b6f36ce7771242a770342d36debf17b3b8cc9fe41da6",
+            "live-reset-report": "28bab0fc79fe4e66ac7b2e0b3e6c3873bf09eac836a14c398c42ed876821ae9b"
+          },
+          "selector_change": "Installer text compares case-insensitively and uses actual enlarged full-frame and native-button pixels; exact words, disk identity and native clicks remain required."
+        },
+        {
+          "kind": "resume-incomplete-installation",
+          "driver": "resume-history/1791994532748177925/resume-acceptance.py",
+          "driver_sha256": "15d99d318767a66e23313816c3a0be474213f17bd843e5f55298962b0f48bba1",
+          "base_harness_sha256": "f9030674e3dae691b1252c307267603de6d0ac758e209ae5c2e6947c185b68a7",
+          "preserved_evidence": {
+            "live/phase-result.json": "14ad6a700837cba09577324835f79ba2845ba3e03ac2da415a3053158eee8cd3",
+            "forensic-950227746476456eb8225ebd6d7a7b1c/scan-result.json": "2a0b3bb50e216527b716b6f36ce7771242a770342d36debf17b3b8cc9fe41da6",
+            "live-reset-report": "28bab0fc79fe4e66ac7b2e0b3e6c3873bf09eac836a14c398c42ed876821ae9b"
+          },
+          "selector_change": "Installer text compares case-insensitively and uses actual enlarged full-frame and native-button pixels; exact words, disk identity and native clicks remain required."
+        },
+        {
+          "kind": "repeat-failed-installed-phase",
+          "driver": "resume-history/1791995324145189132/resume-installed.py",
+          "driver_sha256": "76e8d52498d073be66cf5eaa4ce41bb8cc8c32e808b29a169784a64a1b37056a",
+          "base_harness_sha256": "f9030674e3dae691b1252c307267603de6d0ac758e209ae5c2e6947c185b68a7",
+          "original_gui_helper_sha256": "17d5062e779cda9b1f7b1cc90b3dabe89b6cf5aa0ae0b7c16c367061c30a183a",
+          "installed_gui_helper_sha256": "b10b1262737f55bd0ed6e94e9b2c61f5e670b2561e2e30efb70eb07a71265ae2",
+          "harness_directory": "/home/pavao/vault-gpg-qa/harness-bios-installed-12",
+          "preserved_evidence": {
+            "live/phase-result.json": "14ad6a700837cba09577324835f79ba2845ba3e03ac2da415a3053158eee8cd3",
+            "installer/phase-result.json": "13bc6273555dc1c9b5c0b13ceee0cb98a0c85b6be6ac93696baed061f248ef81",
+            "forensic-950227746476456eb8225ebd6d7a7b1c/scan-result.json": "2a0b3bb50e216527b716b6f36ce7771242a770342d36debf17b3b8cc9fe41da6"
+          },
+          "live_reset_report_sha256": "28bab0fc79fe4e66ac7b2e0b3e6c3873bf09eac836a14c398c42ed876821ae9b",
+          "previous_usb_sha256": "781939e205815ad41b8e96b93a15a2bf89a6b0f642fc27a3d6f29b31c5a225b8",
+          "new_usb_sha256": "55df8382fe7d0c684072a9a8cb8d2351250ba27eb916794cd355ded0f55f2c6d",
+          "fixture_redelivery": [
+            {
+              "name": "ci-vm-guest-probe.py",
+              "sha256": "ae0e3a57a40b958c08af7d00863e45eca585e9adb3bf63b6be3837264e5b24c9"
+            },
+            {
+              "name": "ci-vm-psbt.py",
+              "sha256": "ddbffe0da870fecf3dfb7320257f1984b1c0bf7fe165fb2a8fe84a0bb4193a7d"
+            },
+            {
+              "name": "ci-vm-gui-actions.py",
+              "sha256": "b10b1262737f55bd0ed6e94e9b2c61f5e670b2561e2e30efb70eb07a71265ae2"
+            },
+            {
+              "name": "ci-vm-reset-probe.py",
+              "sha256": "74c230e62e502bf0483965892c3b67e9b78ebd81aff79f816dfbe5e3fccd437f"
+            },
+            {
+              "name": "ci-vm-reset-runner.py",
+              "sha256": "f18e3b96fbd817167bfd23b9874e60d2c541fe2d2fc70d64951ed82fc402b771"
+            },
+            {
+              "name": "ci-helper-sha256.json",
+              "sha256": "d5d3e0d1f9423fc5792e1b2edf8ec8eb5b8d20c84195227cce49674f90bb194e"
+            },
+            {
+              "name": "ci-reset-helper-sha256.json",
+              "sha256": "a058dbf7aceef1e1948bd7c28687120562ed03beb58744c55188f8ef4d0940ce"
+            },
+            {
+              "name": "ci-reset-request-installed-normal-arm.json",
+              "sha256": "d4199e2680a9f19f803072049f426f36217e7575c549ee40e28f6c6c6464d257"
+            },
+            {
+              "name": "ci-reset-request-installed-abrupt-arm.json",
+              "sha256": "5a46fa5d26e1f083a46281abff84311d7cc520891ee161457247073e626fec7e"
+            }
+          ],
+          "reason": "Native Terminal title OCR truncation; reread actual enlarged title pixels with exact account and empty-body checks. Fresh owned synthetic USB and guest RAM; prior failed attempt retained. No installed system file changed."
+        },
+        {
+          "kind": "repeat-failed-installed-phase",
+          "driver": "resume-history/1791996147593528582/resume-installed.py",
+          "driver_sha256": "4eee8888860182118c32d2cd7d25d163b13e469c975a1a191ba99af26f5866eb",
+          "base_harness_sha256": "f9030674e3dae691b1252c307267603de6d0ac758e209ae5c2e6947c185b68a7",
+          "original_fixture_delivery_sha256": "17d5062e779cda9b1f7b1cc90b3dabe89b6cf5aa0ae0b7c16c367061c30a183a",
+          "original_gui_helper_sha256": "b10b1262737f55bd0ed6e94e9b2c61f5e670b2561e2e30efb70eb07a71265ae2",
+          "installed_gui_helper_sha256": "458180cf9d58b8938bfc538865f6aebe477defeadc5f814e036ec20f133cec3d",
+          "harness_directory": "/home/pavao/vault-gpg-qa/harness-bios-installed-13",
+          "preserved_evidence": {
+            "live/phase-result.json": "14ad6a700837cba09577324835f79ba2845ba3e03ac2da415a3053158eee8cd3",
+            "installer/phase-result.json": "13bc6273555dc1c9b5c0b13ceee0cb98a0c85b6be6ac93696baed061f248ef81",
+            "forensic-950227746476456eb8225ebd6d7a7b1c/scan-result.json": "2a0b3bb50e216527b716b6f36ce7771242a770342d36debf17b3b8cc9fe41da6"
+          },
+          "live_reset_report_sha256": "28bab0fc79fe4e66ac7b2e0b3e6c3873bf09eac836a14c398c42ed876821ae9b",
+          "previous_usb_sha256": "41c59d8295a616ae3e25b48411114bb09cb632eec31e60fc0542e2daa1fa2507",
+          "new_usb_sha256": "7bf62efd33c470e3c9d2ba5b667991eab324e385ecd71b850b04f0a7ae03ac09",
+          "fixture_redelivery": [
+            {
+              "name": "ci-vm-guest-probe.py",
+              "sha256": "ae0e3a57a40b958c08af7d00863e45eca585e9adb3bf63b6be3837264e5b24c9"
+            },
+            {
+              "name": "ci-vm-psbt.py",
+              "sha256": "ddbffe0da870fecf3dfb7320257f1984b1c0bf7fe165fb2a8fe84a0bb4193a7d"
+            },
+            {
+              "name": "ci-vm-gui-actions.py",
+              "sha256": "458180cf9d58b8938bfc538865f6aebe477defeadc5f814e036ec20f133cec3d"
+            },
+            {
+              "name": "ci-vm-reset-probe.py",
+              "sha256": "74c230e62e502bf0483965892c3b67e9b78ebd81aff79f816dfbe5e3fccd437f"
+            },
+            {
+              "name": "ci-vm-reset-runner.py",
+              "sha256": "f18e3b96fbd817167bfd23b9874e60d2c541fe2d2fc70d64951ed82fc402b771"
+            },
+            {
+              "name": "ci-helper-sha256.json",
+              "sha256": "d5d3e0d1f9423fc5792e1b2edf8ec8eb5b8d20c84195227cce49674f90bb194e"
+            },
+            {
+              "name": "ci-reset-helper-sha256.json",
+              "sha256": "a058dbf7aceef1e1948bd7c28687120562ed03beb58744c55188f8ef4d0940ce"
+            },
+            {
+              "name": "ci-reset-request-installed-normal-arm.json",
+              "sha256": "d4199e2680a9f19f803072049f426f36217e7575c549ee40e28f6c6c6464d257"
+            },
+            {
+              "name": "ci-reset-request-installed-abrupt-arm.json",
+              "sha256": "5a46fa5d26e1f083a46281abff84311d7cc520891ee161457247073e626fec7e"
+            }
+          ],
+          "reason": "Full-frame command OCR read ci-vm as ci-vn; re-read the actual enlarged pixels and still require exact complete public command echo before Return. Current helper readback is aligned with verified preboot delivery. Fresh owned synthetic USB and guest RAM; prior failed attempt retained. No installed system file changed."
+        },
+        {
+          "kind": "repeat-failed-installed-phase",
+          "driver": "resume-history/1791996645276504583/resume-installed.py",
+          "driver_sha256": "c4d1b389cf228529bcc4575603f09a58518abcec9cbe003abde4bc75bced473f",
+          "base_harness_sha256": "f9030674e3dae691b1252c307267603de6d0ac758e209ae5c2e6947c185b68a7",
+          "original_fixture_delivery_sha256": "458180cf9d58b8938bfc538865f6aebe477defeadc5f814e036ec20f133cec3d",
+          "original_gui_helper_sha256": "458180cf9d58b8938bfc538865f6aebe477defeadc5f814e036ec20f133cec3d",
+          "installed_gui_helper_sha256": "eefe4d5546009501d8409bb9939613d9f17c1daf0db4d03d99649d31a478838e",
+          "harness_directory": "/home/pavao/vault-gpg-qa/harness-bios-installed-14",
+          "preserved_evidence": {
+            "live/phase-result.json": "14ad6a700837cba09577324835f79ba2845ba3e03ac2da415a3053158eee8cd3",
+            "installer/phase-result.json": "13bc6273555dc1c9b5c0b13ceee0cb98a0c85b6be6ac93696baed061f248ef81",
+            "forensic-950227746476456eb8225ebd6d7a7b1c/scan-result.json": "2a0b3bb50e216527b716b6f36ce7771242a770342d36debf17b3b8cc9fe41da6"
+          },
+          "live_reset_report_sha256": "28bab0fc79fe4e66ac7b2e0b3e6c3873bf09eac836a14c398c42ed876821ae9b",
+          "previous_usb_sha256": "0d9c3d25d224490ceeb860a934113361ecfcf02b11af8b3e0ca32b5135add50d",
+          "new_usb_sha256": "40923a489902cfcd19cf468ac81ec96e0f78503d65d32f6f3b0842b5940beb1e",
+          "fixture_redelivery": [
+            {
+              "name": "ci-vm-guest-probe.py",
+              "sha256": "ae0e3a57a40b958c08af7d00863e45eca585e9adb3bf63b6be3837264e5b24c9"
+            },
+            {
+              "name": "ci-vm-psbt.py",
+              "sha256": "ddbffe0da870fecf3dfb7320257f1984b1c0bf7fe165fb2a8fe84a0bb4193a7d"
+            },
+            {
+              "name": "ci-vm-gui-actions.py",
+              "sha256": "eefe4d5546009501d8409bb9939613d9f17c1daf0db4d03d99649d31a478838e"
+            },
+            {
+              "name": "ci-vm-reset-probe.py",
+              "sha256": "74c230e62e502bf0483965892c3b67e9b78ebd81aff79f816dfbe5e3fccd437f"
+            },
+            {
+              "name": "ci-vm-reset-runner.py",
+              "sha256": "f18e3b96fbd817167bfd23b9874e60d2c541fe2d2fc70d64951ed82fc402b771"
+            },
+            {
+              "name": "ci-helper-sha256.json",
+              "sha256": "d5d3e0d1f9423fc5792e1b2edf8ec8eb5b8d20c84195227cce49674f90bb194e"
+            },
+            {
+              "name": "ci-reset-helper-sha256.json",
+              "sha256": "a058dbf7aceef1e1948bd7c28687120562ed03beb58744c55188f8ef4d0940ce"
+            },
+            {
+              "name": "ci-reset-request-installed-normal-arm.json",
+              "sha256": "d4199e2680a9f19f803072049f426f36217e7575c549ee40e28f6c6c6464d257"
+            },
+            {
+              "name": "ci-reset-request-installed-abrupt-arm.json",
+              "sha256": "5a46fa5d26e1f083a46281abff84311d7cc520891ee161457247073e626fec7e"
+            }
+          ],
+          "reason": "Observed 7z wallet row was OCRed as 72. Re-read actual observed row at 2x PSM7 and require exact format prefix with unique row and painted anchors; no character aliases. Current helper readback is aligned with verified preboot delivery. Fresh owned synthetic USB and guest RAM; prior failed attempt retained. No installed system file changed."
+        }
+      ],
+      "stages": {
+        "live": {
+          "status": "passed-covered-checks",
+          "gui_checks": [
+            {
+              "check": "actual-gui-fixture-attestation",
+              "status": "PASS",
+              "phase": "live",
+              "screenshot": "0031-check-initial-result.png"
+            },
+            {
+              "check": "native-wallet-backup-gpg-created-and-verified",
+              "status": "PASS",
+              "phase": "live",
+              "screenshot": "0053-backup-gpg-verified.png"
+            },
+            {
+              "check": "native-wallet-backup-7z-created-and-verified",
+              "status": "PASS",
+              "phase": "live",
+              "screenshot": "0068-backup-7z-verified.png"
+            },
+            {
+              "check": "gui-exports-match-receipts-and-authenticate-from-usb",
+              "status": "PASS",
+              "phase": "live",
+              "screenshot": "0076-check-exports-result.png"
+            },
+            {
+              "check": "native-backup-existing-output-disabled",
+              "status": "PASS",
+              "phase": "live",
+              "screenshot": "0089-backup-existing-refused.png"
+            },
+            {
+              "check": "native-backup-cancel-and-no-overwrite-preserve-output",
+              "status": "PASS",
+              "phase": "live",
+              "screenshot": "0108-check-unchanged-result.png"
+            },
+            {
+              "check": "native-files-context-menu-gpg-creation-authenticates-exact-public-json",
+              "status": "PASS",
+              "phase": "live",
+              "screenshot": "0147-check-context-result.png",
+              "selection_screenshot": "0126-context-gpg-file-selected.png",
+              "context_menu_screenshot": "0128-context-gpg-native-menu.png",
+              "request_screenshot": "0137-context-gpg-filled.png",
+              "result_screenshot": "0139-context-gpg-created.png",
+              "generic_file": true,
+              "wallet_receipt_created": false
+            },
+            {
+              "check": "native-gpg-recovery-wrong-passphrase-rejected",
+              "status": "PASS",
+              "phase": "live",
+              "screenshot": "0168-gpg-recovery-wrong-password.png"
+            },
+            {
+              "check": "native-recovery-cancel-and-authentication-failure-publish-nothing",
+              "status": "PASS",
+              "phase": "live",
+              "screenshot": "0176-check-no-plaintext-result.png"
+            },
+            {
+              "check": "native-files-double-click-routes-gpg-and-recovers-to-ram",
+              "status": "PASS",
+              "phase": "live",
+              "screenshot": "0187-gpg-recovery-verified.png"
+            },
+            {
+              "check": "native-recovery-existing-output-disabled",
+              "status": "PASS",
+              "phase": "live",
+              "screenshot": "0198-gpg-recovery-existing-refused.png"
+            },
+            {
+              "check": "gui-recovered-wallet-is-exact-authenticated-snapshot-in-ram",
+              "status": "PASS",
+              "phase": "live",
+              "screenshot": "0206-check-recovery-result.png"
+            },
+            {
+              "check": "native-core-restore-dialog-loads-recovered-ram-wallet",
+              "status": "PASS",
+              "phase": "live",
+              "screenshot": "0218-core-restore-success.png",
+              "selected_wallet_screenshot": "0219-core-restored-wallet-selected.png",
+              "core_restore_dialog": true,
+              "restore_rpc_used": false
+            },
+            {
+              "check": "native-restored-wallet-shows-synthetic-receiving-label",
+              "status": "PASS",
+              "phase": "live",
+              "screenshot": "0223-core-restored-receiving-label.png"
+            },
+            {
+              "check": "native-restored-wallet-core-ownership-and-label-attested",
+              "status": "PASS",
+              "phase": "live",
+              "screenshot": "0231-check-restore-result.png",
+              "read_only_rpc": true
+            },
+            {
+              "check": "native-core-close-wallet-unloads-restored-test-wallet",
+              "status": "PASS",
+              "phase": "live",
+              "screenshot": "0239-core-restored-closed.png",
+              "unload_rpc_used": false
+            },
+            {
+              "check": "owned-restored-test-wallet-ram-cleanup-preserves-originals",
+              "status": "PASS",
+              "phase": "live",
+              "screenshot": "0247-check-restore-cleanup-result.png"
+            },
+            {
+              "check": "native-finish-wrong-gpg-passphrase-keeps-session-open",
+              "status": "PASS",
+              "phase": "live",
+              "screenshot": "0256-finish-wrong-password-session-kept.png"
+            },
+            {
+              "check": "wrong-finish-retains-core-wallets-ram-and-usb-backups",
+              "status": "PASS",
+              "phase": "live",
+              "screenshot": "0265-check-session-result.png"
+            },
+            {
+              "check": "native-finish-verifies-both-formats-and-prompts-final-confirmation",
+              "status": "PASS",
+              "phase": "live",
+              "screenshot": "0276-finish-verified-summary.png"
+            },
+            {
+              "check": "native-verified-finish-powers-off-owned-guest",
+              "status": "PASS",
+              "phase": "live",
+              "screenshot": null,
+              "qemu_exit_code": 0,
+              "controller_quit_used": false
+            }
+          ],
+          "runtime_checks": [
+            {
+              "check": "copied-test-helper-hashes-match-controller-manifest",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-unprivileged-storage-swap-and-phase-aware-ram-policy",
+              "status": "PASS",
+              "phase": "live"
+            },
+            {
+              "check": "actual-production-security-check",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-production-core-launcher-offline-mainnet",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-production-security-check",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-7z-wrong-passphrase-rejected-false",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-usb-7z-restore-core-unencrypted",
+              "status": "PASS",
+              "exact_snapshot_sha256": true,
+              "logical_wallet_digest": true,
+              "address_ownership": true,
+              "address_label": true,
+              "public_descriptors": true,
+              "core_encryption_state": true
+            },
+            {
+              "check": "core-encryption-invalidates-previous-7z-receipt",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-7z-wrong-passphrase-rejected-true",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-usb-7z-restore-core-encrypted",
+              "status": "PASS",
+              "exact_snapshot_sha256": true,
+              "logical_wallet_digest": true,
+              "address_ownership": true,
+              "address_label": true,
+              "public_descriptors": true,
+              "core_encryption_state": true
+            },
+            {
+              "check": "actual-7z-wrong-snapshot-digest-rejected",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-gpg-wrong-passphrase-rejected-false",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-usb-gpg-restore-core-unencrypted",
+              "status": "PASS",
+              "exact_snapshot_sha256": true,
+              "logical_wallet_digest": true,
+              "address_ownership": true,
+              "address_label": true,
+              "public_descriptors": true,
+              "core_encryption_state": true
+            },
+            {
+              "check": "core-encryption-invalidates-previous-gpg-receipt",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-gpg-wrong-passphrase-rejected-true",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-usb-gpg-restore-core-encrypted",
+              "status": "PASS",
+              "exact_snapshot_sha256": true,
+              "logical_wallet_digest": true,
+              "address_ownership": true,
+              "address_label": true,
+              "public_descriptors": true,
+              "core_encryption_state": true
+            },
+            {
+              "check": "actual-gpg-wrong-snapshot-digest-rejected",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-gpg-truncated-authentication-rejected",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-gpg-altered-authentication-rejected",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-restored-7z-wallet-signs-supplied-synthetic-utxo-psbt",
+              "status": "PASS",
+              "actual_core_signing": true,
+              "fresh_recovery": true,
+              "synthetic_witness_utxo": true,
+              "funding_proven": false,
+              "mempool_tested": false,
+              "broadcast": false,
+              "independent_signature_verification": false,
+              "production_receipts_unchanged": true
+            },
+            {
+              "check": "actual-restored-gpg-wallet-signs-supplied-synthetic-utxo-psbt",
+              "status": "PASS",
+              "actual_core_signing": true,
+              "fresh_recovery": true,
+              "synthetic_witness_utxo": true,
+              "funding_proven": false,
+              "mempool_tested": false,
+              "broadcast": false,
+              "independent_signature_verification": false,
+              "production_receipts_unchanged": true
+            },
+            {
+              "check": "production-finish-rejects-wrong-gpg-passphrase",
+              "status": "PASS",
+              "dialog_mocked": true,
+              "actual_decryption": true
+            },
+            {
+              "check": "production-finish-verifies-both-formats-and-final-wallet-flush",
+              "status": "PASS",
+              "dialog_mocked": true,
+              "actual_decryption": true,
+              "actual_core_shutdown": true,
+              "final_power_request_intercepted": true
+            }
+          ],
+          "genuine_finish_shutdown": "passed",
+          "genuine_installer_restart": null
+        },
+        "installer": {
+          "status": "passed-covered-checks",
+          "gui_checks": [],
+          "runtime_checks": [],
+          "genuine_finish_shutdown": null,
+          "genuine_installer_restart": "passed"
+        },
+        "installed": {
+          "status": "passed-covered-checks",
+          "gui_checks": [
+            {
+              "check": "actual-gui-fixture-attestation",
+              "status": "PASS",
+              "phase": "installed",
+              "screenshot": "0028-check-initial-result.png"
+            },
+            {
+              "check": "native-wallet-backup-gpg-created-and-verified",
+              "status": "PASS",
+              "phase": "installed",
+              "screenshot": "0044-backup-gpg-verified.png"
+            },
+            {
+              "check": "native-wallet-backup-7z-created-and-verified",
+              "status": "PASS",
+              "phase": "installed",
+              "screenshot": "0059-backup-7z-verified.png"
+            },
+            {
+              "check": "gui-exports-match-receipts-and-authenticate-from-usb",
+              "status": "PASS",
+              "phase": "installed",
+              "screenshot": "0067-check-exports-result.png"
+            },
+            {
+              "check": "native-backup-existing-output-disabled",
+              "status": "PASS",
+              "phase": "installed",
+              "screenshot": "0081-backup-existing-refused.png"
+            },
+            {
+              "check": "native-backup-cancel-and-no-overwrite-preserve-output",
+              "status": "PASS",
+              "phase": "installed",
+              "screenshot": "0103-check-unchanged-result.png"
+            },
+            {
+              "check": "native-files-context-menu-gpg-creation-authenticates-exact-public-json",
+              "status": "PASS",
+              "phase": "installed",
+              "screenshot": "0139-check-context-result.png",
+              "selection_screenshot": "0116-context-gpg-file-selected.png",
+              "context_menu_screenshot": "0118-context-gpg-native-menu.png",
+              "request_screenshot": "0129-context-gpg-filled.png",
+              "result_screenshot": "0131-context-gpg-created.png",
+              "generic_file": true,
+              "wallet_receipt_created": false
+            },
+            {
+              "check": "native-gpg-recovery-wrong-passphrase-rejected",
+              "status": "PASS",
+              "phase": "installed",
+              "screenshot": "0160-gpg-recovery-wrong-password.png"
+            },
+            {
+              "check": "native-recovery-cancel-and-authentication-failure-publish-nothing",
+              "status": "PASS",
+              "phase": "installed",
+              "screenshot": "0168-check-no-plaintext-result.png"
+            },
+            {
+              "check": "native-files-double-click-routes-gpg-and-recovers-to-ram",
+              "status": "PASS",
+              "phase": "installed",
+              "screenshot": "0179-gpg-recovery-verified.png"
+            },
+            {
+              "check": "native-recovery-existing-output-disabled",
+              "status": "PASS",
+              "phase": "installed",
+              "screenshot": "0190-gpg-recovery-existing-refused.png"
+            },
+            {
+              "check": "gui-recovered-wallet-is-exact-authenticated-snapshot-in-ram",
+              "status": "PASS",
+              "phase": "installed",
+              "screenshot": "0198-check-recovery-result.png"
+            },
+            {
+              "check": "native-core-restore-dialog-loads-recovered-ram-wallet",
+              "status": "PASS",
+              "phase": "installed",
+              "screenshot": "0210-core-restore-success.png",
+              "selected_wallet_screenshot": "0211-core-restored-wallet-selected.png",
+              "core_restore_dialog": true,
+              "restore_rpc_used": false
+            },
+            {
+              "check": "native-restored-wallet-shows-synthetic-receiving-label",
+              "status": "PASS",
+              "phase": "installed",
+              "screenshot": "0215-core-restored-receiving-label.png"
+            },
+            {
+              "check": "native-restored-wallet-core-ownership-and-label-attested",
+              "status": "PASS",
+              "phase": "installed",
+              "screenshot": "0223-check-restore-result.png",
+              "read_only_rpc": true
+            },
+            {
+              "check": "native-core-close-wallet-unloads-restored-test-wallet",
+              "status": "PASS",
+              "phase": "installed",
+              "screenshot": "0231-core-restored-closed.png",
+              "unload_rpc_used": false
+            },
+            {
+              "check": "owned-restored-test-wallet-ram-cleanup-preserves-originals",
+              "status": "PASS",
+              "phase": "installed",
+              "screenshot": "0239-check-restore-cleanup-result.png"
+            },
+            {
+              "check": "native-finish-wrong-gpg-passphrase-keeps-session-open",
+              "status": "PASS",
+              "phase": "installed",
+              "screenshot": "0248-finish-wrong-password-session-kept.png"
+            },
+            {
+              "check": "wrong-finish-retains-core-wallets-ram-and-usb-backups",
+              "status": "PASS",
+              "phase": "installed",
+              "screenshot": "0257-check-session-result.png"
+            },
+            {
+              "check": "native-finish-verifies-both-formats-and-prompts-final-confirmation",
+              "status": "PASS",
+              "phase": "installed",
+              "screenshot": "0268-finish-verified-summary.png"
+            },
+            {
+              "check": "native-verified-finish-powers-off-owned-guest",
+              "status": "PASS",
+              "phase": "installed",
+              "screenshot": null,
+              "qemu_exit_code": 0,
+              "controller_quit_used": false
+            }
+          ],
+          "runtime_checks": [
+            {
+              "check": "copied-test-helper-hashes-match-controller-manifest",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-unprivileged-storage-swap-and-phase-aware-ram-policy",
+              "status": "PASS",
+              "phase": "installed"
+            },
+            {
+              "check": "actual-production-security-check",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-production-core-launcher-offline-mainnet",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-production-security-check",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-7z-wrong-passphrase-rejected-false",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-usb-7z-restore-core-unencrypted",
+              "status": "PASS",
+              "exact_snapshot_sha256": true,
+              "logical_wallet_digest": true,
+              "address_ownership": true,
+              "address_label": true,
+              "public_descriptors": true,
+              "core_encryption_state": true
+            },
+            {
+              "check": "core-encryption-invalidates-previous-7z-receipt",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-7z-wrong-passphrase-rejected-true",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-usb-7z-restore-core-encrypted",
+              "status": "PASS",
+              "exact_snapshot_sha256": true,
+              "logical_wallet_digest": true,
+              "address_ownership": true,
+              "address_label": true,
+              "public_descriptors": true,
+              "core_encryption_state": true
+            },
+            {
+              "check": "actual-7z-wrong-snapshot-digest-rejected",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-gpg-wrong-passphrase-rejected-false",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-usb-gpg-restore-core-unencrypted",
+              "status": "PASS",
+              "exact_snapshot_sha256": true,
+              "logical_wallet_digest": true,
+              "address_ownership": true,
+              "address_label": true,
+              "public_descriptors": true,
+              "core_encryption_state": true
+            },
+            {
+              "check": "core-encryption-invalidates-previous-gpg-receipt",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-gpg-wrong-passphrase-rejected-true",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-usb-gpg-restore-core-encrypted",
+              "status": "PASS",
+              "exact_snapshot_sha256": true,
+              "logical_wallet_digest": true,
+              "address_ownership": true,
+              "address_label": true,
+              "public_descriptors": true,
+              "core_encryption_state": true
+            },
+            {
+              "check": "actual-gpg-wrong-snapshot-digest-rejected",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-gpg-truncated-authentication-rejected",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-gpg-altered-authentication-rejected",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-restored-7z-wallet-signs-supplied-synthetic-utxo-psbt",
+              "status": "PASS",
+              "actual_core_signing": true,
+              "fresh_recovery": true,
+              "synthetic_witness_utxo": true,
+              "funding_proven": false,
+              "mempool_tested": false,
+              "broadcast": false,
+              "independent_signature_verification": false,
+              "production_receipts_unchanged": true
+            },
+            {
+              "check": "actual-restored-gpg-wallet-signs-supplied-synthetic-utxo-psbt",
+              "status": "PASS",
+              "actual_core_signing": true,
+              "fresh_recovery": true,
+              "synthetic_witness_utxo": true,
+              "funding_proven": false,
+              "mempool_tested": false,
+              "broadcast": false,
+              "independent_signature_verification": false,
+              "production_receipts_unchanged": true
+            },
+            {
+              "check": "production-finish-rejects-wrong-gpg-passphrase",
+              "status": "PASS",
+              "dialog_mocked": true,
+              "actual_decryption": true
+            },
+            {
+              "check": "production-finish-verifies-both-formats-and-final-wallet-flush",
+              "status": "PASS",
+              "dialog_mocked": true,
+              "actual_decryption": true,
+              "actual_core_shutdown": true,
+              "final_power_request_intercepted": true
+            }
+          ],
+          "genuine_finish_shutdown": "passed",
+          "genuine_installer_restart": null
+        }
+      },
+      "disk_marker_scans": {
+        "live": {
+          "status": "PASS_NO_EXACT_SUPPLIED_MARKERS",
+          "phase": "live",
+          "result": "forensic-950227746476456eb8225ebd6d7a7b1c/scan-result.json",
+          "result_sha256": "2a0b3bb50e216527b716b6f36ce7771242a770342d36debf17b3b8cc9fe41da6",
+          "boundary_sha256": "4b38d0ee2fc0ba0a001d5242f7abd8b16e18cb3fd6ca15754a732cc6a3a7f2bc",
+          "helper_sha256": "e1cf3e233b4934946847fd064bfbfcf59d7b90b413484ba3c2fa7822b69d9bb9",
+          "scanned_bytes": 25769803776,
+          "hit_count": 0,
+          "scope": "Exact supplied public phase markers in current guest-visible internal virtual disk bytes only."
+        },
+        "installed": {
+          "status": "PASS_NO_EXACT_SUPPLIED_MARKERS",
+          "phase": "installed",
+          "result": "forensic-5e9722cae9644bddb3c7378b976e1432/scan-result.json",
+          "result_sha256": "e9ddbe42ba52707d4ed28b081a300a0672d6c0b69f1325f21a54749ceebbcae5",
+          "boundary_sha256": "37ccb68788bd508cc18f981733531fc51c18017f81593c04a7786c03d4877bcc",
+          "helper_sha256": "e1cf3e233b4934946847fd064bfbfcf59d7b90b413484ba3c2fa7822b69d9bb9",
+          "scanned_bytes": 25769803776,
+          "hit_count": 0,
+          "scope": "Exact supplied public phase markers in current guest-visible internal virtual disk bytes only."
+        }
+      },
+      "cold_reset_checks": "passed-synthetic-normal-and-abrupt-new-process-boots-requested-phases",
+      "candidate_psbt_signing": "passed-supplied-synthetic-witness-utxo-requested-phases",
+      "genuine_core_wallet_creation": "pending"
+    },
+    "uefi": {
+      "report_sha256": "9e6792b8c2f20ffff4e3b3f13c57eb34b1b7b6fc63132cb016d79c8270d9e455",
+      "harness_sha256": "f9030674e3dae691b1252c307267603de6d0ac758e209ae5c2e6947c185b68a7",
+      "gui_helper_sha256": "b10b1262737f55bd0ed6e94e9b2c61f5e670b2561e2e30efb70eb07a71265ae2",
+      "controller_extensions": [
+        {
+          "kind": "resume-incomplete-installation",
+          "driver": "resume-history/1791993662226738431/resume-acceptance.py",
+          "driver_sha256": "bd185cd36fce3c00b1e3c7b73194ed4067f76c5b2aa638a4242a762dbcc7f263",
+          "base_harness_sha256": "f9030674e3dae691b1252c307267603de6d0ac758e209ae5c2e6947c185b68a7",
+          "preserved_evidence": {
+            "live/phase-result.json": "9536d39642363eec2fca91af3aefe4e138ad58c5e94591d79787d1ebb101965e",
+            "forensic-f9dd04a53e0f47369835d4c5cc94dfeb/scan-result.json": "e3f4aee29aa42a006f66f4058ca4ec775b78cf68819cef5ea3fa0c072b4b83c6",
+            "live-reset-report": "bb57fc428bc333ca5cc133b2dcd016c486a6720c7f2473c70288caf8b5683142"
+          },
+          "selector_change": "Installer visible-text tests compare case-insensitively; exact words, disk identity and native clicks remain required."
+        },
+        {
+          "kind": "resume-incomplete-installation",
+          "driver": "resume-history/1791994112977727861/resume-acceptance.py",
+          "driver_sha256": "8d69e6938a4cfcda42075dd892bb2bfd876871e3a424bb108bc9cd62660e94b7",
+          "base_harness_sha256": "f9030674e3dae691b1252c307267603de6d0ac758e209ae5c2e6947c185b68a7",
+          "preserved_evidence": {
+            "live/phase-result.json": "9536d39642363eec2fca91af3aefe4e138ad58c5e94591d79787d1ebb101965e",
+            "forensic-f9dd04a53e0f47369835d4c5cc94dfeb/scan-result.json": "e3f4aee29aa42a006f66f4058ca4ec775b78cf68819cef5ea3fa0c072b4b83c6",
+            "live-reset-report": "bb57fc428bc333ca5cc133b2dcd016c486a6720c7f2473c70288caf8b5683142"
+          },
+          "selector_change": "Installer text compares case-insensitively and uses actual enlarged control-strip pixels; exact words, disk identity and native clicks remain required."
+        },
+        {
+          "kind": "resume-incomplete-installation",
+          "driver": "resume-history/1791994330058257275/resume-acceptance.py",
+          "driver_sha256": "20468962ce7208f0bfa8ffbbfb8d1c0f8e781503e6c55aae5a8d6d8c356600ec",
+          "base_harness_sha256": "f9030674e3dae691b1252c307267603de6d0ac758e209ae5c2e6947c185b68a7",
+          "preserved_evidence": {
+            "live/phase-result.json": "9536d39642363eec2fca91af3aefe4e138ad58c5e94591d79787d1ebb101965e",
+            "forensic-f9dd04a53e0f47369835d4c5cc94dfeb/scan-result.json": "e3f4aee29aa42a006f66f4058ca4ec775b78cf68819cef5ea3fa0c072b4b83c6",
+            "live-reset-report": "bb57fc428bc333ca5cc133b2dcd016c486a6720c7f2473c70288caf8b5683142"
+          },
+          "selector_change": "Installer text compares case-insensitively and uses actual enlarged full-frame and native-button pixels; exact words, disk identity and native clicks remain required."
+        },
+        {
+          "kind": "repeat-failed-installed-phase",
+          "driver": "resume-history/1791995266490738252/resume-installed.py",
+          "driver_sha256": "731aa08a9b16235197255ee4a3b9cb189dfbd40ec31d89d96134556792e30b88",
+          "base_harness_sha256": "f9030674e3dae691b1252c307267603de6d0ac758e209ae5c2e6947c185b68a7",
+          "original_gui_helper_sha256": "c42dc4fa5094a477403e6cf6a21f80ede166d13f9f2c00411b6719d2e1d1694f",
+          "installed_gui_helper_sha256": "b10b1262737f55bd0ed6e94e9b2c61f5e670b2561e2e30efb70eb07a71265ae2",
+          "harness_directory": "/home/pavao/vault-gpg-qa/harness-uefi-installed-08",
+          "preserved_evidence": {
+            "live/phase-result.json": "9536d39642363eec2fca91af3aefe4e138ad58c5e94591d79787d1ebb101965e",
+            "installer/phase-result.json": "3114e918ab0fc3a695eec4fb979923a60e7b8ca380aa0608748909f699f9d84a",
+            "forensic-f9dd04a53e0f47369835d4c5cc94dfeb/scan-result.json": "e3f4aee29aa42a006f66f4058ca4ec775b78cf68819cef5ea3fa0c072b4b83c6"
+          },
+          "live_reset_report_sha256": "bb57fc428bc333ca5cc133b2dcd016c486a6720c7f2473c70288caf8b5683142",
+          "previous_usb_sha256": "b53af95140af4c34080fd58ce026a94637b6546d67e9483cead9bbab908a3dce",
+          "new_usb_sha256": "76a1f39a780d112f30cc566cf36cd9f194f6695837ea214a4c46678967482950",
+          "fixture_redelivery": [
+            {
+              "name": "ci-vm-guest-probe.py",
+              "sha256": "ae0e3a57a40b958c08af7d00863e45eca585e9adb3bf63b6be3837264e5b24c9"
+            },
+            {
+              "name": "ci-vm-psbt.py",
+              "sha256": "ddbffe0da870fecf3dfb7320257f1984b1c0bf7fe165fb2a8fe84a0bb4193a7d"
+            },
+            {
+              "name": "ci-vm-gui-actions.py",
+              "sha256": "b10b1262737f55bd0ed6e94e9b2c61f5e670b2561e2e30efb70eb07a71265ae2"
+            },
+            {
+              "name": "ci-vm-reset-probe.py",
+              "sha256": "74c230e62e502bf0483965892c3b67e9b78ebd81aff79f816dfbe5e3fccd437f"
+            },
+            {
+              "name": "ci-vm-reset-runner.py",
+              "sha256": "f18e3b96fbd817167bfd23b9874e60d2c541fe2d2fc70d64951ed82fc402b771"
+            },
+            {
+              "name": "ci-helper-sha256.json",
+              "sha256": "d5d3e0d1f9423fc5792e1b2edf8ec8eb5b8d20c84195227cce49674f90bb194e"
+            },
+            {
+              "name": "ci-reset-helper-sha256.json",
+              "sha256": "a058dbf7aceef1e1948bd7c28687120562ed03beb58744c55188f8ef4d0940ce"
+            },
+            {
+              "name": "ci-reset-request-installed-normal-arm.json",
+              "sha256": "02a4cca5e4d2e3925bfeb876e68ad505f78683781c223d8c5fa6938dbb41117b"
+            },
+            {
+              "name": "ci-reset-request-installed-abrupt-arm.json",
+              "sha256": "cac2c7acca5511d248e501d1346bda01d1d9794e0fbc8f16a9a546fe0d3e2e1c"
+            }
+          ],
+          "reason": "Native Terminal title OCR truncation; reread actual enlarged title pixels with exact account and empty-body checks. Fresh owned synthetic USB and guest RAM; prior failed attempt retained. No installed system file changed."
+        },
+        {
+          "kind": "align-current-helper-readback-for-post-finish-scan",
+          "driver": "resume-history/1791996110694987690/resume-uefi-post-finish.py",
+          "driver_sha256": "e83fe00cc7446a1662494bcd59ae3cdbd5ef648428988d42b8b30741a34fb061",
+          "prior_gui_delivery_sha256": "c42dc4fa5094a477403e6cf6a21f80ede166d13f9f2c00411b6719d2e1d1694f",
+          "current_gui_delivery_sha256": "b10b1262737f55bd0ed6e94e9b2c61f5e670b2561e2e30efb70eb07a71265ae2",
+          "actual_preboot_readback": "resume-history/1791995266490738252/fixture-redelivery/ci-vm-gui-actions.py",
+          "preserved_phase_sha256": {
+            "live": "9536d39642363eec2fca91af3aefe4e138ad58c5e94591d79787d1ebb101965e",
+            "installer": "3114e918ab0fc3a695eec4fb979923a60e7b8ca380aa0608748909f699f9d84a",
+            "installed": "9a73c50ef9e9326cab6e9f20fc161a0d206cebce0ae06c11c4af2a7382dbe816"
+          },
+          "reason": "Forensic validator checks the current helper readback path. Align it with the verified bytes actually delivered before installed boot; preserve the earlier Live helper. No phase, USB image or system file changed."
+        },
+        {
+          "kind": "align-current-helper-readback-for-post-finish-scan",
+          "driver": "resume-history/1791996243129537842/resume-uefi-post-finish.py",
+          "driver_sha256": "e4ef87a58339ca31258c927ca9a0363b164da58dea2ad1e5aa40f4044a52378e",
+          "prior_gui_delivery_sha256": "b10b1262737f55bd0ed6e94e9b2c61f5e670b2561e2e30efb70eb07a71265ae2",
+          "current_gui_delivery_sha256": "b10b1262737f55bd0ed6e94e9b2c61f5e670b2561e2e30efb70eb07a71265ae2",
+          "actual_preboot_readback": "resume-history/1791995266490738252/fixture-redelivery/ci-vm-gui-actions.py",
+          "preserved_phase_sha256": {
+            "live": "9536d39642363eec2fca91af3aefe4e138ad58c5e94591d79787d1ebb101965e",
+            "installer": "3114e918ab0fc3a695eec4fb979923a60e7b8ca380aa0608748909f699f9d84a",
+            "installed": "9a73c50ef9e9326cab6e9f20fc161a0d206cebce0ae06c11c4af2a7382dbe816"
+          },
+          "reason": "Forensic validator checks the current helper readback path. Align it with the verified bytes actually delivered before installed boot; preserve the earlier Live helper. No phase, USB image or system file changed."
+        }
+      ],
+      "stages": {
+        "live": {
+          "status": "passed-covered-checks",
+          "gui_checks": [
+            {
+              "check": "actual-gui-fixture-attestation",
+              "status": "PASS",
+              "phase": "live",
+              "screenshot": "0031-check-initial-result.png"
+            },
+            {
+              "check": "native-wallet-backup-gpg-created-and-verified",
+              "status": "PASS",
+              "phase": "live",
+              "screenshot": "0053-backup-gpg-verified.png"
+            },
+            {
+              "check": "native-wallet-backup-7z-created-and-verified",
+              "status": "PASS",
+              "phase": "live",
+              "screenshot": "0067-backup-7z-verified.png"
+            },
+            {
+              "check": "gui-exports-match-receipts-and-authenticate-from-usb",
+              "status": "PASS",
+              "phase": "live",
+              "screenshot": "0075-check-exports-result.png"
+            },
+            {
+              "check": "native-backup-existing-output-disabled",
+              "status": "PASS",
+              "phase": "live",
+              "screenshot": "0088-backup-existing-refused.png"
+            },
+            {
+              "check": "native-backup-cancel-and-no-overwrite-preserve-output",
+              "status": "PASS",
+              "phase": "live",
+              "screenshot": "0111-check-unchanged-result.png"
+            },
+            {
+              "check": "native-files-context-menu-gpg-creation-authenticates-exact-public-json",
+              "status": "PASS",
+              "phase": "live",
+              "screenshot": "0150-check-context-result.png",
+              "selection_screenshot": "0129-context-gpg-file-selected.png",
+              "context_menu_screenshot": "0131-context-gpg-native-menu.png",
+              "request_screenshot": "0140-context-gpg-filled.png",
+              "result_screenshot": "0142-context-gpg-created.png",
+              "generic_file": true,
+              "wallet_receipt_created": false
+            },
+            {
+              "check": "native-gpg-recovery-wrong-passphrase-rejected",
+              "status": "PASS",
+              "phase": "live",
+              "screenshot": "0171-gpg-recovery-wrong-password.png"
+            },
+            {
+              "check": "native-recovery-cancel-and-authentication-failure-publish-nothing",
+              "status": "PASS",
+              "phase": "live",
+              "screenshot": "0179-check-no-plaintext-result.png"
+            },
+            {
+              "check": "native-files-double-click-routes-gpg-and-recovers-to-ram",
+              "status": "PASS",
+              "phase": "live",
+              "screenshot": "0189-gpg-recovery-verified.png"
+            },
+            {
+              "check": "native-recovery-existing-output-disabled",
+              "status": "PASS",
+              "phase": "live",
+              "screenshot": "0199-gpg-recovery-existing-refused.png"
+            },
+            {
+              "check": "gui-recovered-wallet-is-exact-authenticated-snapshot-in-ram",
+              "status": "PASS",
+              "phase": "live",
+              "screenshot": "0207-check-recovery-result.png"
+            },
+            {
+              "check": "native-core-restore-dialog-loads-recovered-ram-wallet",
+              "status": "PASS",
+              "phase": "live",
+              "screenshot": "0219-core-restore-success.png",
+              "selected_wallet_screenshot": "0220-core-restored-wallet-selected.png",
+              "core_restore_dialog": true,
+              "restore_rpc_used": false
+            },
+            {
+              "check": "native-restored-wallet-shows-synthetic-receiving-label",
+              "status": "PASS",
+              "phase": "live",
+              "screenshot": "0224-core-restored-receiving-label.png"
+            },
+            {
+              "check": "native-restored-wallet-core-ownership-and-label-attested",
+              "status": "PASS",
+              "phase": "live",
+              "screenshot": "0232-check-restore-result.png",
+              "read_only_rpc": true
+            },
+            {
+              "check": "native-core-close-wallet-unloads-restored-test-wallet",
+              "status": "PASS",
+              "phase": "live",
+              "screenshot": "0240-core-restored-closed.png",
+              "unload_rpc_used": false
+            },
+            {
+              "check": "owned-restored-test-wallet-ram-cleanup-preserves-originals",
+              "status": "PASS",
+              "phase": "live",
+              "screenshot": "0248-check-restore-cleanup-result.png"
+            },
+            {
+              "check": "native-finish-wrong-gpg-passphrase-keeps-session-open",
+              "status": "PASS",
+              "phase": "live",
+              "screenshot": "0257-finish-wrong-password-session-kept.png"
+            },
+            {
+              "check": "wrong-finish-retains-core-wallets-ram-and-usb-backups",
+              "status": "PASS",
+              "phase": "live",
+              "screenshot": "0266-check-session-result.png"
+            },
+            {
+              "check": "native-finish-verifies-both-formats-and-prompts-final-confirmation",
+              "status": "PASS",
+              "phase": "live",
+              "screenshot": "0277-finish-verified-summary.png"
+            },
+            {
+              "check": "native-verified-finish-powers-off-owned-guest",
+              "status": "PASS",
+              "phase": "live",
+              "screenshot": null,
+              "qemu_exit_code": 0,
+              "controller_quit_used": false
+            }
+          ],
+          "runtime_checks": [
+            {
+              "check": "copied-test-helper-hashes-match-controller-manifest",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-unprivileged-storage-swap-and-phase-aware-ram-policy",
+              "status": "PASS",
+              "phase": "live"
+            },
+            {
+              "check": "actual-production-security-check",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-production-core-launcher-offline-mainnet",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-production-security-check",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-7z-wrong-passphrase-rejected-false",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-usb-7z-restore-core-unencrypted",
+              "status": "PASS",
+              "exact_snapshot_sha256": true,
+              "logical_wallet_digest": true,
+              "address_ownership": true,
+              "address_label": true,
+              "public_descriptors": true,
+              "core_encryption_state": true
+            },
+            {
+              "check": "core-encryption-invalidates-previous-7z-receipt",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-7z-wrong-passphrase-rejected-true",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-usb-7z-restore-core-encrypted",
+              "status": "PASS",
+              "exact_snapshot_sha256": true,
+              "logical_wallet_digest": true,
+              "address_ownership": true,
+              "address_label": true,
+              "public_descriptors": true,
+              "core_encryption_state": true
+            },
+            {
+              "check": "actual-7z-wrong-snapshot-digest-rejected",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-gpg-wrong-passphrase-rejected-false",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-usb-gpg-restore-core-unencrypted",
+              "status": "PASS",
+              "exact_snapshot_sha256": true,
+              "logical_wallet_digest": true,
+              "address_ownership": true,
+              "address_label": true,
+              "public_descriptors": true,
+              "core_encryption_state": true
+            },
+            {
+              "check": "core-encryption-invalidates-previous-gpg-receipt",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-gpg-wrong-passphrase-rejected-true",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-usb-gpg-restore-core-encrypted",
+              "status": "PASS",
+              "exact_snapshot_sha256": true,
+              "logical_wallet_digest": true,
+              "address_ownership": true,
+              "address_label": true,
+              "public_descriptors": true,
+              "core_encryption_state": true
+            },
+            {
+              "check": "actual-gpg-wrong-snapshot-digest-rejected",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-gpg-truncated-authentication-rejected",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-gpg-altered-authentication-rejected",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-restored-7z-wallet-signs-supplied-synthetic-utxo-psbt",
+              "status": "PASS",
+              "actual_core_signing": true,
+              "fresh_recovery": true,
+              "synthetic_witness_utxo": true,
+              "funding_proven": false,
+              "mempool_tested": false,
+              "broadcast": false,
+              "independent_signature_verification": false,
+              "production_receipts_unchanged": true
+            },
+            {
+              "check": "actual-restored-gpg-wallet-signs-supplied-synthetic-utxo-psbt",
+              "status": "PASS",
+              "actual_core_signing": true,
+              "fresh_recovery": true,
+              "synthetic_witness_utxo": true,
+              "funding_proven": false,
+              "mempool_tested": false,
+              "broadcast": false,
+              "independent_signature_verification": false,
+              "production_receipts_unchanged": true
+            },
+            {
+              "check": "production-finish-rejects-wrong-gpg-passphrase",
+              "status": "PASS",
+              "dialog_mocked": true,
+              "actual_decryption": true
+            },
+            {
+              "check": "production-finish-verifies-both-formats-and-final-wallet-flush",
+              "status": "PASS",
+              "dialog_mocked": true,
+              "actual_decryption": true,
+              "actual_core_shutdown": true,
+              "final_power_request_intercepted": true
+            }
+          ],
+          "genuine_finish_shutdown": "passed",
+          "genuine_installer_restart": null
+        },
+        "installer": {
+          "status": "passed-covered-checks",
+          "gui_checks": [],
+          "runtime_checks": [],
+          "genuine_finish_shutdown": null,
+          "genuine_installer_restart": "passed"
+        },
+        "installed": {
+          "status": "passed-covered-checks",
+          "gui_checks": [
+            {
+              "check": "actual-gui-fixture-attestation",
+              "status": "PASS",
+              "phase": "installed",
+              "screenshot": "0028-check-initial-result.png"
+            },
+            {
+              "check": "native-wallet-backup-gpg-created-and-verified",
+              "status": "PASS",
+              "phase": "installed",
+              "screenshot": "0044-backup-gpg-verified.png"
+            },
+            {
+              "check": "native-wallet-backup-7z-created-and-verified",
+              "status": "PASS",
+              "phase": "installed",
+              "screenshot": "0058-backup-7z-verified.png"
+            },
+            {
+              "check": "gui-exports-match-receipts-and-authenticate-from-usb",
+              "status": "PASS",
+              "phase": "installed",
+              "screenshot": "0066-check-exports-result.png"
+            },
+            {
+              "check": "native-backup-existing-output-disabled",
+              "status": "PASS",
+              "phase": "installed",
+              "screenshot": "0079-backup-existing-refused.png"
+            },
+            {
+              "check": "native-backup-cancel-and-no-overwrite-preserve-output",
+              "status": "PASS",
+              "phase": "installed",
+              "screenshot": "0099-check-unchanged-result.png"
+            },
+            {
+              "check": "native-files-context-menu-gpg-creation-authenticates-exact-public-json",
+              "status": "PASS",
+              "phase": "installed",
+              "screenshot": "0140-check-context-result.png",
+              "selection_screenshot": "0113-context-gpg-file-selected.png",
+              "context_menu_screenshot": "0115-context-gpg-native-menu.png",
+              "request_screenshot": "0130-context-gpg-filled.png",
+              "result_screenshot": "0132-context-gpg-created.png",
+              "generic_file": true,
+              "wallet_receipt_created": false
+            },
+            {
+              "check": "native-gpg-recovery-wrong-passphrase-rejected",
+              "status": "PASS",
+              "phase": "installed",
+              "screenshot": "0161-gpg-recovery-wrong-password.png"
+            },
+            {
+              "check": "native-recovery-cancel-and-authentication-failure-publish-nothing",
+              "status": "PASS",
+              "phase": "installed",
+              "screenshot": "0169-check-no-plaintext-result.png"
+            },
+            {
+              "check": "native-files-double-click-routes-gpg-and-recovers-to-ram",
+              "status": "PASS",
+              "phase": "installed",
+              "screenshot": "0179-gpg-recovery-verified.png"
+            },
+            {
+              "check": "native-recovery-existing-output-disabled",
+              "status": "PASS",
+              "phase": "installed",
+              "screenshot": "0190-gpg-recovery-existing-refused.png"
+            },
+            {
+              "check": "gui-recovered-wallet-is-exact-authenticated-snapshot-in-ram",
+              "status": "PASS",
+              "phase": "installed",
+              "screenshot": "0202-check-recovery-result.png"
+            },
+            {
+              "check": "native-core-restore-dialog-loads-recovered-ram-wallet",
+              "status": "PASS",
+              "phase": "installed",
+              "screenshot": "0214-core-restore-success.png",
+              "selected_wallet_screenshot": "0215-core-restored-wallet-selected.png",
+              "core_restore_dialog": true,
+              "restore_rpc_used": false
+            },
+            {
+              "check": "native-restored-wallet-shows-synthetic-receiving-label",
+              "status": "PASS",
+              "phase": "installed",
+              "screenshot": "0219-core-restored-receiving-label.png"
+            },
+            {
+              "check": "native-restored-wallet-core-ownership-and-label-attested",
+              "status": "PASS",
+              "phase": "installed",
+              "screenshot": "0227-check-restore-result.png",
+              "read_only_rpc": true
+            },
+            {
+              "check": "native-core-close-wallet-unloads-restored-test-wallet",
+              "status": "PASS",
+              "phase": "installed",
+              "screenshot": "0235-core-restored-closed.png",
+              "unload_rpc_used": false
+            },
+            {
+              "check": "owned-restored-test-wallet-ram-cleanup-preserves-originals",
+              "status": "PASS",
+              "phase": "installed",
+              "screenshot": "0243-check-restore-cleanup-result.png"
+            },
+            {
+              "check": "native-finish-wrong-gpg-passphrase-keeps-session-open",
+              "status": "PASS",
+              "phase": "installed",
+              "screenshot": "0252-finish-wrong-password-session-kept.png"
+            },
+            {
+              "check": "wrong-finish-retains-core-wallets-ram-and-usb-backups",
+              "status": "PASS",
+              "phase": "installed",
+              "screenshot": "0261-check-session-result.png"
+            },
+            {
+              "check": "native-finish-verifies-both-formats-and-prompts-final-confirmation",
+              "status": "PASS",
+              "phase": "installed",
+              "screenshot": "0272-finish-verified-summary.png"
+            },
+            {
+              "check": "native-verified-finish-powers-off-owned-guest",
+              "status": "PASS",
+              "phase": "installed",
+              "screenshot": null,
+              "qemu_exit_code": 0,
+              "controller_quit_used": false
+            }
+          ],
+          "runtime_checks": [
+            {
+              "check": "copied-test-helper-hashes-match-controller-manifest",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-unprivileged-storage-swap-and-phase-aware-ram-policy",
+              "status": "PASS",
+              "phase": "installed"
+            },
+            {
+              "check": "actual-production-security-check",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-production-core-launcher-offline-mainnet",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-production-security-check",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-7z-wrong-passphrase-rejected-false",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-usb-7z-restore-core-unencrypted",
+              "status": "PASS",
+              "exact_snapshot_sha256": true,
+              "logical_wallet_digest": true,
+              "address_ownership": true,
+              "address_label": true,
+              "public_descriptors": true,
+              "core_encryption_state": true
+            },
+            {
+              "check": "core-encryption-invalidates-previous-7z-receipt",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-7z-wrong-passphrase-rejected-true",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-usb-7z-restore-core-encrypted",
+              "status": "PASS",
+              "exact_snapshot_sha256": true,
+              "logical_wallet_digest": true,
+              "address_ownership": true,
+              "address_label": true,
+              "public_descriptors": true,
+              "core_encryption_state": true
+            },
+            {
+              "check": "actual-7z-wrong-snapshot-digest-rejected",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-gpg-wrong-passphrase-rejected-false",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-usb-gpg-restore-core-unencrypted",
+              "status": "PASS",
+              "exact_snapshot_sha256": true,
+              "logical_wallet_digest": true,
+              "address_ownership": true,
+              "address_label": true,
+              "public_descriptors": true,
+              "core_encryption_state": true
+            },
+            {
+              "check": "core-encryption-invalidates-previous-gpg-receipt",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-gpg-wrong-passphrase-rejected-true",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-usb-gpg-restore-core-encrypted",
+              "status": "PASS",
+              "exact_snapshot_sha256": true,
+              "logical_wallet_digest": true,
+              "address_ownership": true,
+              "address_label": true,
+              "public_descriptors": true,
+              "core_encryption_state": true
+            },
+            {
+              "check": "actual-gpg-wrong-snapshot-digest-rejected",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-gpg-truncated-authentication-rejected",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-gpg-altered-authentication-rejected",
+              "status": "PASS"
+            },
+            {
+              "check": "actual-restored-7z-wallet-signs-supplied-synthetic-utxo-psbt",
+              "status": "PASS",
+              "actual_core_signing": true,
+              "fresh_recovery": true,
+              "synthetic_witness_utxo": true,
+              "funding_proven": false,
+              "mempool_tested": false,
+              "broadcast": false,
+              "independent_signature_verification": false,
+              "production_receipts_unchanged": true
+            },
+            {
+              "check": "actual-restored-gpg-wallet-signs-supplied-synthetic-utxo-psbt",
+              "status": "PASS",
+              "actual_core_signing": true,
+              "fresh_recovery": true,
+              "synthetic_witness_utxo": true,
+              "funding_proven": false,
+              "mempool_tested": false,
+              "broadcast": false,
+              "independent_signature_verification": false,
+              "production_receipts_unchanged": true
+            },
+            {
+              "check": "production-finish-rejects-wrong-gpg-passphrase",
+              "status": "PASS",
+              "dialog_mocked": true,
+              "actual_decryption": true
+            },
+            {
+              "check": "production-finish-verifies-both-formats-and-final-wallet-flush",
+              "status": "PASS",
+              "dialog_mocked": true,
+              "actual_decryption": true,
+              "actual_core_shutdown": true,
+              "final_power_request_intercepted": true
+            }
+          ],
+          "genuine_finish_shutdown": "passed",
+          "genuine_installer_restart": null
+        }
+      },
+      "disk_marker_scans": {
+        "live": {
+          "status": "PASS_NO_EXACT_SUPPLIED_MARKERS",
+          "phase": "live",
+          "result": "forensic-f9dd04a53e0f47369835d4c5cc94dfeb/scan-result.json",
+          "result_sha256": "e3f4aee29aa42a006f66f4058ca4ec775b78cf68819cef5ea3fa0c072b4b83c6",
+          "boundary_sha256": "e7fae121a35968e6921167752b1e96b79ca9a09cc448572606f61a64e1a593f4",
+          "helper_sha256": "e1cf3e233b4934946847fd064bfbfcf59d7b90b413484ba3c2fa7822b69d9bb9",
+          "scanned_bytes": 25769803776,
+          "hit_count": 0,
+          "scope": "Exact supplied public phase markers in current guest-visible internal virtual disk bytes only."
+        },
+        "installed": {
+          "status": "PASS_NO_EXACT_SUPPLIED_MARKERS",
+          "phase": "installed",
+          "result": "forensic-31f8062ead9c4fbbbdcf8af23387f52f/scan-result.json",
+          "result_sha256": "45b002450f58691d71e05f21f336fa33005b4b83b882d3e70e5577c7fc39080f",
+          "boundary_sha256": "24ea0daba2346e78d36522f2a77262e9c339c899ea046e50a66f97d49998a82b",
+          "helper_sha256": "e1cf3e233b4934946847fd064bfbfcf59d7b90b413484ba3c2fa7822b69d9bb9",
+          "scanned_bytes": 25769803776,
+          "hit_count": 0,
+          "scope": "Exact supplied public phase markers in current guest-visible internal virtual disk bytes only."
+        }
+      },
+      "cold_reset_checks": "passed-synthetic-normal-and-abrupt-new-process-boots-requested-phases",
+      "candidate_psbt_signing": "passed-supplied-synthetic-witness-utxo-requested-phases",
+      "genuine_core_wallet_creation": "pending"
+    }
+  },
+  "limitations": [
+    "Synthetic wallets and synthetic witness-UTXO PSBT signatures; no funding or broadcast",
+    "Native Core wallet creation was not exercised; fixtures were created through Core RPC",
+    "Virtual-machine disk marker scan and cold-boot state only; not physical DRAM sanitization",
+    "Windows/macOS recovery and whole-ISO reproducible builds unverified"
+  ],
+  "release_published": false
+}

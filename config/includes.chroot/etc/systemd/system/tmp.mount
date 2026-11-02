@@ -1,0 +1,15 @@
+[Unit]
+Description=Bitcoin Core Vault volatile system temporary files
+DefaultDependencies=no
+After=local-fs-pre.target
+Before=local-fs.target umount.target systemd-tmpfiles-setup.service core-vault-prepare.service core-vault-workspace-check.service lightdm.service
+Conflicts=umount.target
+
+[Mount]
+What=tmpfs
+Where=/tmp
+Type=tmpfs
+Options=noswap,nosuid,nodev,noexec,mode=1777,size=10%%
+
+[Install]
+WantedBy=local-fs.target

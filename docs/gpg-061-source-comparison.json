@@ -1,0 +1,95 @@
+{
+  "status": "passed-source-version-coverage-comparison",
+  "iso_sha256": "ef6b210772d096e37a3ec6de5fb586b5d1af75e33f33e8ed6ab8425b15b2ae56",
+  "product_commit": "d11f31b002386287ee7de6fbe1ec10476c9343b6",
+  "package_count": {
+    "baseline": 765,
+    "corrected": 765
+  },
+  "package_differences": [
+    {
+      "package": "core-vault-backup",
+      "architecture": "all",
+      "before": {
+        "Package": "core-vault-backup",
+        "Version": "0.6.0",
+        "Architecture": "all",
+        "Source": null,
+        "Built-Using": null,
+        "Static-Built-Using": null,
+        "Depends": "python3 (>= 3.11), python3-pexpect, python3-pyside6.qtwidgets, 7zip, gpg (>= 2.4), zenity, arqiver, thunar, util-linux",
+        "Pre-Depends": null
+      },
+      "after": {
+        "Package": "core-vault-backup",
+        "Version": "0.6.1",
+        "Architecture": "all",
+        "Source": null,
+        "Built-Using": null,
+        "Static-Built-Using": null,
+        "Depends": "python3 (>= 3.11), python3-pexpect, python3-pyside6.qtwidgets, 7zip, gpg (>= 2.4), zenity, arqiver, thunar, util-linux",
+        "Pre-Depends": null
+      }
+    },
+    {
+      "package": "libcurl3t64-gnutls",
+      "architecture": "amd64",
+      "before": {
+        "Package": "libcurl3t64-gnutls",
+        "Version": "8.14.1-2+deb13u5",
+        "Architecture": "amd64",
+        "Source": "curl",
+        "Built-Using": null,
+        "Static-Built-Using": null,
+        "Depends": "libbrotli1 (>= 0.6.0), libc6 (>= 2.38), libgnutls30t64 (>= 3.8.6), libgssapi-krb5-2 (>= 1.17), libidn2-0 (>= 2.0.0), libldap2 (>= 2.6.2), libnettle8t64, libnghttp2-14 (>= 1.50.0), libnghttp3-9 (>= 0.15.0), libngtcp2-16 (>= 1.1.0), libngtcp2-crypto-gnutls8 (>= 1.1.0), libpsl5t64 (>= 0.16.0), librtmp1 (>= 2.3), libssh2-1t64 (>= 1.11.1), libzstd1 (>= 1.5.5), zlib1g (>= 1:1.2.3.4)",
+        "Pre-Depends": null
+      },
+      "after": {
+        "Package": "libcurl3t64-gnutls",
+        "Version": "8.14.1-2+deb13u7",
+        "Architecture": "amd64",
+        "Source": "curl",
+        "Built-Using": null,
+        "Static-Built-Using": null,
+        "Depends": "libbrotli1 (>= 0.6.0), libc6 (>= 2.38), libgnutls30t64 (>= 3.8.6), libgssapi-krb5-2 (>= 1.17), libidn2-0 (>= 2.0.0), libldap2 (>= 2.6.2), libnettle8t64, libnghttp2-14 (>= 1.50.0), libnghttp3-9 (>= 0.15.0), libngtcp2-16 (>= 1.1.0), libngtcp2-crypto-gnutls8 (>= 1.1.0), libpsl5t64 (>= 0.16.0), librtmp1 (>= 2.3), libssh2-1t64 (>= 1.11.1), libzstd1 (>= 1.5.5), zlib1g (>= 1:1.2.3.4)",
+        "Pre-Depends": null
+      }
+    },
+    {
+      "package": "libcurl4t64",
+      "architecture": "amd64",
+      "before": {
+        "Package": "libcurl4t64",
+        "Version": "8.14.1-2+deb13u5",
+        "Architecture": "amd64",
+        "Source": "curl",
+        "Built-Using": null,
+        "Static-Built-Using": null,
+        "Depends": "libbrotli1 (>= 0.6.0), libc6 (>= 2.38), libgssapi-krb5-2 (>= 1.17), libidn2-0 (>= 2.0.0), libldap2 (>= 2.6.2), libnghttp2-14 (>= 1.50.0), libnghttp3-9 (>= 0.15.0), libpsl5t64 (>= 0.16.0), librtmp1 (>= 2.3), libssh2-1t64 (>= 1.11.1), libssl3t64 (>= 3.3.0), libzstd1 (>= 1.5.5), zlib1g (>= 1:1.2.3.4)",
+        "Pre-Depends": null
+      },
+      "after": {
+        "Package": "libcurl4t64",
+        "Version": "8.14.1-2+deb13u7",
+        "Architecture": "amd64",
+        "Source": "curl",
+        "Built-Using": null,
+        "Static-Built-Using": null,
+        "Depends": "libbrotli1 (>= 0.6.0), libc6 (>= 2.38), libgssapi-krb5-2 (>= 1.17), libidn2-0 (>= 2.0.0), libldap2 (>= 2.6.2), libnghttp2-14 (>= 1.50.0), libnghttp3-9 (>= 0.15.0), libpsl5t64 (>= 0.16.0), librtmp1 (>= 2.3), libssh2-1t64 (>= 1.11.1), libssl3t64 (>= 3.3.0), libzstd1 (>= 1.5.5), zlib1g (>= 1:1.2.3.4)",
+        "Pre-Depends": null
+      }
+    }
+  ],
+  "additional_upstream_source_sets": [
+    {
+      "source": "curl",
+      "version": "8.14.1-2+deb13u7",
+      "archive": "bitcoin-core-vault-v0.2.0-curl-source.tar",
+      "sha256": "52b1cad3aeb25f968a11e987ccda6a66c788d7ece51683d34b990a8f747bc257",
+      "verified": true
+    }
+  ],
+  "other_upstream_source_versions_and_static_references_unchanged": true,
+  "corrected_backup_source_matches_reviewed_source": true,
+  "scope": "Package/source/static-reference metadata plus exact backup.py; not whole-ISO reproducibility or complete licence compliance."
+}

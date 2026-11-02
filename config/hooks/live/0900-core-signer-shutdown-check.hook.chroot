@@ -1,0 +1,51 @@
+#!/bin/sh
+set -eu
+
+# Runs INSIDE the image build chroot, never on the build host.
+test -x /usr/bin/sudo
+test -x /usr/bin/systemctl
+test -x /usr/bin/sync
+test -x /usr/bin/zenity
+
+# Git records the executable bit, not mode 0440. Normalize every shipped
+# rule before the first complete policy check; hook 0950 runs too late.
+for rule in /etc/sudoers.d/80-core-vault-installer \
+            /etc/sudoers.d/90-core-signer-poweroff \
+            /etc/sudoers.d/91-core-vault-poweroff; do
+    test -f "$rule"
+    test ! -L "$rule"
+    chown root:root "$rule"
+    chmod 0440 "$rule"
+done
+
+chown root:root \
+    /etc/core-signer/shutdown-version \
+    /usr/local/bin/core-signer-shutdown-dialog \
+    /usr/local/bin/core-signer-session
+chmod 0644 /etc/core-signer/shutdown-version
+chmod 0755 /usr/local/bin/core-signer-shutdown-dialog /usr/local/bin/core-signer-session
+
+# Validate the complete policy, including ownership and permissions.
+if ! grep -Eq '^[[:space:]]*(@includedir|#includedir)[[:space:]]+/etc/sudoers.d/?([[:space:]]|$)' /etc/sudoers; then
+    echo 'ERROR: /etc/sudoers does not include /etc/sudoers.d' >&2
+    exit 1
+fi
+/usr/sbin/visudo -c
+
+/usr/bin/python3 - <<'CHECKPY'
+import tkinter
+from pathlib import Path
+p = Path('/usr/local/bin/core-signer-shutdown-dialog')
+compile(p.read_text(), str(p), 'exec')
+CHECKPY
+/bin/sh -n /usr/local/bin/core-signer-session
+
+test ! -e /etc/systemd/system/core-signer-poweroff.path
+test ! -L /etc/systemd/system/core-signer-poweroff.path
+test ! -e /etc/systemd/system/core-signer-poweroff.service
+
+if grep -Eq 'loginctl poweroff|poweroff-request' /usr/local/bin/core-signer-session; then
+    echo 'ERROR: old shutdown backend still present' >&2
+    exit 1
+fi
+printf '\nCORE SIGNER SHUTDOWN V2 BUILD CHECKS PASSED\n'

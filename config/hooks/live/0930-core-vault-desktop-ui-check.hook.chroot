@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+command -v xprop >/dev/null
+test -x /usr/local/bin/core-vault-taskbar
+test -s /usr/share/core-vault/icons/debian-white.png
+/usr/bin/python3 - <<'PYTHON'
+from pathlib import Path
+compile(Path('/usr/local/bin/core-vault-taskbar').read_text(), 'core-vault-taskbar', 'exec')
+PYTHON
+QT_QPA_PLATFORM=offscreen PYTHONDONTWRITEBYTECODE=1 /usr/bin/python3 \
+    /usr/local/bin/core-vault-home --self-test

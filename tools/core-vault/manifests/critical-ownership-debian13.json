@@ -1,0 +1,126 @@
+{
+  "schema": 1,
+  "baseline": "Tested Debian 13 Trixie Bitcoin Core Vault 2026-10-29 ISO",
+  "required": {
+    "etc/gshadow": {
+      "uid": 0,
+      "gid": 42,
+      "mode": "-rw-r-----"
+    },
+    "etc/polkit-1/rules.d": {
+      "uid": 0,
+      "gid": 990,
+      "mode": "drwxr-xr-x"
+    },
+    "etc/shadow": {
+      "uid": 0,
+      "gid": 42,
+      "mode": "-rw-r-----"
+    },
+    "etc/ssl/private": {
+      "uid": 0,
+      "gid": 102,
+      "mode": "drwx--x---"
+    },
+    "run/systemd/netif": {
+      "uid": 998,
+      "gid": 998,
+      "mode": "drwxr-xr-x"
+    },
+    "run/systemd/netif/leases": {
+      "uid": 998,
+      "gid": 998,
+      "mode": "drwxr-xr-x"
+    },
+    "run/systemd/netif/links": {
+      "uid": 998,
+      "gid": 998,
+      "mode": "drwxr-xr-x"
+    },
+    "usr/bin/chage": {
+      "uid": 0,
+      "gid": 42,
+      "mode": "-rwxr-sr-x"
+    },
+    "usr/bin/crontab": {
+      "uid": 0,
+      "gid": 997,
+      "mode": "-rwxr-sr-x"
+    },
+    "usr/bin/expiry": {
+      "uid": 0,
+      "gid": 42,
+      "mode": "-rwxr-sr-x"
+    },
+    "usr/lib/dbus-1.0/dbus-daemon-launch-helper": {
+      "uid": 0,
+      "gid": 991,
+      "mode": "-rwsr-xr--"
+    },
+    "usr/lib/x86_64-linux-gnu/utempter/utempter": {
+      "uid": 0,
+      "gid": 43,
+      "mode": "-rwxr-sr-x"
+    },
+    "usr/sbin/unix_chkpwd": {
+      "uid": 0,
+      "gid": 42,
+      "mode": "-rwxr-sr-x"
+    },
+    "usr/share/ppd/custom": {
+      "uid": 0,
+      "gid": 103,
+      "mode": "drwxrwsr-t"
+    },
+    "var/lib/apt/lists/auxfiles": {
+      "uid": 42,
+      "gid": 0,
+      "mode": "drwxr-xr-x"
+    },
+    "var/lib/apt/lists/partial": {
+      "uid": 42,
+      "gid": 0,
+      "mode": "drwx------"
+    },
+    "var/lib/lightdm": {
+      "uid": 102,
+      "gid": 104,
+      "mode": "drwxr-x---"
+    },
+    "var/lib/systemd/network": {
+      "uid": 998,
+      "gid": 998,
+      "mode": "drwxr-xr-x"
+    },
+    "var/log/apt/term.log": {
+      "uid": 0,
+      "gid": 4,
+      "mode": "-rw-r-----"
+    },
+    "var/log/btmp": {
+      "uid": 0,
+      "gid": 43,
+      "mode": "-rw-rw----"
+    },
+    "var/log/lastlog": {
+      "uid": 0,
+      "gid": 43,
+      "mode": "-rw-rw-r--"
+    },
+    "var/log/wtmp": {
+      "uid": 0,
+      "gid": 43,
+      "mode": "-rw-rw-r--"
+    },
+    "var/mail": {
+      "uid": 0,
+      "gid": 8,
+      "mode": "drwxrwsr-x"
+    },
+    "var/spool/cron/crontabs": {
+      "uid": 0,
+      "gid": 997,
+      "mode": "drwx-wx--T"
+    }
+  }
+}

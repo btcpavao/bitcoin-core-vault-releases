@@ -1,0 +1,22 @@
+#!/bin/sh
+
+WINDOW="$(
+    xdotool search \
+        --name '^Bitcoin Core Vault$' \
+        2>/dev/null |
+    head -n 1
+)"
+
+if [ -n "$WINDOW" ]; then
+
+    xdotool windowmap "$WINDOW" \
+        >/dev/null 2>&1 || true
+
+    xdotool windowactivate "$WINDOW" \
+        >/dev/null 2>&1 || true
+
+    exit 0
+
+fi
+
+/usr/local/bin/core-vault-home >/dev/null 2>&1 &

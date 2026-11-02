@@ -1,0 +1,7 @@
+VAULT PLACES V3 SOURCE CHECK PASSED
+PASS: exact two bookmarks, built-in hiding, File System and prior setting preservation
+PASS: tmpfs identity, live boot source, inserted optical, same-label USB negative, other media negative
+PASS: synthetic GIO volume UUID, UUID identifier, name and mount UUID/name fallbacks
+PASS: V2 migration, alias-only retirement, no data change, backups and idempotence
+PASS: settings failure restores both visibility properties, bookmarks and old display alias
+PASS: redirected workspace rejected before bookmarks or visibility mutations

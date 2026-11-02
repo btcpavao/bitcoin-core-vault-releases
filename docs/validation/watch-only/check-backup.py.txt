@@ -1,0 +1,2 @@
+VAULT ENCRYPTED BACKUP SOURCE + PACKAGE CHECK PASSED
+Real GPG/TAR testing runs separately and in the chroot hook. GUI/boot recovery remains a VM test.

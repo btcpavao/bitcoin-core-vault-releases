@@ -1,0 +1,31 @@
+Bitcoin logo artwork provenance
+
+Identified project assets: tools/core-offline/branding/bitcoin.png,
+usr/share/core-vault/bitcoin-source.png, usr/share/core-vault/bitcoin-ui.png,
+and the installer branding/core-offline/bitcoin.png.
+
+The maintainer-supplied project bitcoin-logo.webp decodes pixel-for-pixel to
+Wikimedia Commons' 960 x 960 rendering of File:Bitcoin.svg. The project 128-pixel
+branding is a near-identical Lanczos raster derivative of this image; the precise
+historical download URL/resampler was not recorded. The 64-pixel UI image is an
+exact Lanczos resize of the project 128-pixel branding. These images are not
+asserted to be copied from Bitcoin Core 31.1's different bitmap resources.
+
+Underlying standard logo: bitboy. The creator's current PNG and vector release
+posts expressly dedicate his graphics to the public domain. The posts were
+originally made in November 2010 and last edited on July 10, 2014; this notice
+does not claim that the public-domain wording was already present in 2010.
+https://bitcointalk.org/index.php?topic=1631.msg19455
+https://bitcointalk.org/index.php?topic=1756.msg21619
+
+The matching standalone SVG reference is documented on Wikimedia Commons as a
+derivative of the bitboy logo and currently credits Grayliptrot. Commons marks
+it public domain using its PD-textlogo/copyright-originality classification.
+https://commons.wikimedia.org/wiki/File:Bitcoin.svg
+https://commons.wikimedia.org/wiki/File:Bitcoin_logo.svg
+
+reference.svg and reference-960.png preserve the matching public references;
+provenance.json preserves hashes, sources and the measured comparison limits.
+The underlying logo's public-domain status is not the project's MIT license.
+Attribution here records provenance and does not imply upstream sponsorship.
+No production artwork was replaced or changed during this audit.

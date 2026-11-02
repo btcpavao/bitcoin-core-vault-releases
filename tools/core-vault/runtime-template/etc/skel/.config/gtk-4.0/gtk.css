@@ -1,0 +1,17 @@
+/* VAULT_NATIVE_POPOVER_OPAQUE_V1
+ * Openbox deliberately runs without a compositor. GTK4 menu surfaces must
+ * paint their whole rectangle, including the space around the arrow/content.
+ * Keep the native palette and menu behavior; avoid alpha shadows/corners.
+ */
+popover.background {
+    background-color: @popover_bg_color;
+    background-image: none;
+    border-radius: 0;
+    box-shadow: none;
+    margin: 0;
+}
+popover.background > contents {
+    border-radius: 0;
+    box-shadow: none;
+    margin: 0;
+}

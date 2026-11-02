@@ -1,0 +1,277 @@
+#!/usr/bin/python3
+
+import tkinter as tk
+
+SECONDS = 30
+
+root = tk.Tk()
+
+root.overrideredirect(True)
+root.configure(bg="black")
+root.attributes("-topmost", True)
+
+root.update_idletasks()
+
+sw = root.winfo_screenwidth()
+sh = root.winfo_screenheight()
+
+root.geometry(f"{sw}x{sh}+0+0")
+
+result = None
+remaining = SECONDS
+
+
+def finish(value):
+    global result
+
+    if result is not None:
+        return
+
+    result = value
+    print(value, flush=True)
+
+    try:
+        root.grab_release()
+    except tk.TclError:
+        pass
+
+    root.destroy()
+
+
+def return_to_core():
+    finish("return")
+
+
+def shutdown_now():
+    finish("shutdown")
+
+
+main = tk.Frame(
+    root,
+    bg="black",
+)
+
+main.place(
+    relx=0.5,
+    rely=0.5,
+    anchor="center",
+)
+
+
+bitcoin_image = tk.PhotoImage(
+    file="/usr/share/core-signer/bitcoin-ui.png"
+)
+
+bitcoin_logo = tk.Label(
+    main,
+    image=bitcoin_image,
+    bg="black",
+    borderwidth=0,
+    highlightthickness=0,
+)
+
+bitcoin_logo.pack(
+    pady=(0, 14),
+)
+
+
+title = tk.Label(
+    main,
+    text="Bitcoin Core has closed",
+    fg="white",
+    bg="black",
+    font=("DejaVu Sans", 18, "bold"),
+)
+
+title.pack(
+    pady=(0, 8),
+)
+
+
+countdown_var = tk.StringVar()
+
+countdown = tk.Label(
+    main,
+    textvariable=countdown_var,
+    fg="white",
+    bg="black",
+    font=("DejaVu Sans", 14),
+)
+
+countdown.pack(
+    pady=(0, 20),
+)
+
+
+canvas = tk.Canvas(
+    main,
+    width=480,
+    height=8,
+    bg="black",
+    borderwidth=0,
+    highlightthickness=0,
+)
+
+canvas.pack()
+
+canvas.create_rectangle(
+    0,
+    1,
+    479,
+    7,
+    outline="#444444",
+    fill="#222222",
+)
+
+progress = canvas.create_rectangle(
+    1,
+    1,
+    1,
+    7,
+    outline="white",
+    fill="white",
+)
+
+
+buttons = tk.Frame(
+    main,
+    bg="black",
+)
+
+buttons.pack(
+    pady=(28, 0),
+)
+
+
+return_button = tk.Button(
+    buttons,
+    text="Return to Bitcoin Core",
+    command=return_to_core,
+    width=23,
+    padx=8,
+    pady=8,
+)
+
+return_button.pack(
+    side="left",
+    padx=10,
+)
+
+
+shutdown_button = tk.Button(
+    buttons,
+    text="Shut Down Immediately",
+    command=shutdown_now,
+    width=23,
+    padx=8,
+    pady=8,
+)
+
+shutdown_button.pack(
+    side="left",
+    padx=10,
+)
+
+
+footer = tk.Frame(
+    root,
+    bg="black",
+)
+
+footer.place(
+    relx=0.5,
+    rely=1.0,
+    y=-24,
+    anchor="s",
+)
+
+
+debian_image = tk.PhotoImage(
+    file="/usr/share/core-signer/debian-ui.png"
+)
+
+debian_logo = tk.Label(
+    footer,
+    image=debian_image,
+    bg="black",
+    borderwidth=0,
+    highlightthickness=0,
+)
+
+debian_logo.pack(
+    pady=(0, 5),
+)
+
+
+credit = tk.Label(
+    footer,
+    text="Powered by Debian GNU/Linux",
+    fg="#b0b0b0",
+    bg="black",
+    font=("DejaVu Sans", 12),
+)
+
+credit.pack()
+
+
+def tick():
+    global remaining
+
+    countdown_var.set(
+        f"This device will power off in {remaining} seconds."
+    )
+
+    elapsed = SECONDS - remaining
+    width = int(478 * elapsed / SECONDS)
+
+    canvas.coords(
+        progress,
+        1,
+        1,
+        1 + width,
+        7,
+    )
+
+    if remaining <= 0:
+        canvas.coords(
+            progress,
+            1,
+            1,
+            479,
+            7,
+        )
+
+        finish("shutdown")
+        return
+
+    remaining -= 1
+    root.after(1000, tick)
+
+
+root.grab_set()
+
+root.bind(
+    "<Escape>",
+    lambda event: "break",
+)
+
+root.bind(
+    "<Alt-F4>",
+    lambda event: "break",
+)
+
+root.protocol(
+    "WM_DELETE_WINDOW",
+    lambda: None,
+)
+
+root.lift()
+root.focus_force()
+
+return_button.focus_set()
+
+tick()
+root.mainloop()
+
+if result is None:
+    print("return", flush=True)

@@ -1,0 +1,213 @@
+#!/usr/bin/python3
+"""Name the stock Bitcoin Core file chooser's two Vault sidebar shortcuts.
+
+Qt 6's non-native QFileDialog reads FileDialog/shortcuts from QtProject.conf.
+A runtime symlink supplies a display name for .bitcoin; wallet data and the
+official Bitcoin Core binary are never read, copied, moved or patched.
+"""
+from __future__ import annotations
+
+import argparse
+import os
+from pathlib import Path
+import pwd
+import re
+import stat
+import sys
+import tempfile
+
+from PySide6.QtCore import QSettings, QUrl
+
+KEY = 'FileDialog/shortcuts'
+WIDTH = 'FileDialog/sidebarWidth'
+ALIAS_DIR = 'core-vault-core-file-dialogs'
+BACKUP = 'QtProject.conf.before-core-vault-core-file-dialogs-v1'
+
+
+def directory(path: Path, *, private: bool = False) -> None:
+    info = path.lstat()
+    if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid():
+        raise RuntimeError(f'Expected a directory owned by the Vault account: {path}')
+    if private and stat.S_IMODE(info.st_mode) != 0o700:
+        raise RuntimeError(f'Expected private directory permissions: {path}')
+
+
+def regular_or_missing(path: Path) -> bool:
+    try:
+        info = path.lstat()
+    except FileNotFoundError:
+        return False
+    if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid():
+        raise RuntimeError(f'Expected a regular settings file owned by Vault: {path}')
+    return True
+
+
+def paths_from_session() -> tuple[Path, Path, Path]:
+    account = pwd.getpwuid(os.getuid())
+    if os.geteuid() == 0 or account.pw_name != 'vault':
+        raise RuntimeError('Run inside the Vault session as vault, without sudo.')
+    home = Path(os.environ.get('HOME', ''))
+    if not home.is_absolute() or home != Path(account.pw_dir):
+        raise RuntimeError('HOME does not match the local Vault account.')
+    directory(home)
+    value = os.environ.get('XDG_RUNTIME_DIR', '')
+    runtime = Path(value)
+    if not value or not runtime.is_absolute():
+        raise RuntimeError('A local XDG_RUNTIME_DIR is required.')
+    directory(runtime, private=True)
+    config = Path(os.environ.get('XDG_CONFIG_HOME') or str(home / '.config'))
+    if not config.is_absolute() or not config.is_relative_to(home):
+        raise RuntimeError('The Vault configuration must be inside its own home.')
+    # Refuse links in the managed settings path, even when their target is local.
+    path = home
+    for part in config.relative_to(home).parts:
+        path /= part
+        if path.exists() or path.is_symlink():
+            directory(path)
+    return home, runtime, config
+
+
+def urls(value) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        value = [value]
+    if not isinstance(value, (list, tuple)) or not all(isinstance(x, str) for x in value):
+        raise RuntimeError('Unexpected Qt sidebar shortcut type; settings were not changed.')
+    return list(value)
+
+
+def normalized(value: str) -> str:
+    url = QUrl(value)
+    if not url.isValid():
+        raise RuntimeError('Invalid existing Qt sidebar shortcut; settings were not changed.')
+    return bytes(url.toEncoded()).decode('ascii')
+
+
+def merge_shortcuts(previous: list[str], home: Path, alias: Path) -> list[str]:
+    private = home / 'Private Workspace'
+    desired = [alias.as_uri(), private.as_uri()]
+    result = list(desired)
+    for value in previous:
+        url = QUrl(value)
+        local = url.toLocalFile()
+        if url.scheme() == 'file' and not url.path():
+            continue  # Qt's built-in Computer shortcut.
+        if local in (str(home), str(home / '.bitcoin'), str(private), str(alias)):
+            continue
+        if re.fullmatch(r'/run/user/[0-9]+/core-vault-core-file-dialogs/Bitcoin Core', local):
+            continue  # Refresh a managed alias left by an earlier session.
+        value = normalized(value)
+        if value not in result:
+            result.append(value)
+    return result
+
+
+def settings_at(path: Path) -> QSettings:
+    regular_or_missing(path)
+    settings = QSettings(str(path), QSettings.NativeFormat)
+    settings.setFallbacksEnabled(False)
+    if settings.status() != QSettings.NoError:
+        raise RuntimeError('Qt settings could not be read; settings were not changed.')
+    return settings
+
+
+def save_backup(path: Path, original: bytes) -> None:
+    if regular_or_missing(path):
+        return
+    fd, temporary = tempfile.mkstemp(prefix='.' + path.name + '.', dir=path.parent)
+    try:
+        with os.fdopen(fd, 'wb') as stream:
+            stream.write(original)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.chmod(temporary, 0o600)
+        # No overwrite, including an unexpected object appearing concurrently.
+        os.link(temporary, path, follow_symlinks=False)
+    finally:
+        os.unlink(temporary)
+
+
+def configure(home: Path, runtime: Path, config: Path) -> None:
+    directory(home)
+    directory(runtime, private=True)
+    core, private = home / '.bitcoin', home / 'Private Workspace'
+    directory(core)
+    directory(private, private=True)
+    config.mkdir(mode=0o700, parents=True, exist_ok=True)
+    directory(config)
+    alias_dir = runtime / ALIAS_DIR
+    alias_dir.mkdir(mode=0o700, exist_ok=True)
+    directory(alias_dir, private=True)
+    alias = alias_dir / 'Bitcoin Core'
+    if alias.exists() or alias.is_symlink():
+        if not alias.is_symlink() or alias.resolve(strict=True) != core:
+            raise RuntimeError('Unexpected object at the Bitcoin Core display shortcut.')
+    else:
+        alias.symlink_to(core, target_is_directory=True)
+
+    path = config / 'QtProject.conf'
+    settings = settings_at(path)
+    previous = urls(settings.value(KEY))
+    desired = merge_shortcuts(previous, home, alias)
+    width = settings.value(WIDTH)
+    try:
+        widen = width is None or int(width) < 180
+    except (TypeError, ValueError):
+        raise RuntimeError('Unexpected Qt sidebar width; settings were not changed.')
+    changed = [normalized(value) for value in previous] != desired or widen
+    if not changed:
+        check(home, runtime, config)
+        return
+    if regular_or_missing(path):
+        save_backup(config / BACKUP, path.read_bytes())
+    settings.setValue(KEY, desired)
+    if widen:
+        settings.setValue(WIDTH, 180)
+    settings.sync()
+    if settings.status() != QSettings.NoError:
+        raise RuntimeError('Qt sidebar settings could not be saved.')
+    check(home, runtime, config)
+
+
+def check(home: Path, runtime: Path, config: Path) -> None:
+    alias = runtime / ALIAS_DIR / 'Bitcoin Core'
+    if not alias.is_symlink() or alias.resolve(strict=True) != home / '.bitcoin':
+        raise RuntimeError('Bitcoin Core shortcut does not point to the original data directory.')
+    directory(home / '.bitcoin')
+    directory(home / 'Private Workspace', private=True)
+    settings = settings_at(config / 'QtProject.conf')
+    current = urls(settings.value(KEY))
+    expected = [alias.as_uri(), (home / 'Private Workspace').as_uri()]
+    if [normalized(value) for value in current[:2]] != expected:
+        raise RuntimeError('Expected Bitcoin Core then Private Workspace in the Qt sidebar.')
+    if [normalized(value) for value in current] != merge_shortcuts(current, home, alias):
+        raise RuntimeError('Duplicate or stale Vault file chooser shortcuts.')
+    if not settings.contains(WIDTH) or int(settings.value(WIDTH)) < 180:
+        raise RuntimeError('Qt file chooser sidebar width is too narrow for the Vault labels.')
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument('--apply', action='store_true')
+    mode.add_argument('--check', action='store_true')
+    args = parser.parse_args()
+    os.umask(0o077)
+    home, runtime, config = paths_from_session()
+    if args.apply:
+        configure(home, runtime, config)
+    else:
+        check(home, runtime, config)
+    print('VAULT CORE FILE DIALOGS CHECK PASSED')
+    print('Bitcoin Core -> ' + str(home / '.bitcoin'))
+    print('Private Workspace -> ' + str(home / 'Private Workspace'))
+    return 0
+
+
+if __name__ == '__main__':
+    try:
+        raise SystemExit(main())
+    except (OSError, RuntimeError, ValueError) as exc:
+        print('VAULT CORE FILE DIALOGS ERROR: ' + str(exc), file=sys.stderr)
+        raise SystemExit(1)

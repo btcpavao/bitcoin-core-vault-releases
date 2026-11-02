@@ -1,0 +1,72 @@
+[
+  {
+    "view": "shutdown-1",
+    "size": [
+      426,
+      344
+    ]
+  },
+  {
+    "view": "shutdown-2",
+    "size": [
+      538,
+      249
+    ]
+  },
+  {
+    "view": "shutdown-countdown",
+    "size": [
+      580,
+      350
+    ]
+  },
+  {
+    "view": "restart-1",
+    "size": [
+      426,
+      344
+    ]
+  },
+  {
+    "view": "restart-2",
+    "size": [
+      514,
+      249
+    ]
+  },
+  {
+    "view": "restart-countdown",
+    "size": [
+      580,
+      350
+    ]
+  },
+  {
+    "view": "encrypt-1",
+    "size": [
+      640,
+      550
+    ]
+  },
+  {
+    "view": "encrypt-2",
+    "size": [
+      640,
+      550
+    ]
+  },
+  {
+    "view": "decrypt-1",
+    "size": [
+      640,
+      550
+    ]
+  },
+  {
+    "view": "decrypt-2",
+    "size": [
+      640,
+      550
+    ]
+  }
+]

@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=Bitcoin Core Offline
+Comment=Stateless live Bitcoin Core environment
+Exec=/usr/local/bin/core-signer-session
+Type=Application
+DesktopNames=CoreSigner

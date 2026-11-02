@@ -1,0 +1,30 @@
+---
+componentName: core-offline
+welcomeStyleCalamares: false
+welcomeExpandingLogo: true
+windowExpanding: fullscreen
+windowPlacement: center
+sidebar: widget,top
+navigation: widget,bottom
+strings:
+  productName: "Bitcoin Core Vault"
+  shortProductName: "Bitcoin Core Vault"
+  version: "Preview"
+  shortVersion: "preview"
+  versionedName: "Bitcoin Core Vault"
+  shortVersionedName: "Bitcoin Core Vault"
+  bootloaderEntryName: "Bitcoin Core Vault"
+  productUrl: "https://btcpavao.com/"
+  supportUrl: "https://btcpavao.com/"
+  knownIssuesUrl: "https://btcpavao.com/"
+images:
+  productIcon: bitcoin.png
+  productLogo: bitcoin.png
+  productWelcome: bitcoin.png
+style:
+  SidebarBackground: "#000000"
+  SidebarText: "#ffffff"
+  SidebarTextCurrent: "#ffffff"
+  SidebarBackgroundCurrent: "#000000"
+slideshow: "show.qml"
+slideshowAPI: 2

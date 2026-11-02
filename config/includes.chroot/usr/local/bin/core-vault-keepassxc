@@ -1,0 +1,48 @@
+#!/bin/sh
+set -eu
+if [ "$(id -u)" -ne 1000 ] || [ "$HOME" != /home/vault ]; then
+    printf '%s\n' 'Please launch KeePassXC from the Vault desktop account.' >&2
+    exit 1
+fi
+umask 077
+ulimit -c 0
+/usr/local/bin/core-vault-storage-check --session >/dev/null
+mkdir -p "$XDG_CONFIG_HOME/keepassxc"
+if [ ! -f "$XDG_CONFIG_HOME/keepassxc/keepassxc.ini" ]; then
+    cat > "$XDG_CONFIG_HOME/keepassxc/keepassxc.ini" <<'CONFIG'
+[General]
+ConfigVersion=2
+UpdateCheckMessageShown=true
+CheckForUpdates=false
+RememberLastDatabases=false
+RememberLastKeyFiles=false
+
+[GUI]
+CheckForUpdates=false
+
+[PasswordGenerator]
+Type=1
+WordCount=6
+WordList=eff_large.wordlist
+
+[Security]
+ClearClipboard=false
+ClearClipboardTimeout=10
+LockDatabaseIdle=true
+LockDatabaseIdleSeconds=120
+CONFIG
+fi
+# The verified upstream release has no generator startup CLI option. Its accessibility
+# menu action opens the real generator without keyboard/focus or database operations.
+export QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1
+if [ "$#" -eq 0 ]; then
+    /usr/local/bin/core-vault-open-passphrase --pid "$$" \
+        >"$XDG_RUNTIME_DIR/core-vault-open-passphrase.log" 2>&1 &
+fi
+APPDIR=$(readlink -f /opt/keepassxc/current)
+export APPDIR
+export LD_LIBRARY_PATH="$APPDIR/usr/lib"
+export QT_PLUGIN_PATH="$APPDIR/usr/plugins"
+export QT_QPA_PLATFORM_PLUGIN_PATH="$APPDIR/usr/plugins/platforms"
+export QT_QPA_PLATFORM=xcb
+exec /usr/bin/keepassxc "$@"

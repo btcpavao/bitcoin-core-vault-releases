@@ -1,0 +1,94 @@
+#!/bin/sh
+set -eu
+# Runs inside live-build's image chroot, not on the developer's running system.
+test "$(dpkg-query -W -f='${Version}' calamares)" = '3.3.14-1+corevault4'
+test "$(dpkg-query -W -f='${Version}' thunar)" = '4.20.2-1+deb13u1+corevault1'
+for module in partition keyboard summary mount unpackfs machineid fstab initramfs bootloader umount finished; do
+    test -f "/usr/lib/x86_64-linux-gnu/calamares/modules/$module/module.desc"
+done
+for exe in /usr/bin/calamares /usr/sbin/grub-install /usr/sbin/grub-mkconfig /usr/bin/rsync \
+    /usr/local/sbin/core-vault-installer /usr/local/bin/core-vault-installer-session \
+    /usr/local/bin/core-vault-storage-check /usr/local/bin/core-vault-install-check; do
+    test -x "$exe"
+done
+if ldd /usr/bin/calamares | grep -q 'not found'; then
+    echo 'Calamares has missing libraries' >&2; exit 1
+fi
+chown -R root:root /etc/calamares /usr/lib/core-vault-installer
+chown root:root /usr/local/sbin/core-vault-installer /usr/local/bin/core-vault-installer-session \
+    /usr/local/bin/core-vault-storage-check /usr/local/bin/core-vault-install-check \
+    /etc/sudoers.d/80-core-vault-installer /usr/share/core-signer/lightdm-display-setup.sh
+chown root:root /etc/sudoers.d/91-core-vault-poweroff
+chmod 0440 /etc/sudoers.d/80-core-vault-installer /etc/sudoers.d/91-core-vault-poweroff
+chmod 0755 /usr/local/sbin/core-vault-installer /usr/local/bin/core-vault-installer-session \
+    /usr/local/bin/core-vault-storage-check /usr/local/bin/core-vault-install-check \
+    /usr/share/core-signer/lightdm-display-setup.sh
+/usr/sbin/visudo -c
+printf '%s\n' 'en_US.UTF-8 UTF-8' > /etc/locale.gen
+/usr/sbin/locale-gen
+/usr/bin/python3 - <<'PY'
+import ast,hashlib,json
+from pathlib import Path
+import yaml
+settings=yaml.safe_load(Path('/etc/calamares/settings.conf').read_text())
+assert settings['sequence'][0]['show']==['keyboard','partition','summary']
+assert settings['sequence'][1]['exec']==['partition','mount','unpackfs','machineid','keyboard',
+    'fstab','corevault@target','initramfs','bootloader','corevault@verify','umount']
+assert settings['prompt-install'] is True
+for p in Path('/usr/lib/core-vault-installer').rglob('*.py'): ast.parse(p.read_text())
+for p in Path('/etc/calamares').rglob('*.conf'): yaml.safe_load(p.read_text())
+assert not Path('/etc/core-vault/installation.json').exists(), 'Installed marker must not be baked into Live image'
+paths=set(Path('/usr/local/bin').glob('core-vault-*'))
+paths.update(Path('/opt/keepassxc').rglob('*'))
+paths.update(Path('/usr/lib/core-vault').glob('*.py'))
+paths.update(Path('/usr/local/libexec').glob('core-vault-*'))
+paths.add(Path('/usr/local/sbin/core-vault-end-session'))
+paths.update(Path('/etc/systemd/system').glob('core-vault-*'))
+paths.update(Path('/etc/systemd/system').glob('*.mount'))
+for directory in ('/etc/sysctl.d', '/etc/security/limits.d', '/etc/systemd/system.conf.d',
+                  '/etc/systemd/logind.conf.d', '/etc/skel/.config'):
+    paths.update(Path(directory).rglob('*'))
+paths.add(Path('/etc/lightdm/lightdm.conf.d/55-core-vault-volatile-auth.conf'))
+paths.add(Path('/etc/initramfs-tools/conf.d/core-vault-noresume'))
+for d in ('/usr/share/core-vault','/usr/share/themes/CoreVault','/usr/share/plymouth/themes/core-signer'):
+    paths.update(Path(d).rglob('*'))
+required=('/usr/bin/bwrap','/usr/local/libexec/core-vault-core-session',
+    '/usr/lib/core-vault/guide_visuals.py',
+    '/usr/bin/shred','/usr/lib/core-vault-shred/engine.py',
+    '/usr/local/bin/core-vault-shred','/usr/local/bin/core-vault-core-file-dialogs',
+    '/usr/share/core-vault/shred-policy.json',
+    '/usr/bin/tesseract','/usr/share/tesseract-ocr/5/tessdata/eng.traineddata',
+    '/usr/local/bin/bitcoin-qt','/usr/local/bin/bitcoin-cli','/usr/bin/core-vault-backup',
+    '/usr/bin/core-vault-backup-setup','/usr/bin/core-vault-backup-self-test',
+    '/usr/lib/core-vault-backup/backup.py','/usr/lib/core-vault-backup/setup.py',
+    '/usr/lib/core-vault-backup/self-test.py','/usr/bin/tar',
+    '/usr/lib/core-vault-backup/password_dialog.py','/usr/lib/core-vault-backup/gui-test.py',
+    '/usr/bin/core-vault-backup-gui-test','/usr/lib/core-vault-backup/message_dialog.py',
+    '/usr/lib/core-vault-backup/gpg_backend.py','/usr/lib/core-vault-backup/gpg-self-test.py',
+    '/usr/lib/core-vault-backup/recovery_dialog.py','/usr/bin/core-vault-gpg-self-test','/usr/bin/gpg',
+    '/usr/lib/core-vault-backup/layered_backend.py',
+    '/usr/share/applications/core-vault-decrypt-gpg.desktop',
+    '/usr/share/applications/core-vault-backup.desktop',
+    '/etc/core-vault-backup.require-private-workspace','/etc/core-vault/backup-build.json',
+    '/etc/nftables.conf','/etc/modprobe.d/core-signer-offline.conf','/etc/sudoers.d/91-core-vault-poweroff',
+    '/etc/cups/cupsd.conf',
+    '/etc/polkit-1/rules.d/49-core-vault-printer.rules',
+    '/etc/lightdm/lightdm.conf.d/50-core-signer.conf','/usr/share/core-signer/lightdm-display-setup.sh',
+    '/usr/local/sbin/core-signer-offline','/etc/systemd/system/core-signer-offline.service',
+    '/etc/systemd/system/core-signer-no-swap.service','/etc/systemd/system/core-vault-workspace-check.service',
+    '/etc/systemd/system/lightdm.service.d/35-core-vault-safety.conf')
+thunar=json.loads(Path('/usr/share/core-vault/thunar-shred.json').read_text())
+required+=tuple('/'+name for name in thunar['files'])
+ast.parse(Path('/usr/lib/core-vault-shred/engine.py').read_text())
+for name in required:
+    assert Path(name).is_file(), name
+    paths.add(Path(name))
+files={}
+for p in sorted(paths):
+    if p.name=='core-vault-installer-session' or '__pycache__' in p.parts: continue
+    if p.is_file() and not p.is_symlink():
+        files[str(p).lstrip('/')]=hashlib.sha256(p.read_bytes()).hexdigest()
+Path('/etc/core-vault/installer-payload.json').write_text(json.dumps(
+    {'schema':1,'calamares_version':'3.3.14-1+corevault4','files':files},indent=2)+'\n')
+print('VAULT CALAMARES CHROOT CHECK PASSED')
+PY

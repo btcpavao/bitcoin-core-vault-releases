@@ -1,0 +1,123 @@
+{
+  "status": "published",
+  "verified_at": "2026-10-15T13:20:40.015650+00:00",
+  "repository": "btcpavao/bitcoin-core-vault",
+  "tag": "v0.2.0",
+  "verification_commit": "f4ff30553d334925e240e20d9ac27f4be6039031",
+  "release_id": 413793525,
+  "release_url": "https://github.com/btcpavao/bitcoin-core-vault/releases/tag/v0.2.0",
+  "assets": [
+    {
+      "name": "bitcoin-core-vault-gpg-candidate-debian-source-delta.tar",
+      "asset_id": 643829654,
+      "sha256": "e1d9cb36a978098befb85895c1b7635321bd8b05e62d3f7c034d01eff1a992fa",
+      "size": 63262720,
+      "verification": "GitHub SHA-256 digest",
+      "download_url": "https://github.com/btcpavao/bitcoin-core-vault/releases/download/untagged-56384a59be40c414610c/bitcoin-core-vault-gpg-candidate-debian-source-delta.tar"
+    },
+    {
+      "name": "bitcoin-core-vault-gpg-candidate-static-sources.part01.tar",
+      "asset_id": 643834753,
+      "sha256": "385d302282bcc51ac4b9076ea4cdaf5baf98310a377e98715c12e232bf0680c1",
+      "size": 222504960,
+      "verification": "GitHub SHA-256 digest",
+      "download_url": "https://github.com/btcpavao/bitcoin-core-vault/releases/download/untagged-56384a59be40c414610c/bitcoin-core-vault-gpg-candidate-static-sources.part01.tar"
+    },
+    {
+      "name": "bitcoin-core-vault-v0.2.0-acceptance.json",
+      "asset_id": 643852926,
+      "sha256": "748cc22b689e82042097f62741ff64edbd5ce9d6eb67a4c7943cfd6057ee12f3",
+      "size": 69821,
+      "verification": "GitHub SHA-256 digest",
+      "download_url": "https://github.com/btcpavao/bitcoin-core-vault/releases/download/untagged-56384a59be40c414610c/bitcoin-core-vault-v0.2.0-acceptance.json"
+    },
+    {
+      "name": "bitcoin-core-vault-v0.2.0-amd64.iso",
+      "asset_id": 643852979,
+      "sha256": "ef6b210772d096e37a3ec6de5fb586b5d1af75e33f33e8ed6ab8425b15b2ae56",
+      "size": 749731840,
+      "verification": "GitHub SHA-256 digest",
+      "download_url": "https://github.com/btcpavao/bitcoin-core-vault/releases/download/untagged-56384a59be40c414610c/bitcoin-core-vault-v0.2.0-amd64.iso"
+    },
+    {
+      "name": "bitcoin-core-vault-v0.2.0-curl-source.tar",
+      "asset_id": 643915040,
+      "sha256": "52b1cad3aeb25f968a11e987ccda6a66c788d7ece51683d34b990a8f747bc257",
+      "size": 9779200,
+      "verification": "GitHub SHA-256 digest",
+      "download_url": "https://github.com/btcpavao/bitcoin-core-vault/releases/download/untagged-56384a59be40c414610c/bitcoin-core-vault-v0.2.0-curl-source.tar"
+    },
+    {
+      "name": "bitcoin-core-vault-v0.2.0-project-sources.tar.xz",
+      "asset_id": 643915761,
+      "sha256": "8d9239b9ff748bdae2cc1109982cbabdf100a69a2b1836e2e4bf6a3b6fdd66a4",
+      "size": 31549692,
+      "verification": "GitHub SHA-256 digest",
+      "download_url": "https://github.com/btcpavao/bitcoin-core-vault/releases/download/untagged-56384a59be40c414610c/bitcoin-core-vault-v0.2.0-project-sources.tar.xz"
+    },
+    {
+      "name": "bitcoin-core-vault-v0.2.0-source-provenance.json",
+      "asset_id": 643918500,
+      "sha256": "63fdc8cab98b1893f7d4d90090548aa047846253a4f7909116605aebc7007cb6",
+      "size": 6023,
+      "verification": "GitHub SHA-256 digest",
+      "download_url": "https://github.com/btcpavao/bitcoin-core-vault/releases/download/untagged-56384a59be40c414610c/bitcoin-core-vault-v0.2.0-source-provenance.json"
+    },
+    {
+      "name": "bitcoin-core-vault-v0.2.0-test-results.tar.gz",
+      "asset_id": 643918560,
+      "sha256": "bfb17e562bd4284f881a954958f5fa7a7085ec867d0a0296684cf41e794a6191",
+      "size": 169155551,
+      "verification": "GitHub SHA-256 digest",
+      "download_url": "https://github.com/btcpavao/bitcoin-core-vault/releases/download/untagged-56384a59be40c414610c/bitcoin-core-vault-v0.2.0-test-results.tar.gz"
+    },
+    {
+      "name": "RELEASE-NOTES.md",
+      "asset_id": 643829555,
+      "sha256": "11f737ccd78de2c95eb0afa07f4fe26f93234093f1b901181dc33f281044c863",
+      "size": 3363,
+      "verification": "GitHub SHA-256 digest",
+      "download_url": "https://github.com/btcpavao/bitcoin-core-vault/releases/download/untagged-56384a59be40c414610c/RELEASE-NOTES.md"
+    },
+    {
+      "name": "release-preparation.json",
+      "asset_id": 643933698,
+      "sha256": "4b255e494a58a3509e5c6b4e0d285f3543754bf9a4936f68ba665a0a953551b1",
+      "size": 2301,
+      "verification": "GitHub SHA-256 digest",
+      "download_url": "https://github.com/btcpavao/bitcoin-core-vault/releases/download/untagged-56384a59be40c414610c/release-preparation.json"
+    },
+    {
+      "name": "SHA256SUMS",
+      "asset_id": 643829596,
+      "sha256": "ed88d890bbb704955eb9cccd709c25f08af1e060f184ebc9146159843deeeadd",
+      "size": 1082,
+      "verification": "GitHub SHA-256 digest",
+      "download_url": "https://github.com/btcpavao/bitcoin-core-vault/releases/download/untagged-56384a59be40c414610c/SHA256SUMS"
+    }
+  ],
+  "published_at": "2026-10-15T13:20:52Z",
+  "publication_verified_at": "2026-10-15T13:20:53.632843+00:00",
+  "ci_runs": [
+    {
+      "conclusion": "success",
+      "databaseId": 38735893534,
+      "event": "push",
+      "headBranch": "v0.2.0",
+      "name": "Source and package checks",
+      "status": "completed",
+      "url": "https://github.com/btcpavao/bitcoin-core-vault/actions/runs/38735893534"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 38735893944,
+      "event": "push",
+      "headBranch": "verify/gpg-061-acceptance",
+      "name": "Source and package checks",
+      "status": "completed",
+      "url": "https://github.com/btcpavao/bitcoin-core-vault/actions/runs/38735893944"
+    }
+  ],
+  "tag_object": "4630ed32837fa9725490ca80f56da417702970dc",
+  "checksums_file_sha256": "ed88d890bbb704955eb9cccd709c25f08af1e060f184ebc9146159843deeeadd"
+}

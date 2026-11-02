@@ -1,0 +1,4 @@
+#!/bin/sh
+set -eu
+chown root:root /usr/share/core-signer/lightdm-display-setup.sh
+chmod 0755 /usr/share/core-signer/lightdm-display-setup.sh

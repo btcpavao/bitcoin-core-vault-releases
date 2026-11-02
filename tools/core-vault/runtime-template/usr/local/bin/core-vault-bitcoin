@@ -1,0 +1,93 @@
+#!/bin/sh
+set -eu
+
+if [ "$(id -u)" -ne 1000 ] || [ "$HOME" != /home/vault ]; then
+    printf '%s\n' 'Please launch Bitcoin Core from the Vault desktop account.' >&2
+    exit 1
+fi
+: "${XDG_RUNTIME_DIR:?Missing runtime directory}"
+/usr/local/bin/core-vault-storage-check --session --core >/dev/null
+if [ "$XDG_RUNTIME_DIR" != /run/user/1000 ] || [ ! -x /usr/bin/bwrap ]; then
+    printf '%s\n' 'The private Bitcoin Core filesystem isolation is unavailable.' >&2
+    exit 1
+fi
+# Bind only RAM-backed system scratch. The shared desktop runtime is checked
+# for the outer startup lock, but remains read-only inside Core's namespace.
+for directory in /tmp /var/tmp "$XDG_RUNTIME_DIR"; do
+    if [ "$(/usr/bin/findmnt --uniq --noheadings --output FSTYPE --target "$directory")" != tmpfs ]; then
+        printf '%s\n' 'Bitcoin Core requires volatile system temporary directories.' >&2
+        exit 1
+    fi
+done
+umask 077
+ulimit -c 0
+LOCK="$XDG_RUNTIME_DIR/core-vault-bitcoin.lock"
+
+focus_core()
+{
+    WINDOW=""
+    for i in $(seq 1 50); do
+        WINDOW="$(xdotool search --class '^Bitcoin-qt$' 2>/dev/null | head -n 1 || true)"
+        [ -n "$WINDOW" ] && break
+        sleep 0.1
+    done
+    if [ -n "$WINDOW" ]; then
+        xdotool windowmap "$WINDOW" >/dev/null 2>&1 || true
+        xdotool windowactivate "$WINDOW" >/dev/null 2>&1 || true
+    fi
+}
+
+exec 3>"$LOCK"
+if ! flock -n 3; then
+    focus_core
+    exit 0
+fi
+
+mkdir -p "$HOME/.config/Bitcoin" "$HOME/.bitcoin"
+
+if [ ! -f "$HOME/.config/Bitcoin/Bitcoin-Qt.conf" ]; then
+    cat > "$HOME/.config/Bitcoin/Bitcoin-Qt.conf" <<'SETTINGS'
+[General]
+fCoinControlFeatures=true
+enable_psbt_controls=true
+SETTINGS
+fi
+
+if [ ! -f "$HOME/.bitcoin/settings.json" ]; then
+    cat > "$HOME/.bitcoin/settings.json" <<'SETTINGS'
+{
+    "listen": false
+}
+SETTINGS
+fi
+
+
+# The official Core binary can read imported files but native save dialogs and
+# pathlike wallet names cannot write to any OS disk or removable filesystem.
+# RAM aliases stay writable; encrypted export runs separately on Vault Home.
+# Keep the network/PID namespaces: host loopback RPC, Finish and the addressed
+# X11 observer retain their existing identities. Bubblewrap keeps fd3's lock
+# in its supervisor until Core exits; no unsupported FD-preservation option.
+exec /usr/bin/bwrap \
+    --ro-bind / / \
+    --bind /run/core-vault /run/core-vault \
+    --bind /home/vault /home/vault \
+    --bind /tmp /tmp \
+    --bind /var/tmp /var/tmp \
+    --dev /dev \
+    --ro-bind /dev/shm /dev/shm \
+    --remount-ro /dev \
+    --cap-drop ALL \
+    --new-session \
+    --sync-fd 3 \
+    --chdir /home/vault \
+    --setenv HOME /home/vault \
+    --setenv XDG_RUNTIME_DIR /run/core-vault/state/core-runtime \
+    --setenv XDG_CONFIG_HOME /home/vault/.config \
+    --setenv XDG_CACHE_HOME /home/vault/.cache \
+    --setenv XDG_DATA_HOME /home/vault/.local/share \
+    --setenv XDG_STATE_HOME /home/vault/.local/state \
+    --setenv TMPDIR /run/core-vault/tmp \
+    --setenv TMP /run/core-vault/tmp \
+    --setenv TEMP /run/core-vault/tmp \
+    /usr/local/libexec/core-vault-core-session
