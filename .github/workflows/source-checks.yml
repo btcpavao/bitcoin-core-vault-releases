@@ -115,10 +115,11 @@ jobs:
           set -euo pipefail
           python3 tools/core-vault/test-guide-visuals.py
 
-      - name: Test watch-only native dialog
+      - name: Check current Home launchers and responsive layout
         env:
           QT_QPA_PLATFORM: offscreen
-        run: python3 tools/core-vault/test-watch-only-ui.py
+        # Watch-only export now lives in Core; the retired custom dialog is gone.
+        run: python3 tools/core-vault/test-home-fit.py vault /tmp/vault-home-fit
 
       # Boot, actual GUI, installation, filesystem isolation, physical media and
       # recovery acceptance remain separate release checks against the final ISO.
@@ -157,10 +158,14 @@ jobs:
           persist-credentials: false
           fetch-depth: 1
 
-      - name: Verify unmodified Core executable
+      - name: Verify unmodified Core 32.1 executables
         run: |
           set -euo pipefail
-          echo 'fcd4c1a3193e0cb4eec9d980c835d822ad726627b0c01281b13f5c3c1f593fcb  config/includes.chroot/usr/local/bin/bitcoin-qt' | sha256sum --check
+          # Exact upstream hashes recorded in provenance/32.1/verification.json.
+          sha256sum --check <<'SUMS'
+          d43632a3e54dfb181ba045db2a5b1ec2396a1acdda010e3b6d07b2e21c69c183  config/includes.chroot/usr/local/bin/bitcoin-qt
+          83dad233fb62b1b2931efd446f7c66fe02585055143e0f0087c742732c75b52d  config/includes.chroot/usr/local/bin/bitcoin-cli
+          SUMS
 
       - name: Test GPG backup, restoration and recovered-wallet PSBT signing
         run: |
@@ -207,7 +212,8 @@ jobs:
     runs-on: ubuntu-24.04
     container:
       image: debian:13
-      options: --shm-size=512m
+      # Match the recovery job's disposable namespace sandbox for synthetic keys.
+      options: --shm-size=512m --cap-add=SYS_ADMIN --security-opt seccomp=unconfined --security-opt apparmor=unconfined --security-opt systempaths=unconfined
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -216,13 +222,14 @@ jobs:
       - name: Install test dependencies
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends ca-certificates curl python3 gpg
-      - name: Verify and unpack pinned upstream Core 31.1
+          apt-get install -y --no-install-recommends ca-certificates curl python3 bubblewrap
+      - name: Verify and unpack pinned upstream Core 32.1
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail --location --proto '=https' --tlsv1.2 --output /tmp/core.tar.gz https://bitcoincore.org/bin/bitcoin-core-31.1/bitcoin-31.1-x86_64-linux-gnu.tar.gz
-          echo 'b80d9c3e04da78fb6f0569685673418cf686fadba9042d926d13fb87ff503f9e  /tmp/core.tar.gz' | sha256sum --check
+          curl --fail --location --proto '=https' --tlsv1.2 --output /tmp/core.tar.gz https://bitcoincore.org/bin/bitcoin-core-32.1/bitcoin-32.1-x86_64-linux-gnu.tar.gz
+          # Exact archive hash recorded with the verified upstream signatures.
+          echo '61545c17c3120fb7412f896d248b11993af04ec8817aad3649c55b2afb044963  /tmp/core.tar.gz' | sha256sum --check
           tar -xzf /tmp/core.tar.gz -C /tmp
-      - name: Test public pairing, private-material rejection and regtest PSBT
-        run: python3 tools/core-vault/test-watch-only.py --core-bin /tmp/bitcoin-31.1/bin
+      - name: Test native watch-only export, restoration and regtest PSBT
+        run: python3 tools/core-vault/test-native-watch-only.py --core-bin /tmp/bitcoin-32.1/bin

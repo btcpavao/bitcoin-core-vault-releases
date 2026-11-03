@@ -273,11 +273,14 @@ class PrivateSessionTests(unittest.TestCase):
         (self.root / 'export').mkdir(mode=0o700)
         policy = SimpleNamespace(ROOT=self.root,check_storage=lambda:None,file_digest=runtime.file_digest)
         archive = backup.create_backup([raw], self.root / 'wallet.gpg', password, policy=policy)
-        receipt = {'schema':3,'format':'gpg-tar','layers':1,'encryption_profile':'AES256-OCB','archive':str(archive), 'archive_sha256':runtime.file_digest(archive),
+        # Backup 0.7.3 encrypts a single wallet directly with AES256-MDC.
+        receipt = {'schema':3,'format':'gpg-wallet','layers':1,'encryption_profile':'AES256-MDC','archive':str(archive), 'archive_sha256':runtime.file_digest(archive),
             'wallet_backup_sha256':runtime.file_digest(raw), 'wallet_digest':runtime.wallet_digest(raw)}
         with patch.object(export, 'ROOT', self.root), patch.object(export, 'media_for', return_value=(True,'test-media')), \
                 patch.object(runtime, 'check_storage'):
             self.assertEqual(export.verify_export(receipt,password),'test-media')
+            with self.assertRaisesRegex(RuntimeError, 'Unexpected wallet backup payload format'):
+                export.verify_export(dict(receipt, format='gpg-tar'), password)
             with self.assertRaises(Exception):
                 export.verify_export(receipt,['deliberately-wrong-password'])
             wrong = dict(receipt, wallet_backup_sha256='0'*64)
