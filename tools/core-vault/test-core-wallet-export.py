@@ -95,10 +95,11 @@ def guest(regtest=False):
     def export_wallet(wallet, destination, password):
         return export.export_wallet(wallet, destination, password)
     def recover(archive, destination, password):
-        from layered_backend import recover_payload, unpack, size_limit, Budget
+        from layered_backend import recover_files
         destination.rmdir()  # This fixture pre-creates an empty output directory.
-        with recover_payload(archive, password, ram_root=runtime.ROOT / 'export') as payload:
-            unpack(payload, destination, limit=size_limit(runtime.ROOT / 'export'), budget=Budget())
+        # Exercise the production recovery path for both direct wallets and TAR.
+        recover_files(archive, destination, password,
+                      ram_root=runtime.ROOT / 'export', workspace=destination.parent)
     flags = ['-datadir=' + str(runtime.CORE), '-walletdir=' + str(runtime.WALLETS),
              '-server=1', '-rpcport=8332', '-rpcbind=127.0.0.1', '-rpcallowip=127.0.0.1',
              '-connect=0', '-listen=0', '-listenonion=0', '-discover=0', '-dnsseed=0',
