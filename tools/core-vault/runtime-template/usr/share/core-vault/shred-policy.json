@@ -6,8 +6,8 @@
     "usr/lib/core-vault-shred/engine.py": "8125a7d1c2551e46ba0986b8cce3e5968ba7bec985fd3f37fa0c8f0108fe853c",
     "usr/local/bin/core-vault-core-file-dialogs": "692532a739cb9d13a7ecb6977cd2dedbb47cab3d047502036ebfaf21c39def3a",
     "usr/local/bin/core-vault-file-places": "b966b4a33c4e0e048a3c4233284d54f87d0e6f3aca21642d640cf1e16aed318d",
-    "usr/local/bin/core-vault-guide": "f1aec969e81ead2aa0c7f4f5c620866646d7f83ad4ac87f66536a7c8d68271b1",
-    "usr/local/bin/core-vault-home": "a83fccc13c32a9e8fba6e62832b3f0720eb0b2f945269fea583092ed0e5a3cf3",
+    "usr/local/bin/core-vault-guide": "4973b55a2e6afe6131cc5cafd0898fc4a4d59826ce1ab74921fe55ab6ff2cf46",
+    "usr/local/bin/core-vault-home": "750d286fc25fbe59094bc8e6a58f71aa45542d027c8d01ef00670b21e87bc9b7",
     "usr/local/bin/core-vault-session": "37f04bc091f0c3cefc16a50af97aa2841090cff018dad7720939fc1eb57c9075",
     "usr/local/bin/core-vault-shred": "9500ff64e4002c0c5852b2dc2e16931ea9228c18a33841314ad1c9a5a8d74537",
     "usr/lib/core-vault/guide_visuals.py": "33254757415c4f6cdf69663cc1c96a1099c95b534b4b77df38e3743dce83e4b8"
