@@ -18,15 +18,35 @@ SHA-256: `26a1cb255db3cd48b5427a87c6692cb2cfce94bb249207acac90ea7e4f4bb047`.
 Other assets: `SHA256SUMS`, `SOURCE-COMMIT.txt`,
 `bitcoin-core-vault-v0.3.0-source.tar.gz`, `ACCEPTANCE.json`.
 
-From the directory with all named assets:
+## Verify the maintainer signature
+
+The release checksum list is signed by **btcpavao**, using an Ed25519 OpenPGP key.
+
+Primary key fingerprint:
+
+```text
+787A 2AAF B0D1 19CA 0522 B2A5 B9C9 9AF8 5788 96D0
+```
+
+Download the [public key](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/download/v0.3.0/btcpavao-pgp.asc) and [detached signature](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/download/v0.3.0/SHA256SUMS.asc), alongside `SHA256SUMS` and the release files. The fingerprint is also published at [btcpavao.com/pgp.txt](https://btcpavao.com/pgp.txt).
+
+Inspect the downloaded public key and compare its full fingerprint with the one you trust before importing it:
 
 ```bash
+gpg --show-keys --fingerprint btcpavao-pgp.asc
+```
+
+From the directory containing the downloaded files:
+
+```bash
+gpg --import btcpavao-pgp.asc &&
+gpg --verify SHA256SUMS.asc SHA256SUMS &&
 sha256sum -c SHA256SUMS
 ```
 
-Do not confuse checksum agreement with signature verification. This release
-has **no maintainer signature** and no independently established source
-reproducibility attestation.
+On macOS, use `shasum -a 256 -c SHA256SUMS` for the last command. The signature must validate for the full fingerprint above, and each release file must report `OK`.
+
+The signature authenticates the published checksum list. Independently established source reproducibility has not been demonstrated.
 
 ## What changed
 
@@ -75,7 +95,7 @@ SquashFS gate to the build source to prevent regressions.
 
 The VM disk selection tests intentionally did not erase disks. They do not
 establish full installed-mode reboot and every hardware variant. No external
-security audit, code-signing identity, comprehensive threat model validation,
+security audit, independently certified signing identity, comprehensive threat model validation,
 clean-host end-to-end bit-reproducible build or independent ISO attestation
 is claimed. Do not depend on any single untested backup or a sole copy of a
 passphrase. The Linux and GnuPG environment can fail and every critical
@@ -85,3 +105,4 @@ The public source snapshot records the inputs and scripts used for the image;
 a final ISO remaster was required to repair package-file ownership. See
 `BUILD-PROVENANCE-v0.3.0.md` and the source archive. This publication should
 not be represented as a bit-for-bit reproducible build.
+

@@ -160,10 +160,31 @@ file. The image has exactly **795,148,288 bytes** and SHA-256:
 26a1cb255db3cd48b5427a87c6692cb2cfce94bb249207acac90ea7e4f4bb047
 ```
 
-Place the downloaded ISO and `SHA256SUMS` into one directory, then run
-`sha256sum -c SHA256SUMS`. A matching checksum verifies file integrity
-relative to the checksum you obtained, not the publisher's identity.
-There is no independently verified signing key attached to this release.
+On 2026-11-04, btcpavao added a detached OpenPGP signature and public key
+to the existing release. Download `SHA256SUMS.asc` and `btcpavao-pgp.asc` alongside `SHA256SUMS` and the release files.
+
+The Ed25519 primary key fingerprint is:
+
+```text
+787A 2AAF B0D1 19CA 0522 B2A5 B9C9 9AF8 5788 96D0
+```
+
+Inspect the downloaded key with `gpg --show-keys --fingerprint btcpavao-pgp.asc`
+and compare its full fingerprint with a value you trust before importing it.
+The fingerprint and public key are also published at
+[btcpavao.com/pgp.txt](https://btcpavao.com/pgp.txt).
+After confirming the fingerprint, run from the download directory:
+
+```bash
+gpg --import btcpavao-pgp.asc &&
+gpg --verify SHA256SUMS.asc SHA256SUMS &&
+sha256sum -c SHA256SUMS
+```
+
+On macOS, use `shasum -a 256 -c SHA256SUMS` for the last command.
+The signature must validate for the full fingerprint above, and each release
+file must report `OK`. The signature authenticates the checksum list;
+it does not establish independent security review or reproducibility.
 
 The user confirmed successful installation on ThinkPad T530 on Nov 2, 2026.
 The same exact ISO passes BIOS/USB disk-selection tests with SATA and VirtIO
