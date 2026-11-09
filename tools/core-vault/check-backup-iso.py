@@ -43,7 +43,7 @@ def check(squash):
             raise RuntimeError('Installer backup hash mismatch: '+name)
     wrapper=get('usr/local/bin/core-vault-bitcoin').decode()
     inner=get('usr/local/libexec/core-vault-core-session').decode()
-    if ('exec /usr/bin/bwrap' not in wrapper or '--ro-bind / /' not in wrapper or
+    if ('exec /usr/local/bin/core-vault-media-view -- /usr/bin/bwrap' not in wrapper or '--ro-bind / /' not in wrapper or
         'VAULT_CORE_NATIVE_HIDE_V2' not in inner or 'core-vault-hide-sync --pid' not in inner or any(x in wrapper+inner for x in
         ('core-vault-core-cover','core-vault-core-startup-guard','xdotool key','xdotool type','AT_SPI_BUS_ADDRESS'))):
         raise RuntimeError('ISO lacks the bounded, addressed native Core Hide launcher')

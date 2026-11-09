@@ -13,7 +13,7 @@ p=INC/'usr/local/bin/core-vault-bitcoin';s=p.read_text()
 subprocess.run(['/bin/sh','-n',str(p)],check=True)
 inner=INC/'usr/local/libexec/core-vault-core-session';i=inner.read_text()
 subprocess.run(['/bin/sh','-n',str(inner)],check=True)
-assert 'exec /usr/bin/bwrap' in s and '--ro-bind / /' in s and '--sync-fd 3' in s
+assert 'exec /usr/local/bin/core-vault-media-view -- /usr/bin/bwrap' in s and '--ro-bind / /' in s and '--sync-fd 3' in s
 assert 'VAULT_CORE_NATIVE_HIDE_V2' in i
 assert i.count('exec /usr/local/bin/bitcoin-qt \\\n')==1
 assert 'exec 3>"$LOCK"' in s and 'flock -n 3' in s
