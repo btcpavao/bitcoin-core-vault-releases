@@ -1,8 +1,8 @@
 # Releasing Bitcoin Core Vault
 
 This procedure publishes the Debian Vault project in
-[`btcpavao/bitcoin-core-vault`](https://github.com/btcpavao/bitcoin-core-vault).
-The repository preserves the earlier offline-signer Git history. The separate
+[`btcpavao/bitcoin-core-vault-releases`](https://github.com/btcpavao/bitcoin-core-vault-releases).
+Preserve this repository’s published Git history. The separate
 `btcpavao/core-vault` Tauri application is a different project.
 
 ## 1. Freeze the authoritative source

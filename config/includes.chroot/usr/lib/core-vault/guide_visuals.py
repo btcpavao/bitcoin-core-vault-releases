@@ -16,7 +16,7 @@ FILLS = {'blue': '#142431', 'amber': '#2a2117', 'green': '#17271d',
 # Alt text is also shown as selectable text, independent of the illustration.
 VISUALS = {
     'Watch-Only Wallet in Bitcoin Core': ('pairing', 'Public view and private authority',
-        'Vault keeps the private keys. Bitcoin Core exports a public watch-only copy for Restore Wallet on your online node. Compare receiving addresses independently. Node prepares transactions; only the offline Vault authorizes them.'),
+        'Vault keeps the private keys. Core exports a public watch-only copy into Private Workspace by default. Files copies that export to USB for Restore Wallet on the online node. Compare receiving addresses independently; only Vault signs.'),
     'Home & keyboard': ('keyboard', 'Move around Home with the keyboard',
         'F12 shows Home or returns to your applications. Tab and Shift+Tab move focus; Space activates a control. In the power confirmation, Enter selects No and Esc cancels.'),
     'Bitcoin Core': ('wallet', 'Two different kinds of protection',
@@ -40,9 +40,9 @@ VISUALS = {
     'Editor': ('paper', 'Make the recovery plan readable',
         'Write a simple inventory and recovery checklist without embedding secrets automatically. The location where you save a document determines whether it remains after the session.'),
     'Terminal': ('terminal', 'Read the command before running it',
-        'GPG is the program, backup.gpg is the encrypted input, and payload.tar is the decrypted output. Secrets are entered at GPG’s prompt, never in the command. Use the complete RAM-only recovery instructions in Recovery / inheritance.'),
+        'GPG is the program. For a current one-layer wallet backup, wallet.dat.gpg is the encrypted input and wallet.dat is the recovered output. No TAR step is needed. Enter the passphrase at the prompt and follow the RAM-only recovery instructions.'),
     'Encryption security levels': ('layers', 'Every extra layer adds a required secret',
-        'The original files are packaged in TAR, then wrapped in GPG layers. Every layer has an independent passphrase. All required passphrases are needed; layers do not create Bitcoin multisig or a signing threshold.'),
+        'A single wallet.dat is encrypted directly; other files and folders first become a standard TAR package. Every GPG layer has an independent required passphrase. Layers do not create Bitcoin multisig or a signing threshold.'),
     'Backup & verify': ('verify', 'Verify the round trip before relying on a copy',
         'Vault compares full authenticated recovery with the original snapshot, then checks the encrypted copy on the destination. A complete restore and signing drill tests the wider recovery plan.'),
     'Finish Private Session': ('finish', 'Two confirmations, then five minutes to reconsider',
@@ -52,7 +52,7 @@ VISUALS = {
     'Recovery / inheritance': ('recovery', 'Redundancy within groups; every required group available',
         'This three-layer example needs one usable backup copy plus A, B and C. Copies within a group are alternatives. Each group is still required. Core-encrypted private keys additionally need the separate Core passphrase for signing.'),
     'Decrypt Backup': ('decrypt', 'Stop when the original files are recovered',
-        'For a Vault backup, enter all required passphrases in any order. Vault opens the outer layers and validates the TAR package. An original file named document.gpg stays encrypted; it is not automatically opened as another backup layer.'),
+        'Enter all required passphrases in any order. Vault opens the outer layers and validates either a complete wallet.dat or a TAR package. An original document.gpg inside a package stays encrypted.'),
 }
 
 
@@ -214,7 +214,7 @@ def keyboard(d, _):
 
 
 def wallet(d, _):
-    y = d.box(1, 1, d.width - 2, 'GPG backup: protects the complete package',
+    y = d.box(1, 1, d.width - 2, 'GPG backup: protects the whole file',
               'Separate GPG passphrase(s)', 'amber') + 25
     d.text(0, y, 'Inside wallet.dat', d.width, 20, bold=True)
     y = d.pair(y + 40,
@@ -257,7 +257,7 @@ def storage(d, _):
 
 def media(d, _):
     y = d.pair(1,
-        ('Transfer medium', 'Unsigned PSBT in\nSigned PSBT out', 'blue'),
+        ('Transfer medium', 'Unsigned PSBT in\nSigned PSBT out\nPublic watch-only copy', 'blue'),
         ('Backup medium', 'Verified encrypted .gpg files\nRecovery documents', 'amber'))
     y += 34
     y += d.text(0, y, 'Independent backup copies', d.width, 20, bold=True) + 14
@@ -288,11 +288,11 @@ def paper(d, _):
 def terminal(d, _):
     y = d.box(1, 1, d.width - 2, 'Program', 'gpg — stock GnuPG', 'blue')
     y += 24
-    y = d.pair(y, ('Encrypted input', 'backup.gpg', 'amber'),
-                 ('Decrypted output', 'payload.tar • RAM only', 'blue'))
+    y = d.pair(y, ('Encrypted input', 'wallet.dat.gpg', 'amber'),
+                 ('Decrypted output', 'wallet.dat • RAM only', 'blue'))
     y += 30
     y += d.text(0, y, 'Command structure', d.width, 20, bold=True) + 12
-    y += d.text(0, y, 'gpg --output payload.tar --decrypt backup.gpg', d.width, 18, mono=True)
+    y += d.text(0, y, 'gpg --output wallet.dat --decrypt wallet.dat.gpg', d.width, 18, mono=True)
     return d.footer(y + 14, 'Enter the passphrase at the prompt, never in the command.')
 
 
@@ -311,7 +311,7 @@ def layers(d, count):
     x = 1 + count * 18
     y = 1 + count * 63
     w = d.width - 2 - count * 36
-    d.box(x, y, w, 'Standard TAR', 'wallet.dat + original documents', 'ink', height=88)
+    d.box(x, y, w, 'Original data', 'wallet.dat or a standard TAR', 'ink', height=88)
     end = count * 77 + 112
     required = ' + '.join(chr(65 + i) for i in range(count))
     end = d.footer(end, 'Recovery requires: backup.gpg + ' + required, 'amber')
@@ -406,6 +406,8 @@ def pairing(d, _):
     y = d.pair(1,
         ('Offline Vault', 'Private keys stay here.\nReview and sign transactions.', 'amber'),
         ('Online Node', 'Public descriptors only.\nWatch and prepare transactions.', 'blue'))
+    y = d.box(1, y + 24, d.width - 2, 'Public watch-only export',
+        'Core → Private Workspace → Files → USB', 'blue') + y + 24
     y = d.box(1, y + 24, d.width - 2, 'Compare independently',
         'Receiving addresses + change addresses + next index + network', 'green') + y + 24
     return d.footer(y + 12, 'Public descriptors reveal activity, but cannot authorize spending.', 'muted')

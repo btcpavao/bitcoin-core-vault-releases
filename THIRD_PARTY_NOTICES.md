@@ -142,6 +142,19 @@ license copies are under [LICENSES/elementary-xfce/](LICENSES/elementary-xfce/).
 
 Primary reference: [elementary-xfce Debian copyright](https://metadata.ftp-master.debian.org/changelogs/main/e/elementary-xfce/elementary-xfce_0.21-1_copyright).
 
+### elementary-xfce Guide icons
+
+The Guide reuses Node's unchanged document-save and document-import artwork as
+icons/settings-chain-backup.png and icons/settings-chain-import.png, plus its
+librsvg rendering of the existing system-shutdown.svg as system-shutdown.png. These are
+from Debian elementary-xfce-icon-theme 0.21-1 and retain GPL-3.0-or-later,
+copyright 2007–2013 Daniel Foré and 2010–2022 Simon Steinbeiß. Exact upstream
+paths and hashes are in [guide-icons.json](LICENSES/elementary-xfce/guide-icons.json).
+Preserve [GUIDE-ICONS-NOTICE.txt](LICENSES/elementary-xfce/GUIDE-ICONS-NOTICE.txt),
+the adjacent copyright and GPL-3.txt, and the matching installed/template copies.
+Existing Bitcoin/decryption artwork is reused; other chapters use installed
+application-theme icons under their original package licenses.
+
 ### Adapted Debian Open Use Logo
 
 The identified white taskbar artwork `icons/debian-white.svg` and its rendered

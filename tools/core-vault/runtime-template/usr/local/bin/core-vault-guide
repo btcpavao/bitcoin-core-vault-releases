@@ -5,10 +5,10 @@ from __future__ import annotations
 import sys
 from html import escape
 from pathlib import Path
-from PySide6.QtCore import Qt, QTimer, QUrl
-from PySide6.QtGui import QFont, QTextOption, QTextDocument
+from PySide6.QtCore import Qt, QTimer, QUrl, QEvent, QSize, QRect
+from PySide6.QtGui import QFont, QTextOption, QTextDocument, QTextTable, QIcon, QFontMetrics
 from PySide6.QtWidgets import (
-    QApplication, QButtonGroup, QComboBox, QHBoxLayout, QLabel, QListWidget, QPushButton, QTextBrowser, QVBoxLayout, QWidget
+    QApplication, QButtonGroup, QComboBox, QHBoxLayout, QLabel, QListWidget, QPushButton, QTextBrowser, QVBoxLayout, QWidget, QStyle
 )
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'lib/core-vault'))
@@ -26,7 +26,14 @@ QPushButton, QComboBox { background:#202020; color:#f2f2f2; border:1px solid #66
 QPushButton:checked { background:#24394a; border:2px solid #8ecbff; padding:7px 13px; }
 QPushButton:focus, QComboBox:focus { border:2px solid #f2f2f2; padding:7px 13px; }
 QPushButton:hover { background:#2c2c2c; }
-QComboBox QAbstractItemView { background:#171717; color:#f2f2f2; selection-background-color:#2a4052; }
+QComboBox { combobox-popup:0; selection-background-color:#343434; selection-color:#fff; }
+QComboBox QAbstractItemView {
+    background:#121212; color:#fff; border:1px solid #4a4a4a;
+    border-radius:0px; padding:4px; outline:0;
+    selection-background-color:#343434; selection-color:#fff;
+}
+QComboBox QAbstractItemView::item:selected { background:#343434; color:#fff; }
+QComboBoxPrivateContainer { background:#121212; border:1px solid #4a4a4a; padding:0px; }
 
 '''
 
@@ -34,315 +41,457 @@ QComboBox QAbstractItemView { background:#171717; color:#f2f2f2; selection-backg
 # Reading sizes are explicit so the desktop's compact UI font cannot shrink prose.
 BODY_FONT = QFont('DejaVu Sans', 14)
 UI_FONT = QFont('DejaVu Sans', 13)
-DOCUMENT_STYLE = """
-h2 { font-size:22pt; font-weight:700; margin-top:0; margin-bottom:18px; }
-h3 { font-size:17pt; font-weight:700; margin-top:24px; margin-bottom:10px; }
+DOCUMENT_STYLE = '''
+h2 { font-size:22pt; font-weight:700; margin-top:0; margin-bottom:24px; }
+h3 { font-size:17pt; font-weight:700; margin-top:32px; margin-bottom:14px; }
 p, li { line-height:150%; }
-p { margin-top:0; margin-bottom:16px; }
+p { margin-top:0; margin-bottom:20px; }
+ol, ul { margin-top:8px; margin-bottom:24px; }
 li { margin-bottom:10px; }
 pre { font-family:'DejaVu Sans Mono'; font-size:13pt; white-space:pre-wrap; }
 th, td { padding:9px; }
-"""
+'''
 
 SECTIONS = {'Home & keyboard': '\n'
-                    '<h2>Home &amp; keyboard</h2><p>Press <b>F12</b> to show Home. Press F12 again to return '
-                    'to your application windows.</p>\n'
+                    '<h2>Home &amp; keyboard</h2><p>Press <b>F12</b> to show Home. Press F12 again '
+                    'to return to your application windows.</p>\n'
                     '<p>Use <b>Tab</b> and <b>Shift+Tab</b> to move between Home controls. Press '
-                    '<b>Space</b> to activate the focused control. Restart and Finish &amp; Shut Down open '
-                    'two warnings followed by a five-minute countdown. Cancellation is selected by default. '
-                    'Press <b>Esc</b> to keep the session open. During the countdown, choose '
-                    '<b>Cancel countdown</b> or explicitly select <b>Restart now</b> / <b>Shut down now</b>.</p>\n',
+                    '<b>Space</b> to activate the focused control. Restart and Finish &amp; Shut '
+                    'Down open two warnings followed by a five-minute countdown. Cancellation is '
+                    'selected by default. Press <b>Esc</b> to keep the session open. During the '
+                    'countdown, choose <b>Cancel countdown</b> or explicitly select <b>Restart '
+                    'now</b> / <b>Shut down now</b>.</p>\n',
  'Bitcoin Core': '\n'
-                 '<h2>Bitcoin Core</h2><p><b>Storage:</b> RAM-only in both installed and Live Vault. '
-                 'Wallets, Core state and working files disappear when the private session ends.</p>\n'
-                 '<h3>What it does</h3><p>Create and encrypt wallets, inspect addresses and transactions, '
-                 'review PSBTs and sign transactions offline.</p>\n'
-                 '<h3>When to use it</h3><p>Use Bitcoin Core for the Bitcoin-specific part of custody. It is '
-                 'the primary custody application in the Vault.</p>\n'
-                 '<h3>Typical custody workflow</h3><p>Create wallet → encrypt its private keys → make '
-                 'verified encrypted backups → export or receive PSBT → review → sign offline → move the '
-                 'signed PSBT to the online coordinator.</p>\n'
-                 '<p>Bitcoin Core saves files only in this temporary session. Use <b>Wallet Backup</b> on '
-                 'Home for verified encrypted wallet exports. Save signed PSBTs in <b>Private Workspace</b>, '
-                 'then use Files to copy them to the intended transfer medium. For imports, copy files from '
-                 'newly connected media into Private Workspace before opening them in Core.</p>\n'
-                 '<h3>Important to know</h3><p>The Vault keeps Bitcoin Core networking disabled. Do not '
-                 'treat the Vault as a broadcast or synchronization machine. Core opens without an extra '
-                 'loading window. Its initial synchronization panel closes automatically once. Click the '
-                 'synchronization indicator at the bottom of Core to open the panel again when you want to '
-                 'inspect it.</p>\n'
-                 '<p>Core wallet encryption protects private-key material used for signing. It does not '
-                 'encrypt the entire wallet file: public keys, addresses, transaction records and other '
-                 'metadata can remain readable and may reveal activity or balances. External backup '
-                 'encryption protects the file as a whole. These are separate operations.</p>\n',
+                 '<h2>Bitcoin Core</h2><p><b>Storage:</b> RAM-only in both installed and Live '
+                 'Vault. Wallets, Core state and working files disappear when the private session '
+                 'ends.</p>\n'
+                 '<h3>What it does</h3><p>Create and encrypt wallets, inspect addresses and '
+                 'transactions, review PSBTs and sign transactions offline.</p>\n'
+                 '<h3>When to use it</h3><p>Use Bitcoin Core for the Bitcoin-specific part of '
+                 'custody. It is the primary custody application in the Vault.</p>\n'
+                 '<h3>Typical custody workflow</h3><p>Create wallet → encrypt its private keys → '
+                 'make verified encrypted backups → export or receive PSBT → review → sign offline '
+                 '→ move the signed PSBT to the online coordinator.</p>\n'
+                 '<p>Bitcoin Core saves files only in this temporary session. Use <b>Wallet '
+                 'Backup</b> on Home for verified encrypted wallet exports. Save signed PSBTs in '
+                 '<b>Private Workspace</b>, then use Files to copy them to the intended transfer '
+                 'medium. Mounted USB media are visible in Core’s file chooser and can be read '
+                 'directly, including drives connected after Core starts. Copy working files into '
+                 'Private Workspace when you want them available after disconnecting the drive. '
+                 'Core’s USB view is read-only; use Files to copy finished public exports to a '
+                 'transfer drive.</p>\n'
+                 '<h3>Important to know</h3><p>The Vault keeps Bitcoin Core networking disabled. '
+                 'Do not treat the Vault as a broadcast or synchronization machine. Core opens '
+                 'without an extra loading window. Its initial synchronization panel closes '
+                 'automatically once. Click the synchronization indicator at the bottom of Core to '
+                 'open the panel again when you want to inspect it.</p>\n'
+                 '<p>Core wallet encryption protects private-key material used for signing. It '
+                 'does not encrypt the entire wallet file: public keys, addresses, transaction '
+                 'records and other metadata can remain readable and may reveal activity or '
+                 'balances. External backup encryption protects the file as a whole. These are '
+                 'separate operations.</p>\n',
  'KeePassXC': '\n'
-              '<h2>KeePassXC</h2><p>Home opens the stock KeePassXC generator on <b>Passphrase</b> with six '
-              'words selected. Generate a new random phrase for every independent GPG layer. Paste it into '
-              'the passphrase and confirmation fields for that layer. No password database is required to '
-              'generate passphrases.</p>\n'
-              '<p>Six independent uniformly selected words from the 7,776-word EFF list provide about 77.5 '
-              'bits of entropy; eight provide about 103.4 bits. These figures do not apply to quotations or '
-              'phrases you invent. You may change the word count.</p>\n'
-              '<h3>Clipboard default</h3><p><b>Clear clipboard after</b> is initially unchecked to allow '
-              'time for copying multiple independent secrets. The secret remains available until replaced, '
-              'explicitly cleared, or released by the session or clipboard owner. Other local applications '
-              'may read it for longer. No clipboard-history application is installed by this workflow.</p>\n'
-              '<p>To enable automatic clearing, open <b>Tools → Settings → Security → Clear clipboard '
-              'after</b>, choose the timeout, and save. Relaunching KeePassXC does not overwrite your '
-              'choice. Both Live and installed Vault use volatile user profiles: a fresh private session '
-              'starts with the image defaults. Finish Private Session clears the clipboard.</p>\n'
-              '<p>Keep a deliberate recovery copy of every required secret. A KeePassXC database may hold a '
-              'copy, but keeping every secret in one immediately accessible database defeats their '
-              'geographic separation. Never keep the only database inside the backup it unlocks, or the only '
-              'database password inside that database.</p>\n',
+              '<h2>KeePassXC</h2><p>Home opens the stock KeePassXC generator on <b>Passphrase</b> '
+              'with six words selected. Generate a new random phrase for every independent GPG '
+              'layer. Paste it into the passphrase and confirmation fields for that layer. No '
+              'password database is required to generate passphrases.</p>\n'
+              '<p>Six independent uniformly selected words from the 7,776-word EFF list provide '
+              'about 77.5 bits of entropy; eight provide about 103.4 bits. These figures do not '
+              'apply to quotations or phrases you invent. You may change the word count.</p>\n'
+              '<h3>Clipboard default</h3><p><b>Clear clipboard after</b> is initially unchecked to '
+              'allow time for copying multiple independent secrets. The secret remains available '
+              'until replaced, explicitly cleared, or released by the session or clipboard owner. '
+              'Other local applications may read it for longer. No clipboard-history application '
+              'is installed by this workflow.</p>\n'
+              '<p>To enable automatic clearing, open <b>Tools → Settings → Security → Clear '
+              'clipboard after</b>, choose the timeout, and save. Relaunching KeePassXC does not '
+              'overwrite your choice. Both Live and installed Vault use volatile user profiles: a '
+              'fresh private session starts with the image defaults. Finish Private Session clears '
+              'the clipboard.</p>\n'
+              '<p>Keep a deliberate recovery copy of every required secret. A KeePassXC database '
+              'may hold a copy, but keeping every secret in one immediately accessible database '
+              'defeats their geographic separation. Never keep the only database inside the backup '
+              'it unlocks, or the only database password inside that database.</p>\n',
  'Brasero': '\n'
             '<h2>Brasero</h2><p><b>Storage:</b> External optical media.</p>\n'
-            '<h3>What it does</h3><p>Writes archival backups to CD, DVD or compatible M-DISC media.</p>\n'
-            '<h3>Typical custody workflow</h3><p>Prepare an encrypted backup set → burn it → verify the '
-            'written media → label it → store copies in separate locations.</p>\n',
+            '<h3>Write and check a backup disc</h3>\n'
+            '<ol><li>Create and verify an encrypted backup first.</li><li>Connect a compatible '
+            'CD/DVD writer, then open <b>Brasero → Data project</b>. Add the encrypted files and '
+            'select the writer.</li><li>Insert a compatible blank disc and burn the '
+            'project.</li><li>Read the finished disc back, verify the files and practice recovery. '
+            'Label it and keep another verified copy in a separate location.</li></ol>\n'
+            '<p>Internal and USB optical drives use the same desktop discovery. A DVD reader '
+            'cannot burn discs, and M-DISC requires a compatible writer and media.</p>\n'
+            '<h3>If an external writer is missing</h3>\n'
+            '<p>Check its power supply and USB cable, try a direct USB port, then reconnect it and '
+            'reopen Brasero. A blank disc need not appear as a mounted folder in Files for its '
+            'writer to be available in Brasero.</p>\n'
+            '<p>If the writer is still absent, open <b>Terminal</b> and run:</p>\n'
+            '<pre>core-vault-optical-diagnostics &gt; "$HOME/Private '
+            'Workspace/optical-report.json"</pre>\n'
+            '<p>The report shows drive identity, access permissions and desktop discovery. It does '
+            'not read files from the disc or test burning. Keep the report with the drive model '
+            'when reporting the problem; copy it out of RAM before ending the session.</p>\n',
  'Print & Labels': '\n'
-                   '<h2>Print &amp; Labels</h2><p><b>Storage:</b> Physical paper output. The Vault does not '
-                   'insert wallet secrets automatically.</p>\n'
-                   '<h3>What it does</h3><p>Prints recovery instructions, backup inventories, test pages and '
-                   'labels for USB, SSD, CD/DVD or M-DISC.</p>\n'
+                   '<h2>Print &amp; Labels</h2><p><b>Storage:</b> Physical paper output. The Vault '
+                   'does not insert wallet secrets automatically.</p>\n'
+                   '<h3>What it does</h3><p>Prints recovery instructions, backup inventories, test '
+                   'pages and labels for USB, SSD, CD/DVD or M-DISC.</p>\n'
                    '<h3>When to use it</h3><p>Use it for human-readable recovery and inheritance '
                    'instructions or to make physical backup media unambiguous.</p>\n'
-                   '<h3>Important to know</h3><p>Printing a secret creates another physical copy of that '
-                   'secret. Recovery templates intentionally start without seed phrases, private keys or '
-                   'wallet passwords.</p>\n',
+                   '<h3>Important to know</h3><p>Printing a secret creates another physical copy '
+                   'of that secret. Recovery templates intentionally start without seed phrases, '
+                   'private keys or wallet passwords.</p>\n',
  'Files': '\n'
-          '<h2>Files</h2><p>Bitcoin Core, Private Workspace and the Vault account home are in RAM; external '
-          'media are persistent.</p>\n'
-          '<p>Select files, folders, documents or several wallet folders and choose <b>Create Encrypted '
-          'Backup</b>. Vault packages them in standard TAR and encrypts the package using GPG. Distinct '
-          'top-level names are required. Use separate named wallet folders when backing up several files '
-          'named wallet.dat. Symbolic links and special files are rejected.</p>\n'
-          '<p>Add layers only when your recovery plan requires them. Generate and confirm a different '
-          'passphrase for every layer, choose a new .gpg destination, then create the backup. Originals are '
-          'never deleted or encrypted in place. Private working files stay in RAM.</p>\n'
-          '<p>Double-click a .gpg file to recover it into Private Workspace. <b>Permanently Delete…</b> '
-          'overwrites supported regular file contents and removes them without Trash or Undo. SSDs and USB '
-          'flash devices may retain older copies that overwriting cannot reach. Debian and installed '
-          'applications remain on the internal disk; private session files disappear.</p>\n',
+          '<h2>Files</h2><p>Bitcoin Core, Private Workspace and the Vault account home are in RAM; '
+          'external media are persistent.</p>\n'
+          '<p>Select files, folders, documents or several wallet folders and choose <b>Create '
+          'Encrypted Backup</b>. A single supported wallet.dat is encrypted directly with GPG. '
+          'Other files and folders are packaged in standard TAR, then encrypted. Distinct '
+          'top-level names are required. Use separate named wallet folders when backing up several '
+          'files named wallet.dat. Symbolic links and special files are rejected.</p>\n'
+          '<p>Add layers only when your recovery plan requires them. Generate and confirm a '
+          'different passphrase for every layer, choose a new .gpg destination, then create the '
+          'backup. Originals are never deleted or encrypted in place. Private working files stay '
+          'in RAM.</p>\n'
+          '<p>Double-click a .gpg file to recover it into Private Workspace. <b>Permanently '
+          'Delete…</b> overwrites supported regular file contents and removes them without Trash '
+          'or Undo. SSDs and USB flash devices may retain older copies that overwriting cannot '
+          'reach. Debian and installed applications remain on the internal disk; private session '
+          'files disappear.</p>\n'
+          '\n'
+          '<h3>The same Places in your applications</h3>\n'
+          '<p>Files, Core, KeePassXC, Editor and the included file choosers use wide sidebars. '
+          '<b>Bitcoin Core</b> and <b>Private Workspace</b> stay easy to find; mounted USB drives '
+          'appear alongside them.</p>\n'
+          '<p>Qt file choosers also have a permanent <b>USB Media</b> shortcut. If a drive is '
+          'connected while a chooser is open, reopen that chooser or open USB Media. You do not '
+          'need to restart the application.</p>\n'
+          '<h3>Save from Core, then transfer with Files</h3>\n'
+          '<p>Core’s USB view is read-only. It reads USB files but saves only in the private RAM '
+          'session. Save a public watch-only wallet or signed PSBT in <b>Private Workspace</b>, '
+          'then use Files to copy that specific export to your transfer USB. Use <b>Wallet '
+          'Backup</b> for an encrypted backup of the signing wallet.</p>\n'
+          '<p>Finish copying before you eject or unmount a drive in Files. Close files using the '
+          'drive first. If it is still in use, close the relevant application and retry.</p>\n',
  'Editor': '\n'
            '<h2>Editor</h2><p><b>Storage:</b> Depends on where the document is saved.</p>\n'
-           '<h3>What it does</h3><p>Creates and reviews plain-text custody notes, checklists and recovery '
-           'instructions.</p>\n'
-           '<h3>Important to know</h3><p>For temporary sensitive notes, save in Private Workspace. Do not '
-           'casually leave unencrypted secrets in persistent storage.</p>\n',
+           '<h3>What it does</h3><p>Creates and reviews plain-text custody notes, checklists and '
+           'recovery instructions.</p>\n'
+           '<h3>Important to know</h3><p>For temporary sensitive notes, save in Private Workspace. '
+           'Do not casually leave unencrypted secrets in persistent storage.</p>\n',
  'Terminal': '\n'
-             '<h2>Terminal</h2><p><b>Storage:</b> Commands can affect both temporary and persistent '
-             'data.</p>\n'
+             '<h2>Terminal</h2><p><b>Storage:</b> Commands can affect both temporary and '
+             'persistent data.</p>\n'
              '<h3>What it does</h3><p>Provides advanced Bitcoin Core RPC, verification and system '
              'troubleshooting tools.</p>\n'
-             '<h3>When to use it</h3><p>Use it when the graphical tools do not expose the operation you need '
-             'or when following a verified advanced procedure.</p>\n',
+             '<h3>When to use it</h3><p>Use it when the graphical tools do not expose the '
+             'operation you need or when following a verified advanced procedure.</p>\n',
  'Private Workspace': '\n'
                       '<h2>Private Workspace</h2><p><b>Storage: RAM-only.</b></p>\n'
-                      '<h3>What it does</h3><p>Provides temporary space for decrypted files, temporary '
-                      'exports and sensitive working documents.</p>\n'
-                      '<h3>What persists</h3><p><b>Nothing.</b> Its files do not survive session teardown, '
-                      'shutdown or reboot. This is volatile storage, not a claim of physical RAM '
-                      'overwriting.</p>\n'
-                      '<h3>Important to know</h3><p>Move anything you need to retain to an intentional '
-                      'persistent or external backup before shutting down.</p>\n',
+                      '<h3>What it does</h3><p>Provides temporary space for decrypted files, '
+                      'temporary exports and sensitive working documents.</p>\n'
+                      '<h3>What persists</h3><p><b>Nothing.</b> Its files do not survive session '
+                      'teardown, shutdown or reboot. This is volatile storage, not a claim of '
+                      'physical RAM overwriting.</p>\n'
+                      '<h3>Important to know</h3><p>Move anything you need to retain to an '
+                      'intentional persistent or external backup before shutting down.</p>\n'
+                      '\n'
+                      '<h3>The default for watch-only exports</h3>\n'
+                      '<p><b>Bitcoin Core → File → Export watch-only wallet</b> starts in Private '
+                      'Workspace. Keep that location, name the public export and save it. To '
+                      'retain it, copy it to the intended external drive using Files.</p>\n'
+                      '<p>Private Workspace is the same temporary folder shown in application '
+                      'sidebars. A successful save here does not make a file persistent.</p>\n',
  'USB & optical media': '\n'
-                        '<h2>USB &amp; optical media</h2><p><b>Storage: External media.</b></p>\n'
-                        '<p>Use removable media to move PSBTs and to maintain independent backup copies. '
-                        'Prefer clearly labeled media and periodically perform a recovery verification '
-                        'rather than assuming old media still works.</p>\n',
+                        '<h2>USB &amp; optical media</h2><p><b>Storage: External media persists '
+                        'after the session.</b></p>\n'
+                        '<h3>Transfer files and backup copies</h3>\n'
+                        '<p>Use clearly labeled media for PSBT transfers, public watch-only '
+                        'exports and independent encrypted backups. Keep the signing wallet and '
+                        'its decrypted backups offline. Periodically verify your backup media '
+                        'through a recovery test.</p>\n'
+                        '<h3>Find a connected drive</h3>\n'
+                        '<p>Mounted USB drives appear in the wide Places sidebars of Files and '
+                        'included file choosers. In Core and other Qt applications, reopen an '
+                        'already-open chooser after connecting a drive, or select <b>USB '
+                        'Media</b>. The application can stay open.</p>\n'
+                        '<p>Core can read files on the drive, but its USB view stays read-only. '
+                        'Save signed PSBTs and public watch-only exports in <b>Private '
+                        'Workspace</b>, then copy them with <b>Files</b>. Encrypted backup tools '
+                        'can publish verified ciphertext directly to writable external media.</p>\n'
+                        '<h3>Remove media safely</h3>\n'
+                        '<p>Wait for copying or burning to finish. Close files using the medium, '
+                        'then use <b>Files → Eject/Unmount</b>. If the drive is still busy, close '
+                        'the relevant application and retry. Do not disconnect it during a '
+                        'write.</p>\n'
+                        '<p>For an external CD/DVD writer that Brasero does not list, see the '
+                        '<b>Brasero</b> chapter. A blank disc is not an ordinary mounted folder; '
+                        'test the writer and the finished disc separately.</p>\n',
  'Create & encrypt a wallet': '\n'
-                              '<h2>Create &amp; encrypt a wallet</h2><ol><li>Create the intended wallet in '
-                              'Bitcoin Core.</li><li>If your plan includes Core private-key encryption, '
-                              'generate a strong random Core passphrase and encrypt the '
-                              'wallet.</li><li>Choose <b>Wallet Backup</b> on Home and a .gpg '
-                              'destination in Private Workspace or any other writable folder.</li><li>Generate independent backup passphrases, one per GPG '
-                              'layer. One layer is the default.</li><li>Create and verify the backup, make '
-                              'redundant copies, and arrange recovery of the secrets '
-                              'separately.</li><li>Perform a complete restoration and signing drill using a '
-                              'disposable test wallet before relying on your process.</li></ol><p>Core '
-                              'encryption is optional for external backup encryption. Its passphrase is '
-                              'distinct from the GPG passphrases and is not entered into the GPG recovery '
-                              'dialog.</p>\n',
+                              '<h2>Create &amp; encrypt a wallet</h2><ol><li>Create the intended '
+                              'wallet in Bitcoin Core.</li><li>If your plan includes Core '
+                              'private-key encryption, generate a strong random Core passphrase '
+                              'and encrypt the wallet.</li><li>Choose <b>Wallet Backup</b> on Home '
+                              'and a .gpg destination in Private Workspace or any other writable '
+                              'folder.</li><li>Generate independent backup passphrases, one per '
+                              'GPG layer. One layer is the default.</li><li>Create and verify the '
+                              'backup, make redundant copies, and arrange recovery of the secrets '
+                              'separately.</li><li>Perform a complete restoration and signing '
+                              'drill using a disposable test wallet before relying on your '
+                              'process.</li></ol><p>Core encryption is optional for external '
+                              'backup encryption. Its passphrase is distinct from the GPG '
+                              'passphrases and is not entered into the GPG recovery dialog.</p>\n',
  'Generate a passphrase': '\n'
-                          '<h2>Generate an encryption passphrase</h2><p>Open KeePassXC. Its generator starts '
-                          'on <b>Passphrase</b> with <b>six words</b>. Keep random generation; a familiar '
-                          'quotation or a phrase you invent does not have the same strength.</p>\n'
-                          '<p>Six independent, uniform EFF words provide about 77.5 bits of entropy; eight '
-                          'provide about 103.4 bits. Both figures assume the full 7,776-word list. Choose '
-                          'the word count for your plan; the initial six-word setting is not a '
-                          'requirement.</p>\n'
-                          '<p>For independent layers, generate a new passphrase for each. Small variations '
-                          'of one phrase are not independent secrets. Please back up the required '
-                          'passphrases through the recovery arrangements you intend to use. Storing every '
-                          'passphrase in the same place gives that place access to every layer.</p>\n'
-                          '<p>Clipboard automatic clearing is disabled initially. Enable it through Tools → '
-                          'Settings → Security if preferred; launching KeePassXC again preserves that choice '
-                          'within the private session.</p>',
+                          '<h2>Generate an encryption passphrase</h2><p>Open KeePassXC. Its '
+                          'generator starts on <b>Passphrase</b> with <b>six words</b>. Keep '
+                          'random generation; a familiar quotation or a phrase you invent does not '
+                          'have the same strength.</p>\n'
+                          '<p>Six independent, uniform EFF words provide about 77.5 bits of '
+                          'entropy; eight provide about 103.4 bits. Both figures assume the full '
+                          '7,776-word list. Choose the word count for your plan; the initial '
+                          'six-word setting is not a requirement.</p>\n'
+                          '<p>For independent layers, generate a new passphrase for each. Small '
+                          'variations of one phrase are not independent secrets. Please back up '
+                          'the required passphrases through the recovery arrangements you intend '
+                          'to use. Storing every passphrase in the same place gives that place '
+                          'access to every layer.</p>\n'
+                          '<p>Clipboard automatic clearing is disabled initially. Enable it '
+                          'through Tools → Settings → Security if preferred; launching KeePassXC '
+                          'again preserves that choice within the private session.</p>',
  'Encryption security levels': '\n'
-                               '<h2>Encryption &amp; Backup Security Levels</h2><p><b>Start with the '
-                               'simplest arrangement that meets your needs.</b> Every extra required secret '
-                               'adds a recovery dependency. More layers are not automatically better.</p>\n'
-                               '<h3>Bitcoin Core wallet encryption</h3><p>Core protects private-key material '
-                               'with its wallet passphrase. Public keys, addresses, transaction records and '
-                               'other metadata may remain readable in wallet.dat. Recovery needs the wallet '
-                               'file; spending with an encrypted wallet also needs the Core passphrase. '
-                               'Use Wallet Backup to create and verify an encrypted external copy before '
-                               'ending the private session.</p>\n'
-                               '<h3>One GPG layer — the default</h3><p>GPG encrypts the complete TAR '
-                               'package, including wallet data, filenames and documents, using AES-256 with verified MDC '
-                               'authenticated encryption. Recovery requires the .gpg file and its '
-                               'passphrase. No GPG keypair is needed. Maintain multiple verified copies of '
-                               'the encrypted file and independent redundant arrangements for the '
-                               'secret.</p>\n'
-                               '<h3>Two or more GPG layers</h3><p>Click <b>+ Add Encryption Layer</b>. Each '
-                               'layer needs an independent passphrase, and all layers must be opened for '
-                               'recovery. The application supports up to 16 layers, including 10, but most '
-                               'plans should stay simpler.</p>\n'
+                               '<h2>Encryption &amp; Backup Security Levels</h2><p><b>Start with '
+                               'the simplest arrangement that meets your needs.</b> Every extra '
+                               'required secret adds a recovery dependency. More layers are not '
+                               'automatically better.</p>\n'
+                               '<h3>Bitcoin Core wallet encryption</h3><p>Core protects '
+                               'private-key material with its wallet passphrase. Public keys, '
+                               'addresses, transaction records and other metadata may remain '
+                               'readable in wallet.dat. Recovery needs the wallet file; spending '
+                               'with an encrypted wallet also needs the Core passphrase. Use '
+                               'Wallet Backup to create and verify an encrypted external copy '
+                               'before ending the private session.</p>\n'
+                               '<h3>One GPG layer — the default</h3><p>A single supported '
+                               'wallet.dat is encrypted directly. Other files and folders are '
+                               'first packaged in standard TAR. GPG protects the complete payload '
+                               'using AES-256 CFB with MDC integrity protection. Recovery requires '
+                               'the .gpg file and its passphrase. No GPG keypair is needed. '
+                               'Maintain multiple verified copies of the encrypted file and '
+                               'independent redundant arrangements for the secret.</p>\n'
+                               '<h3>Two or more GPG layers</h3><p>Click <b>+ Add Encryption '
+                               'Layer</b>. Each layer needs an independent passphrase, and all '
+                               'layers must be opened for recovery. The application supports up to '
+                               '16 layers, including 10, but most plans should stay simpler.</p>\n'
                                '<table cellpadding="7" '
-                               'border="1"><tr><th>Step</th><th>Result</th></tr><tr><td>Package original '
-                               'files</td><td>Standard TAR</td></tr><tr><td>Encrypt with A</td><td>GPG layer '
-                               '1</td></tr><tr><td>Encrypt that with B</td><td>GPG layer '
-                               '2</td></tr><tr><td>Encrypt that with C</td><td>backup.gpg, outer layer '
-                               '3</td></tr></table>\n'
-                               '<p>Example: keep redundant encrypted backup copies in two locations; keep '
-                               'redundant copies of A with trusted holders in one region, B with independent '
-                               'holders in another, and C with independent holders in a third. Recovery '
-                               'requires one usable encrypted copy and A, B and C. Copies within each group '
-                               'reduce loss risk, while separation matters for theft resistance. Consider '
+                               'border="1"><tr><th>Step</th><th>Result</th></tr><tr><td>Prepare '
+                               'original data</td><td>One wallet.dat, or a standard TAR package '
+                               'for other selections</td></tr><tr><td>Encrypt with A</td><td>GPG '
+                               'layer 1</td></tr><tr><td>Encrypt that with B</td><td>GPG layer '
+                               '2</td></tr><tr><td>Encrypt that with C</td><td>backup.gpg, outer '
+                               'layer 3</td></tr></table>\n'
+                               '<p>Example: keep redundant encrypted backup copies in two '
+                               'locations; keep redundant copies of A with trusted holders in one '
+                               'region, B with independent holders in another, and C with '
+                               'independent holders in a third. Recovery requires one usable '
+                               'encrypted copy and A, B and C. Copies within each group reduce '
+                               'loss risk, while separation matters for theft resistance. Consider '
                                'collusion, travel, incapacity and access delays.</p>\n'
-                               '<p>An intermediate inner-layer copy bypasses every outer layer. Avoid '
-                               'retaining such copies when your plan depends on all layers. Keeping all '
-                               'passphrases in one database or on the same device also removes the intended '
-                               "separation. The backup file's external name, size and timestamps remain "
-                               'visible. Symmetric authentication detects damage or tampering; it does not '
-                               'prove who created the backup.</p>\n'
-                               '<h3>Bitcoin Core plus GPG</h3><p>You may combine Core private-key encryption '
-                               'with one or more external GPG layers. Opening every external layer reveals '
-                               'wallet.dat and its metadata, but signing still needs the separate Core '
-                               'passphrase. Do not count reuse of the same passphrase as an additional '
-                               'independent secret. The GUI rejects repeated external passphrases; it cannot '
-                               'check the internal Core secret.</p>\n'
-                               '<h3>Threat models</h3><p>Whole-file encryption provides privacy and '
-                               'resistance to theft of a backup without its secrets. Redundancy mitigates '
-                               'accidental loss; test every required component. Geographic separation can '
-                               'create logistical barriers to immediate coercion, but does not guarantee '
-                               'protection from continuing coercion or an attacker collecting secrets over '
-                               'time. A compromised signing computer may expose keys or every secret entered '
-                               'during recovery.</p>\n'
-                               '<p>Inheritance needs understandable instructions, accessible software, '
-                               'dependable holders and a practiced recovery process. Too much complexity can '
-                               'prevent your family from recovering the wallet. Match the number of layers '
-                               'to actual independent handling and realistic recovery requirements.</p>\n'
-                               '<h3>Multiple GPG layers are not multisig</h3><p>GPG layers control access to '
-                               'a backup of one wallet. Once opened, that wallet follows its ordinary '
-                               'Bitcoin signing rules. Multisig distributes transaction authorization across '
-                               'independent Bitcoin keys and enforces a signing threshold. Layered backup '
-                               'encryption does not create that threshold or distribute signing '
-                               'authorization.</p>\n',
+                               '<p>An intermediate inner-layer copy bypasses every outer layer. '
+                               'Avoid retaining such copies when your plan depends on all layers. '
+                               'Keeping all passphrases in one database or on the same device also '
+                               "removes the intended separation. The backup file's external name, "
+                               'size and timestamps remain visible. Symmetric authentication '
+                               'detects damage or tampering; it does not prove who created the '
+                               'backup.</p>\n'
+                               '<h3>Bitcoin Core plus GPG</h3><p>You may combine Core private-key '
+                               'encryption with one or more external GPG layers. Opening every '
+                               'external layer reveals wallet.dat and its metadata, but signing '
+                               'still needs the separate Core passphrase. Do not count reuse of '
+                               'the same passphrase as an additional independent secret. The GUI '
+                               'rejects repeated external passphrases; it cannot check the '
+                               'internal Core secret.</p>\n'
+                               '<h3>Threat models</h3><p>Whole-file encryption provides privacy '
+                               'and resistance to theft of a backup without its secrets. '
+                               'Redundancy mitigates accidental loss; test every required '
+                               'component. Geographic separation can create logistical barriers to '
+                               'immediate coercion, but does not guarantee protection from '
+                               'continuing coercion or an attacker collecting secrets over time. A '
+                               'compromised signing computer may expose keys or every secret '
+                               'entered during recovery.</p>\n'
+                               '<p>Inheritance needs understandable instructions, accessible '
+                               'software, dependable holders and a practiced recovery process. Too '
+                               'much complexity can prevent your family from recovering the '
+                               'wallet. Match the number of layers to actual independent handling '
+                               'and realistic recovery requirements.</p>\n'
+                               '<h3>Multiple GPG layers are not multisig</h3><p>GPG layers control '
+                               'access to a backup of one wallet. Once opened, that wallet follows '
+                               'its ordinary Bitcoin signing rules. Multisig distributes '
+                               'transaction authorization across independent Bitcoin keys and '
+                               'enforces a signing threshold. Layered backup encryption does not '
+                               'create that threshold or distribute signing authorization.</p>\n',
  'Backup & verify': '\n'
-                    '<h2>Backup &amp; verify</h2><ol><li>Use '
-                    '<b>Wallet Backup</b> on Home for a wallet, or <b>Files → Create Encrypted Backup</b> '
-                    'for selected files and folders.</li><li>One GPG layer is the default. Add more only for '
-                    'an explicit recovery plan. Generate and confirm a different passphrase for '
-                    'each.</li><li>Choose a new .gpg destination in <b>Private Workspace</b>, another '
-                     'writable folder or external media. No external drive is required. Click <b>Create Encrypted '
-                    'Backup</b>.</li><li>Vault snapshots loaded wallets through Bitcoin Core and closed '
-                    'wallets through read-only SQLite backup. It packages the inputs in RAM, encrypts and '
-                    'verifies each layer, then decrypts the complete result and checks it against the '
-                    'original package.</li><li>The published encrypted file is checked after copying. A '
-                    'direct wallet export is authenticated again and compared with the original verified '
-                    'wallet snapshot before its session receipt is saved.</li><li>Copy anything you need '
-                     'to keep out of RAM before restarting or shutting down. Make independent copies '
-                    'and perform a complete restore/signing drill at least annually.</li></ol>\n'
-                    '<p>You choose where to save and how to organize or copy your backups. An encrypted '
-                     'backup saved only in <b>Private Workspace</b> or another RAM folder is lost when '
-                     'the session ends, just like any other file there. Verification confirms the backup '
-                     'contents; it does not make RAM storage persistent. Restart and shutdown show two '
-                     'warnings followed by a five-minute countdown.</p>\n'
-                     '<p>Only ciphertext is staged at the destination and publication never replaces an '
-                    'existing backup. Originals remain available. Use Wallet Backup for a consistent snapshot '
-                    'of each current wallet. Shutdown confirmations do not check that your backups exist '
-                    'or are current.</p>\n'
-                    '<p>Provisional data remain in verified private RAM with swap forbidden by the Vault '
-                    'session policy. The operation is bounded to 16 layers, 10,000 TAR entries and at most '
-                    '256 MiB per package, reduced when free RAM is limited. Split larger sets. Cancellation '
-                    'removes temporary data, but this is not a claim of secure erasure of Python/Qt memory '
-                    'or physical RAM.</p>\n',
- 'Finish Private Session': "\n<h2>Finish Private Session</h2><ol><li>Save current wallet backups, encrypted databases, required passphrases, notes and signed PSBTs outside this RAM session. Keep the required passphrases separately recoverable.</li><li>Choose <b>Restart</b> or <b>Finish &amp; Shut Down</b>. The first warning explains that anything kept only in RAM will be lost. Select <b>I've saved what I need</b> only after saving what you need.</li><li>The second warning asks you to confirm the loss of unsaved session data. Choose the button to start the <b>5-minute countdown</b>.</li><li>The timer runs from <b>05:00</b> to <b>00:00</b>. The session stays open. <b>Cancel countdown</b>, Esc or closing the window cancels the power action. You can explicitly choose <b>Restart now</b> or <b>Shut down now</b> to skip the remaining time.</li><li>Only after expiry or that explicit choice does Bitcoin Core close, the clipboard clear and the RAM session end. If Core cannot close, the power action stops and the workspace remains available.</li></ol>\n<p><b>No passphrases are requested during shutdown or restart.</b> These are warnings and your confirmations, not backup verification. Verification still occurs when creating a backup; test recovery before relying on it. Copies saved on external media remain after shutdown. Power loss can end the session without warnings. Volatile storage is not protection from live RAM acquisition or a compromised computer.</p>\n",
+                    '<h2>Backup &amp; verify</h2><ol><li>Use <b>Wallet Backup</b> on Home for a '
+                    'wallet, or <b>Files → Create Encrypted Backup</b> for selected files and '
+                    'folders.</li><li>One GPG layer is the default. Add more only for an explicit '
+                    'recovery plan. Generate and confirm a different passphrase for '
+                    'each.</li><li>Choose a new .gpg destination in <b>Private Workspace</b>, '
+                    'another writable folder or external media. No external drive is required. '
+                    'Click <b>Create Encrypted Backup</b>.</li><li>Vault snapshots loaded wallets '
+                    'through Bitcoin Core and closed wallets through read-only SQLite backup. One '
+                    'supported wallet.dat is encrypted directly; other selections become a TAR '
+                    'package in RAM. Vault encrypts and verifies every layer, then decrypts the '
+                    'complete result and compares it with the original wallet snapshot or '
+                    'package.</li><li>The published encrypted file is checked after copying. A '
+                    'direct wallet export is authenticated again and compared with the original '
+                    'verified wallet snapshot before its session receipt is saved.</li><li>Copy '
+                    'anything you need to keep out of RAM before restarting or shutting down. Make '
+                    'independent copies and perform a complete restore/signing drill at least '
+                    'annually.</li></ol>\n'
+                    '<p>You choose where to save and how to organize or copy your backups. An '
+                    'encrypted backup saved only in <b>Private Workspace</b> or another RAM folder '
+                    'is lost when the session ends, just like any other file there. Verification '
+                    'confirms the backup contents; it does not make RAM storage persistent. '
+                    'Restart and shutdown show two warnings followed by a five-minute '
+                    'countdown.</p>\n'
+                    '<p>Only ciphertext is staged at the destination and publication never '
+                    'replaces an existing backup. Originals remain available. Use Wallet Backup '
+                    'for a consistent snapshot of each current wallet. Shutdown confirmations do '
+                    'not check that your backups exist or are current.</p>\n'
+                    '<p>Provisional data remain in verified private RAM with swap forbidden by the '
+                    'Vault session policy. The operation is bounded to 16 layers, 10,000 TAR '
+                    'entries and at most 256 MiB per package, reduced when free RAM is limited. '
+                    'Split larger sets. Cancellation removes temporary data, but this is not a '
+                    'claim of secure erasure of Python/Qt memory or physical RAM.</p>\n'
+                    '\n'
+                    '<h3>Keep the format clear</h3>\n'
+                    '<p>A two-layer single-wallet backup commonly ends in '
+                    '<b>wallet.dat.gpg.gpg</b>. Opening the outer layer produces <b>inner.gpg</b>; '
+                    'opening the last layer produces <b>wallet.dat</b>, with no TAR step. Grouped '
+                    'files and folders recover from a TAR payload. Record the required layers in '
+                    'your recovery instructions rather than relying on the filename alone.</p>\n'
+                    '<p>Vault can still recover older GPG/TAR backups and its previous OCB '
+                    'profile. New backups use the current CFB+MDC profile. Test the software you '
+                    'intend to use for recovery.</p>\n',
+ 'Finish Private Session': '\n'
+                           '<h2>Finish Private Session</h2><ol><li>Save current wallet backups, '
+                           'encrypted databases, required passphrases, notes and signed PSBTs '
+                           'outside this RAM session. Keep the required passphrases separately '
+                           'recoverable.</li><li>Choose <b>Restart</b> or <b>Finish &amp; Shut '
+                           'Down</b>. The first warning explains that anything kept only in RAM '
+                           "will be lost. Select <b>I've saved what I need</b> only after saving "
+                           'what you need.</li><li>The second warning asks you to confirm the loss '
+                           'of unsaved session data. Choose the button to start the <b>5-minute '
+                           'countdown</b>.</li><li>The timer runs from <b>05:00</b> to '
+                           '<b>00:00</b>. The session stays open. <b>Cancel countdown</b>, Esc or '
+                           'closing the window cancels the power action. You can explicitly choose '
+                           '<b>Restart now</b> or <b>Shut down now</b> to skip the remaining '
+                           'time.</li><li>Only after expiry or that explicit choice does Bitcoin '
+                           'Core close, the clipboard clear and the RAM session end. If Core '
+                           'cannot close, the power action stops and the workspace remains '
+                           'available.</li></ol>\n'
+                           '<p><b>No passphrases are requested during shutdown or restart.</b> '
+                           'These are warnings and your confirmations, not backup verification. '
+                           'Verification still occurs when creating a backup; test recovery before '
+                           'relying on it. Copies saved on external media remain after shutdown. '
+                           'Power loss can end the session without warnings. Volatile storage is '
+                           'not protection from live RAM acquisition or a compromised '
+                           'computer.</p>\n',
  'Sign a PSBT offline': '\n'
-                        '<h2>Sign a PSBT offline</h2><ol><li>Use Files to copy the unsigned PSBT from '
-                        'removable media into <b>Private Workspace</b>, then open it in Bitcoin '
-                        'Core.</li><li>Review transaction details in Bitcoin Core before '
-                        'signing.</li><li>Sign only after the destination and amount are '
-                        'verified.</li><li>Save the signed PSBT in Private Workspace, then use Files to copy '
-                        'it to the intended removable medium.</li><li>Broadcast from the separate online '
-                        'coordinator, not from the Vault.</li></ol>\n',
+                        '<h2>Sign a PSBT offline</h2>\n'
+                        '<ol><li>Use Files to copy the unsigned PSBT from removable media into '
+                        '<b>Private Workspace</b>, then open it in Bitcoin Core. Core can also '
+                        'read the connected USB directly.</li><li>Independently check the '
+                        'recipients, amounts, fee, change and wallet details before '
+                        'signing.</li><li>Sign with the intended wallet. If its private keys are '
+                        'encrypted, supply the separate Core wallet passphrase.</li><li>Save the '
+                        'signed PSBT in <b>Private Workspace</b>. Core’s USB view is '
+                        'read-only.</li><li>Use <b>Files</b> to copy only the signed PSBT to the '
+                        'intended transfer medium.</li><li>Broadcast from the separate online '
+                        'coordinator. The Vault stays offline.</li></ol>\n'
+                        '<p>Mounted drives appear in the chooser sidebar. If a drive was connected '
+                        'while the chooser was open, reopen that chooser or select <b>USB '
+                        'Media</b>. Keep the original signing wallet and decrypted wallet backups '
+                        'in the offline environment.</p>\n',
  'Recovery / inheritance': '\n'
-                           '<h2>Recovery / inheritance</h2><p>Keep secret-free instructions outside the '
-                           'encrypted backup. Identify the backup copies, required secret holders, '
-                           'compatible software and how an heir can obtain access. Do not put the only '
-                           'recovery instructions inside the backup they explain.</p>\n'
-                           '<h3>With Vault</h3><ol><li>Open the encrypted backup.</li><li>Enter every '
-                           'external passphrase in any order.</li><li>Recover into a new Private Workspace '
-                           "folder.</li><li>For a wallet, use Bitcoin Core's <b>Restore Wallet</b> on the "
-                           'recovered wallet.dat. Check expected addresses, labels and a signing test. If '
-                           'encrypted in Core, supply its separate internal passphrase when '
-                           'signing.</li></ol>\n'
-                           '<h3>Without Vault</h3><p>Use GnuPG with AES-256 and OpenPGP MDC '
-                           'support</b>, standard TAR and Bitcoin Core. The tested Debian engine is GnuPG '
-                           '2.4.7. Test your exact recovery build; not every OpenPGP implementation supports '
-                           'this profile. Windows and macOS interoperability remain unverified until '
-                           'tested.</p>\n'
-                           '<p>Work on a trusted offline system in an owned mode-0700 <b>tmpfs</b> directory '
-                           'with swap disabled and sufficient RAM. Do not run the following in an ordinary '
-                           'persistent Downloads folder. Use new output filenames. Let GnuPG prompt '
-                           'interactively; never put secrets in shell arguments, environment variables or a '
-                           'script.</p>\n'
+                           '<h2>Recovery / inheritance</h2><p>Keep secret-free instructions '
+                           'outside the encrypted backup. Identify the backup copies, required '
+                           'secret holders, compatible software and how an heir can obtain access. '
+                           'Do not put the only recovery instructions inside the backup they '
+                           'explain.</p>\n'
+                           '<h3>With Vault</h3><ol><li>Open the encrypted backup.</li><li>Enter '
+                           'every external passphrase in any order. Vault finds the passphrase for '
+                           'the outermost remaining layer.</li><li>Recover into a new Private '
+                           'Workspace folder.</li><li>For a wallet, use Bitcoin Core’s <b>File → '
+                           'Restore Wallet</b> on the recovered wallet.dat. Check expected '
+                           'addresses, labels and a signing test. If encrypted in Core, supply its '
+                           'separate internal passphrase when signing.</li></ol>\n'
+                           '<p>Current single-wallet backups recover directly to wallet.dat. '
+                           'Grouped files and folders, and older TAR-based wallet backups, recover '
+                           'their original files from a validated TAR package. Older Vault OCB '
+                           'backups remain supported by Vault recovery.</p>\n'
+                           '<h3>Without Vault</h3><p>Use GnuPG with AES-256 CFB and OpenPGP MDC '
+                           'support, plus Bitcoin Core. TAR is needed for grouped or older '
+                           'TAR-based backups, not for a current single-wallet backup. Test your '
+                           'exact recovery software with a disposable backup before relying on it; '
+                           'legacy OCB files need software that supports that profile.</p>\n'
+                           '<p>Work on a trusted offline system in an owned mode-0700 <b>tmpfs</b> '
+                           'directory with swap disabled and sufficient RAM. Do not use a '
+                           'persistent Downloads folder. Use new output filenames. Let GnuPG '
+                           'prompt interactively; never put secrets in shell arguments, '
+                           'environment variables or a script.</p>\n'
+                           '<h3>Example: two-layer single-wallet backup</h3>\n'
                            '<pre>umask 077\n'
-                           'gpg --output layer2.gpg --decrypt backup.gpg\n'
-                           'gpg --output layer1.gpg --decrypt layer2.gpg\n'
-                           'gpg --output payload.tar --decrypt layer1.gpg\n'
-                           'tar --list --file payload.tar\n'
-                           'mkdir recovered\n'
+                           'gpg --output inner.gpg --decrypt wallet.dat.gpg.gpg &amp;&amp;\n'
+                           'gpg --output wallet.dat --decrypt inner.gpg</pre>\n'
+                           '<p>Enter the outer passphrase first, then the inner passphrase. With '
+                           'one layer, decrypt wallet.dat.gpg directly to wallet.dat. Restore the '
+                           'recovered wallet through Bitcoin Core’s <b>File → Restore Wallet</b>. '
+                           'There is no TAR extraction for this direct-wallet format.</p>\n'
+                           '<h3>Example: grouped files in a TAR payload</h3>\n'
+                           '<p>After opening the known GPG layers, the last GPG command writes '
+                           '<b>payload.tar</b> instead of wallet.dat. Inspect its listing before '
+                           'extracting into a new RAM directory:</p>\n'
+                           '<pre>tar --list --file payload.tar</pre>\n'
+                           '<p>After checking the listing, extract into a new RAM directory:</p>\n'
+                           '<pre>mkdir recovered &amp;&amp;\n'
                            'tar --extract --file payload.tar --directory recovered --no-same-owner '
                            '--no-same-permissions</pre>\n'
-                           '<p>For the three-layer example, enter C, then B, then A. With one layer, decrypt '
-                           'backup.gpg directly to payload.tar. <b>Proceed to the next command only after '
-                           'GPG exits successfully without authentication errors.</b> Failed commands may '
-                           'leave provisional output; do not use it. Stock GPG does not advertise the total '
-                           'Vault layer count. If order was lost, try the available secrets on the outer '
-                           'layer, then repeat with the remaining secrets.</p>\n'
-                           "<p>For your known backup, inspect TAR's listing before extracting into a new RAM "
-                           'directory. Reject absolute paths, parent traversal, links, devices and '
-                           'unexpected files. Do not extract an untrusted archive blindly. The Vault GUI '
-                           'performs its own strict validation. A file originally selected as a GPG or TAR '
-                           'file remains a file inside the final TAR; stop there rather than recursively '
-                           'opening it.</p>\n'
-                           '<p>Practice with disposable data and the intended holders. Keep independent '
-                           'usable copies of every required secret. A missing required layer secret cannot '
-                           "be bypassed by Vault, and losing a password manager's unlocking secret is "
-                           'another recovery dependency.</p>\n',
+                           '<p><b>Proceed only after every GPG command exits successfully without '
+                           'authentication errors.</b> Failed commands may leave provisional '
+                           'output; do not use it. Stock GPG does not advertise the total Vault '
+                           'layer count. Keep that information in your recovery plan.</p>\n'
+                           '<p>Reject absolute paths, parent traversal, links, devices and '
+                           'unexpected files in a TAR listing. Do not extract an untrusted archive '
+                           'blindly. Vault performs strict validation. An original GPG or TAR file '
+                           'inside a package remains an original file; stop there rather than '
+                           'recursively opening it.</p>\n'
+                           '<p>Practice with disposable data and the intended holders. Keep '
+                           'independent usable copies of every required secret. A missing required '
+                           'layer secret cannot be bypassed by Vault, and losing a password '
+                           'manager’s unlocking secret is another recovery dependency.</p>\n',
  'Decrypt Backup': '\n'
                    '<h2>Decrypt Encrypted Backup</h2>\n'
-                   '<p>Open <b>Decrypt Backup</b> on Home, double-click a .gpg file in Files, or choose '
-                   '<b>Decrypt Encrypted Backup</b> from its context menu.</p>\n'
+                   '<p>Open <b>Decrypt Backup</b> on Home, double-click a .gpg file in Files, or '
+                   'choose <b>Decrypt Encrypted Backup</b> from its context menu.</p>\n'
                    '<ol><li>Enter the available backup passphrases, in any order. Use <b>+ Add '
-                   'Passphrase</b> for additional secrets.</li><li>Choose a new recovery folder name. Click '
-                   '<b>Decrypt Backup</b>.</li><li>Vault authenticates each layer and restores the original '
-                   'filenames and folder structure into <b>Private Workspace</b>.</li></ol>\n'
-                   '<p>If a secret is missing or wrong, add or correct it and retry. Damage and unsupported '
-                   'encryption can also cause a failure. Partial recovered data are discarded on failure or '
-                   'cancellation. Existing files are never overwritten.</p>\n'
-                   '<p>For an ordinary GPG file made outside Vault, select <b>Recover one ordinary GPG layer '
-                   'only</b>. This deliberately stops after one authenticated layer and saves '
-                   '<b>recovered-file</b>; it does not guess whether your original data are themselves '
-                   'encrypted. Rename or handle that file explicitly. Vault backups always use a standard '
-                   'TAR package as their final payload; an original GPG file inside the package is preserved '
-                   'unchanged.</p>\n'
-                   '<p>Recovered plaintext stays in verified RAM. It disappears when the session ends unless '
-                   'you explicitly export it. A recovered file alone is not a verified current-wallet '
-                   'export.</p>\n'}
+                   'Passphrase</b> for additional secrets.</li><li>Choose a new recovery folder '
+                   'name. Click <b>Decrypt Backup</b>.</li><li>Vault authenticates each layer and '
+                   'recovers into <b>Private Workspace</b>. A current single-wallet backup becomes '
+                   'wallet.dat; grouped or older TAR-based backups restore their original '
+                   'filenames and folders.</li></ol>\n'
+                   '<p>If a secret is missing or wrong, add or correct it and retry. Damage and '
+                   'unsupported encryption can also cause a failure. Partial recovered data are '
+                   'discarded on failure or cancellation. Existing files are never '
+                   'overwritten.</p>\n'
+                   '<p>For an ordinary GPG file made outside Vault, select <b>Recover one ordinary '
+                   'GPG layer only</b>. This deliberately stops after one authenticated layer and '
+                   'saves <b>recovered-file</b>; it does not guess whether your original data are '
+                   'themselves encrypted. Rename or handle that file explicitly. Vault recognizes '
+                   'a complete supported wallet.dat or a validated TAR payload. An original GPG '
+                   'file inside a TAR package is preserved unchanged.</p>\n'
+                   '<p>Recovered plaintext stays in verified RAM. It disappears when the session '
+                   'ends unless you explicitly export it. A recovered file alone is not a verified '
+                   'current-wallet export.</p>\n'}
 
 SECTIONS['Watch-Only Wallet in Bitcoin Core'] = '''
 <h2>Watch-Only Wallet in Bitcoin Core</h2>
@@ -350,8 +499,9 @@ SECTIONS['Watch-Only Wallet in Bitcoin Core'] = '''
 <h3>Export from Vault</h3>
 <ol><li>Open Bitcoin Core and select your signing wallet.</li>
 <li>Choose <b>File → Export watch-only wallet</b>.</li>
-<li>Save the public copy as <b>watch-only.dat</b> in <b>Private Workspace</b>. Core writes only to checked RAM locations in Vault.</li>
+<li>The save dialog starts in <b>Private Workspace</b>. Keep that location and save the public copy as <b>watch-only.dat</b>. Core writes only to checked RAM locations in Vault.</li>
 <li>Use <b>Files</b> to copy <b>watch-only.dat</b> to your transfer USB. Check the filename so you transfer the exported public copy, never the original signing wallet.</li></ol>
+<p>The wide sidebar also shows mounted USB drives. Core can read them but cannot save to them directly. If you connect a drive while the chooser is open, reopen the chooser or select <b>USB Media</b>.</p>
 <h3>Restore on your online node</h3>
 <ol><li>Use Bitcoin Core <b>32.1 or newer</b> on your online computer.</li>
 <li>Choose <b>File → Restore Wallet</b>, select the exported <b>watch-only.dat</b> and give it a new wallet name.</li>
@@ -366,10 +516,67 @@ SECTIONS['Watch-Only Wallet in Bitcoin Core'] = '''
 <p>Prepare a PSBT on the online node. Before signing in Vault, independently check recipients, amounts, fee, change and wallet derivations. Return only the signed transaction to the online node for broadcast.</p>
 '''
 
+
+# Same chapter treatment as Node Guide. Shared artwork keeps its upstream
+# license; application chapters use the same installed theme icons as Home.
+ASSETS = Path(__file__).resolve().parents[2] / 'share/core-vault'
+SECTION_ICONS = {
+    'Home & keyboard': ('', ('input-keyboard',), QStyle.SP_ComputerIcon),
+    'Bitcoin Core': ('bitcoin-ui.png', (), QStyle.SP_ComputerIcon),
+    'KeePassXC': ('', ('keepassxc',), QStyle.SP_FileDialogDetailedView),
+    'Brasero': ('', ('org.gnome.Brasero', 'brasero', 'media-optical'), QStyle.SP_DriveCDIcon),
+    'Print & Labels': ('icons/print-labels.png', (), QStyle.SP_FileDialogDetailedView),
+    'Files': ('', ('org.xfce.thunar', 'system-file-manager', 'folder'), QStyle.SP_DirIcon),
+    'Editor': ('', ('org.xfce.mousepad', 'accessories-text-editor'), QStyle.SP_FileIcon),
+    'Terminal': ('', ('org.xfce.terminal', 'utilities-terminal'), QStyle.SP_ComputerIcon),
+    'Private Workspace': ('', ('folder-locked', 'folder'), QStyle.SP_DirIcon),
+    'USB & optical media': ('', ('drive-removable-media-usb', 'drive-removable-media'), QStyle.SP_DriveHDIcon),
+    'Create & encrypt a wallet': ('bitcoin-ui.png', (), QStyle.SP_ComputerIcon),
+    'Generate a passphrase': ('', ('keepassxc',), QStyle.SP_FileDialogDetailedView),
+    'Encryption security levels': ('icons/decrypt-backup.png', (), QStyle.SP_DriveHDIcon),
+    'Backup & verify': ('icons/settings-chain-backup.png', (), QStyle.SP_DialogSaveButton),
+    'Finish Private Session': ('icons/system-shutdown.png', (), QStyle.SP_DialogCloseButton),
+    'Sign a PSBT offline': ('icons/settings-chain-backup.png', (), QStyle.SP_DialogSaveButton),
+    'Recovery / inheritance': ('icons/settings-chain-import.png', (), QStyle.SP_DialogOpenButton),
+    'Decrypt Backup': ('icons/decrypt-backup.png', (), QStyle.SP_DriveHDIcon),
+    'Watch-Only Wallet in Bitcoin Core': ('bitcoin-ui.png', (), QStyle.SP_ComputerIcon),
+}
+
+
+def configure_icon_theme():
+    # Match Home/Node application icons even when a minimal Qt platform theme
+    # supplies no filesystem search paths (for example offscreen previews).
+    paths = [str(ASSETS.parent / 'icons'), '/usr/share/icons', '/usr/local/share/icons',
+             *QIcon.themeSearchPaths()]
+    QIcon.setThemeSearchPaths(list(dict.fromkeys(paths)))
+    QIcon.setThemeName('Adwaita')
+    QIcon.setFallbackThemeName('hicolor')
+
+
+def chapter_icon(section, style):
+    if section in ('KeePassXC', 'Generate a passphrase'):
+        for path in (Path('/opt/keepassxc/current/upstream-icon.png'),
+                     ASSETS.parent / 'icons/hicolor/256x256/apps/keepassxc.png'):
+            if path.is_file():
+                return QIcon(str(path))
+    bundled, names, fallback = SECTION_ICONS[section]
+    if bundled:
+        icon = QIcon(str(ASSETS / bundled))
+        if not icon.isNull():
+            return icon
+    for name in names:
+        icon = QIcon.fromTheme(name)
+        if not icon.isNull():
+            return icon
+    return style.standardIcon(fallback)
+
+
 class Guide(QWidget):
     def __init__(self):
         super().__init__()
+        configure_icon_theme()
         self.setWindowTitle('Vault Guide')
+        self.setWindowIcon(QIcon(str(ASSETS / 'bitcoin-ui.png')))
         self.resize(1180, 760)
         self.setStyleSheet(STYLE)
         self.layer_count = 1
@@ -400,10 +607,21 @@ class Guide(QWidget):
         self.nav.setFont(UI_FONT)
         self.nav.setFixedWidth(320)
         self.nav.setWordWrap(True)
+        self.nav.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.nav.setTextElideMode(Qt.ElideNone)
+        self.nav.viewport().installEventFilter(self)
         self.nav.setAccessibleName('Guide chapters')
         self.nav.addItems(list(SECTIONS))
+        self.nav.setIconSize(QSize(26, 26))
+        self.section_picker.setIconSize(QSize(26, 26))
+        for row, section in enumerate(SECTIONS):
+            icon = chapter_icon(section, self.style())
+            self.nav.item(row).setIcon(icon)
+            self.section_picker.setItemIcon(row, icon)
         self.viewer = QTextBrowser()
         self.viewer.setAccessibleName('Guide chapter and illustration description')
+        self.viewer.viewport().installEventFilter(self)
+        self.viewer.setSearchPaths([str(ASSETS)])
         self.viewer.setOpenExternalLinks(False)
         self.viewer.setOpenLinks(False)
         self.viewer.setFont(BODY_FONT)
@@ -440,6 +658,10 @@ class Guide(QWidget):
         outer.addLayout(body, 1)
         self.nav.currentRowChanged.connect(self.select_section)
         self.section_picker.currentIndexChanged.connect(self.nav.setCurrentRow)
+        close = QPushButton('Close')
+        close.setFont(UI_FONT)
+        close.clicked.connect(self.close)
+        outer.addWidget(close, alignment=Qt.AlignRight)
         self.nav.setCurrentRow(0)
 
     def select_section(self, row):
@@ -462,14 +684,35 @@ class Guide(QWidget):
             self.section_picker.setVisible(compact)
             self._render_timer.start(40)
 
+    def fit_chapter_labels(self):
+        # Adding the shared Node icons reduces the text column. Constrain each
+        # item to the real viewport and measure wrapped labels instead of letting
+        # the longest label create a hidden horizontal scroll range.
+        width = self.nav.viewport().width()
+        metrics = QFontMetrics(self.nav.font())
+        text_width = max(80, width - self.nav.iconSize().width() - 40)
+        for row in range(self.nav.count()):
+            item = self.nav.item(row)
+            bounds = metrics.boundingRect(QRect(0, 0, text_width, 1000), Qt.TextWordWrap, item.text())
+            size = QSize(width, max(self.nav.iconSize().height(), bounds.height()) + 20)
+            if item.sizeHint() != size:
+                item.setSizeHint(size)
+
+    def eventFilter(self, watched, event):
+        # Reflow when the vertical scrollbar changes the available reading width.
+        if watched in (self.viewer.viewport(), self.nav.viewport()) and event.type() == QEvent.Type.Resize:
+            self._render_timer.start(40)
+        return super().eventFilter(watched, event)
+
     def render_section(self):
+        self.fit_chapter_labels()
         row = self.nav.currentRow()
         if row < 0:
             return
         section = list(SECTIONS)[row]
         # Vector commands are rendered at display size and device scale;
         # labels reflow instead of shrinking when the window gets narrower.
-        available = self.viewer.viewport().width() - 12
+        available = int(self.viewer.viewport().width() - 2 * self.viewer.document().documentMargin() - 4)
         width = min(960, max(490, available))
         key = (section, width, self.layer_count, self.devicePixelRatioF())
         if key == self.render_key:
@@ -482,20 +725,26 @@ class Guide(QWidget):
         source = SECTIONS[section]
         split = source.index('</h2>') + len('</h2>')
         figure = ('<h3>' + escape(title) + '</h3>'
-                  '<p style="line-height:100%;margin-bottom:12px"><img src="vault-guide:illustration" width="' + str(width) +
+                  '<p style="line-height:100%;margin-bottom:16px"><img src="vault-guide:illustration" width="' + str(width) +
                   '" height="' + str(height) + '" alt="' + escape(description, quote=True) + '"></p>'
-                  '<p style="color:#c4c4c4">' + escape(description) + '</p>')
+                  '<p style="color:#c4c4c4;margin-bottom:24px">' + escape(description) + '</p>')
         content = source[:split] + figure + source[split:]
         if section == 'Encryption security levels':
             _, cw, ch, comparison_description, comparison = render_comparison(width, self.devicePixelRatioF())
             self.viewer.document().addResource(QTextDocument.ResourceType.ImageResource,
                 QUrl('vault-guide:comparison'), comparison)
             heading = '<h3>Multiple GPG layers are not multisig</h3>'
-            comparison_html = ('<p style="line-height:100%;margin-bottom:12px"><img src="vault-guide:comparison" '
+            comparison_html = ('<p style="line-height:100%;margin-bottom:16px"><img src="vault-guide:comparison" '
                 'width="' + str(cw) + '" height="' + str(ch) + '" alt="' + escape(comparison_description, quote=True) + '"></p>'
-                '<p style="color:#c4c4c4">' + escape(comparison_description) + '</p>')
+                '<p style="color:#c4c4c4;margin-bottom:24px">' + escape(comparison_description) + '</p>')
             content = content.replace(heading, heading + comparison_html, 1)
         self.viewer.setHtml(content)
+        for frame in self.viewer.document().rootFrame().childFrames():
+            if isinstance(frame, QTextTable):
+                table_format = frame.format()
+                table_format.setTopMargin(16)
+                table_format.setBottomMargin(24)
+                frame.setFormat(table_format)
         self.viewer.verticalScrollBar().setValue(scroll)
         self.render_key = key
         self.current_svg = svg
@@ -505,6 +754,8 @@ class Guide(QWidget):
 def main():
     app = QApplication(sys.argv)
     app.setStyle('Fusion')
+    QIcon.setThemeName('Adwaita')
+    QIcon.setFallbackThemeName('hicolor')
     app.setFont(UI_FONT)
     window = Guide()
     window.show()

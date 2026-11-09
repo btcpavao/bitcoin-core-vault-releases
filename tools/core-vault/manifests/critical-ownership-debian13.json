@@ -10,7 +10,7 @@
     "etc/polkit-1/rules.d": {
       "uid": 0,
       "gid": 990,
-      "mode": "drwxr-xr-x"
+      "mode": "drwxr-x---"
     },
     "etc/shadow": {
       "uid": 0,
@@ -122,5 +122,13 @@
       "gid": 997,
       "mode": "drwx-wx--T"
     }
-  }
+  },
+  "reviewed_updates": [
+    {
+      "path": "etc/polkit-1/rules.d",
+      "date": "2026-11-09",
+      "package": "polkitd 126-2 (Debian 13)",
+      "reason": "Match the package postinst set_perms root polkitd 750 policy. The owner and polkitd GID 990 remain mandatory; live-build include copying must not replace the group with root."
+    }
+  ]
 }

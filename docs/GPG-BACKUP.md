@@ -1,155 +1,184 @@
-# Current backup profile (v0.3.0)
+# Bitcoin Core Vault — backup and recovery
+
+This guide describes the current backup engine shipped with Vault v0.4.0.
+The in-app Vault Guide contains the same workflow. Keep a copy of your own
+recovery instructions outside the encrypted backup they explain.
+
+## What a backup contains
+
+| Selection | Payload after the final GPG layer is opened |
+| --- | --- |
+| One complete supported Bitcoin Core SQLite file named wallet.dat | wallet.dat directly; no TAR step |
+| Other files, folders or several wallets | A standard TAR package containing the original names and structure |
+| Older Vault TAR-based wallet backup | Its original TAR package; still recoverable in Vault |
+
+New backups use symmetric GnuPG AES-256 CFB with MDC integrity protection.
+Every added layer has an independent passphrase, and every layer must be
+opened. You do not need a PGP keypair for these passphrase-based backups.
+Vault also accepts its older AES-256 OCB backup profile during recovery;
+test the exact external GnuPG application before relying on legacy-format
+interoperability.
+
+A typical two-layer wallet backup is named wallet.dat.gpg.gpg. Opening its
+outer layer produces inner.gpg; opening the last layer produces wallet.dat.
+Names can be changed, so record the required layer count and secret holders
+in your recovery plan rather than inferring them from a filename.
+
+## Core wallet encryption and GPG backup encryption
+
+Bitcoin Core wallet encryption protects private-key material. Addresses,
+public keys, transaction records and other wallet metadata can remain
+readable. GPG protects the complete external backup payload.
+
+Opening the GPG layers recovers the wallet file. Signing with a Core-encrypted
+wallet still needs its separate Core passphrase. Do not count reuse of the
+same passphrase as another independent secret. Multiple GPG layers control
+access to one backup; they do not turn the wallet into Bitcoin multisig.
+
+Start with one GPG layer unless a specific recovery plan needs more. Every
+additional required secret adds another way recovery can fail. Keep usable
+independent copies of the encrypted backup and of every required secret.
+Keep geographically separated secrets independently accessible; storing
+all of them in one immediately accessible database removes that separation.
+
+## Create and verify a backup
+
+1. Use **Wallet Backup** on Home for a consistent wallet snapshot. Use
+   **Files → Create Encrypted Backup** for selected files and folders.
+2. Keep one layer or choose **+ Add Encryption Layer**. Generate and confirm
+   a fresh passphrase for every layer.
+3. Choose a new destination. Private Workspace is temporary RAM; an external
+   medium retains the encrypted file after the session.
+4. Create the backup. Vault stages plaintext in verified RAM, verifies each
+   encryption layer, then recovers the complete result and compares it with
+   the original wallet snapshot or TAR package.
+5. Vault checks the published encrypted copy. Make independent copies and
+   practice restoring and signing with disposable test data.
+
+Loaded wallets are snapshotted through Bitcoin Core. Supported closed
+wallets use read-only SQLite backup. Original files are not encrypted in
+place or deleted. Existing destination files are not overwritten.
+
+A successful save in Private Workspace is not persistent. Copy anything
+you need to keep to the intended external medium before ending the session.
+The current operation limits are 16 layers, 10,000 TAR entries and up to
+256 MiB per payload, reduced when available RAM is limited. Split larger sets.
+
+## Passphrases and recovery dependencies
+
+KeePassXC opens its Passphrase generator with six random words selected.
+Generate each independent secret separately. You may change the word count;
+do not use phrases invented from quotations or familiar sentences.
+
+Clipboard clearing is initially disabled so you can confirm and record
+multiple secrets. Other local applications may read clipboard contents.
+You can enable a timeout in **Tools → Settings → Security → Clear clipboard
+after**. A fresh private session restores image defaults.
+
+Keep deliberate recovery copies of the required secrets. Do not put the
+only secret inside the backup it unlocks, or the only password-manager
+password inside that password database. A missing required secret cannot be
+bypassed by Vault.
+
+## Recover with Vault
+
+1. Open **Decrypt Backup**, double-click the encrypted file in Files, or use
+   **Decrypt Encrypted Backup** from its context menu.
+2. Enter all required external passphrases in any order. Vault tries them
+   against the outermost remaining layer.
+3. Choose a new recovery folder in Private Workspace.
+4. Vault authenticates the layers and validates the final wallet or TAR
+   payload. A direct-wallet backup becomes wallet.dat; packaged backups
+   recover their original files and folders.
+5. For a wallet, use **Bitcoin Core → File → Restore Wallet**. Check expected
+   addresses and labels, then practice signing. Supply the separate Core
+   passphrase when signing if that wallet's private keys are encrypted.
+
+Missing or incorrect secrets, damage and unsupported formats can cause a
+failure. Partial results are discarded on failure or cancellation, and
+existing files are never overwritten.
+
+For an ordinary GPG file not made as a Vault backup, select **Recover one
+ordinary GPG layer only**. This stops after one authenticated layer and saves
+recovered-file. An original GPG file inside a Vault TAR package remains an
+original encrypted file; recovery does not recursively open it.
 
-For one Bitcoin Core SQLite `wallet.dat`, Vault encrypts the file directly
-with standard GnuPG AES-256 CFB+MDC and separate passphrases per layer.
-Two-layer recovery: `wallet.dat.gpg.gpg` → `inner.gpg` → `wallet.dat`.
-There is **no TAR step** for a single wallet. TAR remains for multiple
-files/folders. Older Vault GPG/TAR and OCB files remain recoverable in Vault;
-GnuPG application interoperability depends on the version. Ensure backup
-material and passphrases are redundant and verify recovery independently.
+## Recover without Vault
 
-The original guide below was authored for an earlier OCB/TAR design; any
-older text referring to that design is historical rather than the default
-profile of v0.3.0.
+Use trusted offline recovery software and a private RAM filesystem with
+swap disabled. Do not run these examples in a persistent Downloads folder.
+Choose new output names. Enter secrets only at GnuPG's interactive prompt,
+never in command arguments, environment variables or scripts.
 
----
+For a two-layer current single-wallet backup:
 
-# Bitcoin Core Vault — GPG/TAR backup and recovery
+    umask 077
+    gpg --output inner.gpg --decrypt wallet.dat.gpg.gpg &&
+    gpg --output wallet.dat --decrypt inner.gpg
 
+Enter the outer passphrase first, then the inner passphrase. With one layer,
+decrypt wallet.dat.gpg directly to wallet.dat. Restore it through Bitcoin
+Core's **File → Restore Wallet**. There is no TAR extraction in this case.
 
-Encryption & Backup Security Levels
-Start with the simplest arrangement that meets your needs. Every extra required secret adds a recovery dependency. More layers are not automatically better.
+For grouped files or an older TAR-based backup, the final GPG operation
+writes payload.tar instead of wallet.dat. Inspect it before extraction:
 
+    tar --list --file payload.tar
 
-Bitcoin Core wallet encryption
-Core protects private-key material with its wallet passphrase. Public keys, addresses, transaction records and other metadata may remain readable in wallet.dat. Recovery needs the wallet file; spending with an encrypted wallet also needs the Core passphrase. Use Wallet Backup to create and verify an encrypted external copy before ending the private session.
+After checking the listing, extract into a new RAM directory:
 
+    mkdir recovered &&
+    tar --extract --file payload.tar --directory recovered --no-same-owner --no-same-permissions
 
-One GPG layer — the default
-GPG encrypts the complete TAR package, including wallet data, filenames and documents, using AES-256 OCB authenticated encryption. Recovery requires the .gpg file and its passphrase. No GPG keypair is needed. Maintain multiple verified copies of the encrypted file and independent redundant arrangements for the secret.
+Proceed only when every GPG operation exits successfully without integrity
+or authentication errors. Failed operations can leave provisional output;
+do not use it. Do not blindly extract an untrusted archive. Reject absolute
+paths, parent traversal, links, devices and unexpected files. Vault performs
+its own strict validation.
 
+Test the intended recovery build with a disposable backup. Software that
+opens current CFB+MDC files may not support older OCB files. A file's suffix
+does not prove its contents or layer count.
 
-Two or more GPG layers
-Click + Add Encryption Layer. Each layer needs an independent passphrase, and all layers must be opened for recovery. The application supports up to 16 layers, including 10, but most plans should stay simpler.
+## Public transfers and external media
 
+**Bitcoin Core → File → Export watch-only wallet** now starts in
+**Private Workspace**. Save the public export there, then use **Files** to
+copy that specific file to the intended transfer USB. It can be restored
+on an online Bitcoin Core 32.1-or-newer node. Compare receiving addresses
+independently before using the public wallet.
 
-StepResultPackage original filesStandard TAREncrypt with AGPG layer 1Encrypt that with BGPG layer 2Encrypt that with Cbackup.gpg, outer layer 3
-Example: keep redundant encrypted backup copies in two locations; keep redundant copies of A with trusted holders in one region, B with independent holders in another, and C with independent holders in a third. Recovery requires one usable encrypted copy and A, B and C. Copies within each group reduce loss risk, while separation matters for theft resistance. Consider collusion, travel, incapacity and access delays.
+Core's USB view is read-only. It can read connected drives, but saves signed
+PSBTs and public watch-only exports in private RAM. Copy completed transfer
+files with Files. Keep the original signing wallet and its decrypted
+backups offline.
 
+Files and the included file choosers use wide Places sidebars. Mounted
+USB drives appear alongside Bitcoin Core and Private Workspace. Qt
+choosers also provide **USB Media**. Reopen an already-open chooser after
+connecting a drive, or use that entry.
 
-An intermediate inner-layer copy bypasses every outer layer. Avoid retaining such copies when your plan depends on all layers. Keeping all passphrases in one database or on the same device also removes the intended separation. The backup file's external name, size and timestamps remain visible. Symmetric authentication detects damage or tampering; it does not prove who created the backup.
+Wait for copying to finish, close files using the drive and eject/unmount
+it through Files. For optical backups, burn only the verified encrypted
+files, read the finished disc back and verify recovery. A compatible writer
+and disc are required; a blank disc need not appear as a mounted folder.
 
+If Brasero does not list an external writer, check its power, cable and USB
+port, reconnect it and reopen Brasero. The read-only diagnostic command is:
 
-Bitcoin Core plus GPG
-You may combine Core private-key encryption with one or more external GPG layers. Opening every external layer reveals wallet.dat and its metadata, but signing still needs the separate Core passphrase. Do not count reuse of the same passphrase as an additional independent secret. The GUI rejects repeated external passphrases; it cannot check the internal Core secret.
+    core-vault-optical-diagnostics > "$HOME/Private Workspace/optical-report.json"
 
+It reports hardware identity, access and discovery; it does not test burning.
+Keep the report with the drive model if further investigation is needed.
 
-Threat models
-Whole-file encryption provides privacy and resistance to theft of a backup without its secrets. Redundancy mitigates accidental loss; test every required component. Geographic separation can create logistical barriers to immediate coercion, but does not guarantee protection from continuing coercion or an attacker collecting secrets over time. A compromised signing computer may expose keys or every secret entered during recovery.
+## Before ending the session
 
+Confirm that needed backups, public transfers, documents and recovery
+instructions have been saved outside RAM. Restart and shutdown show two
+warnings and a five-minute countdown; these confirmations do not verify
+that your backups exist or are current.
 
-Inheritance needs understandable instructions, accessible software, dependable holders and a practiced recovery process. Too much complexity can prevent your family from recovering the wallet. Match the number of layers to actual independent handling and realistic recovery requirements.
-
-
-Multiple GPG layers are not multisig
-GPG layers control access to a backup of one wallet. Once opened, that wallet follows its ordinary Bitcoin signing rules. Multisig distributes transaction authorization across independent Bitcoin keys and enforces a signing threshold. Layered backup encryption does not create that threshold or distribute signing authorization.
-
-
-
-
-
-KeePassXC
-Home opens the stock KeePassXC generator on Passphrase with six words selected. Generate a new random phrase for every independent GPG layer. Paste it into the passphrase and confirmation fields for that layer. No password database is required to generate passphrases.
-
-
-Six independent uniformly selected words from the 7,776-word EFF list provide about 77.5 bits of entropy; eight provide about 103.4 bits. These figures do not apply to quotations or phrases you invent. You may change the word count.
-
-
-Clipboard default
-Clear clipboard after is initially unchecked to allow time for copying multiple independent secrets. The secret remains available until replaced, explicitly cleared, or released by the session or clipboard owner. Other local applications may read it for longer. No clipboard-history application is installed by this workflow.
-
-
-To enable automatic clearing, open Tools → Settings → Security → Clear clipboard after, choose the timeout, and save. Relaunching KeePassXC does not overwrite your choice. Both Live and installed Vault use volatile user profiles: a fresh private session starts with the image defaults. Finish Private Session clears the clipboard.
-
-
-Keep a deliberate recovery copy of every required secret. A KeePassXC database may hold a copy, but keeping every secret in one immediately accessible database defeats their geographic separation. Never keep the only database inside the backup it unlocks, or the only database password inside that database.
-
-
-
-
-
-Backup & verify
-- Use Wallet Backup on Home for a wallet, or Files → Create Encrypted Backup for selected files and folders.
-- One GPG layer is the default. Add more only for an explicit recovery plan. Generate and confirm a different passphrase for each.
-- Choose a new .gpg destination in Private Workspace, any other writable folder or external media. No external drive is required. Click Create Encrypted Backup.
-- Vault snapshots loaded wallets through Bitcoin Core and closed wallets through read-only SQLite backup. It packages the inputs in RAM, encrypts and verifies each layer, then decrypts the complete result and checks it against the original package.
-- The published encrypted file is checked after copying. A direct wallet export is authenticated again and compared with the original verified wallet snapshot before its session receipt is saved.
-- Make independent copies and perform a complete restore/signing drill at least annually.
-
-You choose where to save and how to organize or copy backups. A backup saved only in Private Workspace or another RAM folder is lost when the session ends. Verification confirms its contents; it does not make RAM persistent. Copy anything you need to retain outside the RAM session before restarting or shutting down. The two warnings and five-minute countdown remain in place.
-
-Only ciphertext is staged at the destination and publication never replaces an existing backup. Originals remain available. Use Wallet Backup for a consistent snapshot of each current wallet. Shutdown confirmations do not check that backups exist or are current.
-
-
-Provisional data remain in verified private RAM with swap forbidden by the Vault session policy. The operation is bounded to 16 layers, 10,000 TAR entries and at most 256 MiB per package, reduced when free RAM is limited. Split larger sets. Cancellation removes temporary data, but this is not a claim of secure erasure of Python/Qt memory or physical RAM.
-
-
-
-
-
-Decrypt Encrypted Backup
-
-Open Decrypt Backup on Home, double-click a .gpg file in Files, or choose Decrypt Encrypted Backup from its context menu.
-
-
-- Enter the available backup passphrases, in any order. Use + Add Passphrase for additional secrets.
-- Choose a new recovery folder name. Click Decrypt Backup.
-- Vault authenticates each layer and restores the original filenames and folder structure into Private Workspace.
-
-If a secret is missing or wrong, add or correct it and retry. Damage and unsupported encryption can also cause a failure. Partial recovered data are discarded on failure or cancellation. Existing files are never overwritten.
-
-
-For an ordinary GPG file made outside Vault, select Recover one ordinary GPG layer only. This deliberately stops after one authenticated layer and saves recovered-file; it does not guess whether your original data are themselves encrypted. Rename or handle that file explicitly. Vault backups always use a standard TAR package as their final payload; an original GPG file inside the package is preserved unchanged.
-
-
-Recovered plaintext stays in verified RAM. It disappears when the session ends unless you explicitly export it. A recovered file alone is not a verified current-wallet export.
-
-
-
-
-
-Recovery / inheritance
-Keep secret-free instructions outside the encrypted backup. Identify the backup copies, required secret holders, compatible software and how an heir can obtain access. Do not put the only recovery instructions inside the backup they explain.
-
-
-With Vault
-- Open the encrypted backup.
-- Enter every external passphrase in any order.
-- Recover into a new Private Workspace folder.
-- For a wallet, use Bitcoin Core's Restore Wallet on the recovered wallet.dat. Check expected addresses, labels and a signing test. If encrypted in Core, supply its separate internal passphrase when signing.
-
-Without Vault
-Use stock GnuPG 2.4 or later with AES-256 OCB support, standard TAR and Bitcoin Core. The tested Debian engine is GnuPG 2.4.7. Test your exact recovery build; not every OpenPGP implementation supports this profile. Windows and macOS interoperability remain unverified until tested.
-
-
-Work on a trusted offline system in an owned mode-0700 tmpfs directory with swap disabled and sufficient RAM. Do not run the following in an ordinary persistent Downloads folder. Use new output filenames. Let GnuPG prompt interactively; never put secrets in shell arguments, environment variables or a script.
-
-
-umask 077
-gpg --output layer2.gpg --decrypt backup.gpg
-gpg --output layer1.gpg --decrypt layer2.gpg
-gpg --output payload.tar --decrypt layer1.gpg
-tar --list --file payload.tar
-mkdir recovered
-tar --extract --file payload.tar --directory recovered --no-same-owner --no-same-permissions
-For the three-layer example, enter C, then B, then A. With one layer, decrypt backup.gpg directly to payload.tar. Proceed to the next command only after GPG exits successfully without authentication errors. Failed commands may leave provisional output; do not use it. Stock GPG does not advertise the total Vault layer count. If order was lost, try the available secrets on the outer layer, then repeat with the remaining secrets.
-
-
-For your known backup, inspect TAR's listing before extracting into a new RAM directory. Reject absolute paths, parent traversal, links, devices and unexpected files. Do not extract an untrusted archive blindly. The Vault GUI performs its own strict validation. A file originally selected as a GPG or TAR file remains a file inside the final TAR; stop there rather than recursively opening it.
-
-
-Practice with disposable data and the intended holders. Keep independent usable copies of every required secret. A missing required layer secret cannot be bypassed by Vault, and losing a password manager's unlocking secret is another recovery dependency.
-
-## Shutdown and restart
-
-These actions never request passphrases or verify backups. First confirm that you saved what you need; then confirm the loss of anything stored only in the RAM session. A 05:00 countdown follows. Cancel countdown, Esc or closing the window keeps the session open. Restart now or Shut down now explicitly skips the remaining delay. Core closes and the clipboard clears only after expiry or that explicit action. External copies remain; unsaved session data are lost.
+Vault's private home, wallet data, decrypted files and workspace disappear
+when the session ends. External copies remain. This is a volatile-storage
+policy, not a claim that every physical RAM cell or old flash-storage copy
+has been overwritten.

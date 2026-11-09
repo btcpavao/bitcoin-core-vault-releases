@@ -21,6 +21,12 @@ Release: https://github.com/btcpavao/bitcoin-core-vault-releases/releases/tag/v0
 - Debian packages are refreshed from the stable Trixie and security archives.
   Core 32.1 and KeePassXC 2.8.0 remain the current verified upstream versions.
 - Added a read-only optical-device diagnostic and USB inspection tools.
+- Aligned Vault Guide chapter icons, navigation and reading layout with the
+  current Node Guide. Updated instructions and illustrations for direct
+  wallet-file encryption, grouped TAR backups, watch-only export and USB use.
+- Fresh builds now restore Debian's intended Polkit rule-directory ownership
+  after live-build copies the local files. The exact-image ownership gate
+  retains the required daemon group and checks Debian's stricter 0750 mode.
 
 ## Optical-device report
 

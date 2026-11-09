@@ -1,0 +1,15 @@
+#!/bin/sh
+set -eu
+# Runs in the disposable image chroot after includes.chroot is copied.
+# Debian live-build's rsync --chown=0:0 can reset this package-owned directory's
+# group after polkitd.postinst has configured it. Restore Debian 13 polkitd's
+# exact root:polkitd 0750 policy, without changing unrelated ownership.
+rules=/etc/polkit-1/rules.d
+test -d "$rules"
+test ! -L "$rules"
+chown root:polkitd "$rules"
+chmod 0750 "$rules"
+test "$(stat -c '%U:%G:%a' "$rules")" = root:polkitd:750
+/usr/sbin/runuser -u polkitd -- /usr/bin/test -x "$rules"
+/usr/sbin/runuser -u polkitd -- /usr/bin/test -r "$rules/49-core-vault-printer.rules"
+printf '%s\n' 'VAULT POLKIT RULE DIRECTORY PERMISSIONS CHECK PASSED'

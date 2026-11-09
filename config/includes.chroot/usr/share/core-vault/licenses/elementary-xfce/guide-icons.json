@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "source_project": "Bitcoin Core Node",
+  "reviewed_node_commit": "22b4af5",
+  "assets": [
+    {
+      "file": "icons/settings-chain-backup.png",
+      "sha256": "f3f3bf1313e77cb5bef2806621ddc1eefd06668aeab443a36e3ab1b736724ad6",
+      "upstream_path": "elementary-xfce/actions/48/document-save.png",
+      "source_package": "elementary-xfce-icon-theme 0.21-1",
+      "license": "GPL-3.0-or-later"
+    },
+    {
+      "file": "icons/settings-chain-import.png",
+      "sha256": "43c9ab93c860777c838a52135328624f6d629775a37b62cc1bd7e904b6ebd585",
+      "upstream_path": "elementary-xfce/actions/128/document-import.png",
+      "source_package": "elementary-xfce-icon-theme 0.21-1",
+      "license": "GPL-3.0-or-later"
+    },
+    {
+      "file": "icons/system-shutdown.png",
+      "sha256": "c405b4e52cc5cfa2bb59e874263060797665ee6bbb6752e7f72cf24fc4d45ac0",
+      "source_package": "elementary-xfce-icon-theme 0.21-1",
+      "upstream_path": "elementary-xfce-hidpi/actions/48/system-shutdown.svg",
+      "source_svg_sha256": "6591117fa3fa622a1214f7fca180e39b138aeffca11cbef4913b5bfa0ba95144",
+      "license": "GPL-3.0-or-later",
+      "rendering": "Unchanged Node4f69645 raster: rsvg-convert -w192 -h192; librsvg2-bin2.60.0+dfsg-1+deb13u1"
+    }
+  ],
+  "reused_existing": "bitcoin-ui.png and icons/decrypt-backup.png already match Node assets"
+}

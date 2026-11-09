@@ -1,0 +1,17 @@
+Guide icons reused unchanged from Bitcoin Core Node.
+
+settings-chain-backup.png: elementary-xfce/actions/48/document-save.png
+settings-chain-import.png: elementary-xfce/actions/128/document-import.png
+
+Source package: Debian elementary-xfce-icon-theme 0.21-1.
+Copyright 2007–2013 Daniel Foré and 2010–2022 Simon Steinbeiß.
+License: GPL-3.0-or-later. See adjacent copyright and GPL-3.txt.
+These artwork files are not covered by Vault integration's MIT grant.
+
+The files are byte-for-byte copies of the Node assets, introduced there in
+commit ace0577 and reviewed from its 22b4af5 Guide. Source paths and hashes
+are recorded in guide-icons.json. No recoloring or redraw was performed.
+
+The Guide also reuses Node system-shutdown.png, rendered with librsvg from
+the existing GPL-3.0-or-later system-shutdown.svg artwork. It is copied
+unchanged; its source SVG hash and rendering provenance are in guide-icons.json.
