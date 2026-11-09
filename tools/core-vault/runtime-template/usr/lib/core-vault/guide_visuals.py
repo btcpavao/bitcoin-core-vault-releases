@@ -24,9 +24,9 @@ VISUALS = {
     'Create & encrypt a wallet': ('wallet', 'Understand what each lock protects',
         'Create the wallet in Bitcoin Core. Core encryption optionally locks its private keys. A verified GPG backup protects the complete exported file. Keep the required Core and GPG passphrases separately recoverable.'),
     'KeePassXC': ('phrases', 'Choose a length; generate each secret independently',
-        'The diagram uses word placeholders, not usable passphrases. KeePassXC starts at six random words; you may choose eight. Generate a fresh phrase for each independent layer and keep recovery copies.'),
+        'The diagram uses word placeholders, not usable passphrases. KeePassXC starts at six random words; choose the length for your plan. Generate a fresh phrase for each independent layer and keep recovery copies.'),
     'Generate a passphrase': ('phrases', 'Fresh random words for every independent secret',
-        'Six-word and eight-word layouts are examples of lengths. These placeholders are not secrets. Do not derive B or C by making small changes to A; generate each independently in KeePassXC.'),
+        'Word layouts illustrate random lengths, not usable secrets. These placeholders are not secrets. Do not derive B or C by making small changes to A; generate each independently in KeePassXC.'),
     'Files': ('storage', 'Working in RAM, saving to a medium',
         'Wallets and working files are temporary. Explicitly export verified encrypted backups and required transfer files to external media. Ending the session removes private RAM files, not files already saved on external media.'),
     'Private Workspace': ('storage', 'What disappears, and what remains',
@@ -341,19 +341,24 @@ def verify(d, _):
 
 
 def finish(d, _):
-    y = d.box(1, 1, d.width - 2, '1  Save what you need',
-              'Export backups and keep required passphrases recoverable. Confirm you have saved them.', 'blue')
-    y += 18
-    y = d.box(1, y, d.width - 2, '2  Confirm session data loss',
-              'Anything kept only in RAM will be lost. Start the five-minute countdown.', 'amber')
-    y += 18
-    y = d.box(1, y, d.width - 2, '05:00 → 00:00',
-              'The session stays open. No passphrase entry or backup check.', 'blue')
-    y += 18
+    # box() returns its HEIGHT, whereas pair() returns its BOTTOM coordinate.
+    # Keep a cumulative cursor; assigning box height to y stacked later steps
+    # over earlier ones, especially when the description wrapped on small screens.
+    y = 1
+    steps = (
+        ('1  Save outside RAM', 'Keep the backups, secrets and payment files you need.', 'blue'),
+        ('2  Read both warnings', 'Confirm that unsaved session files will be lost.', 'amber'),
+        ('3  Countdown: 05:00 to 00:00', 'You can keep working or cancel. No password or backup test.', 'blue'),
+    )
+    for index, (title, body, tone) in enumerate(steps):
+        y += d.box(1, y, d.width - 2, title, body, tone)
+        if index < len(steps) - 1:
+            d.arrow(d.width / 2, y + 5, d.width / 2, y + 21)
+        y += 28
     y = d.pair(y,
-        ('Cancel countdown', 'Keep working and save anything missing.', 'green'),
-        ('Timer ends / Finish now', 'Close Core, clear clipboard, end the RAM session.', 'amber'))
-    return d.footer(y + 12, 'External copies remain. Power loss can bypass these warnings.', 'muted')
+        ('Cancel countdown', 'Return to work. Save anything you missed.', 'green'),
+        ('Timer ends / Finish now', 'Core closes; clipboard clears; RAM session ends.', 'amber'))
+    return d.footer(y + 16, 'Saved external copies remain. Power loss gives no warning.', 'muted')
 
 
 def psbt(d, _):
