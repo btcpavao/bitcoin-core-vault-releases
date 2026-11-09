@@ -2,7 +2,7 @@
 from math import log2
 
 # Historical teaching scenario, not a current rental quote or a Vault benchmark.
-WORDLIST_SIZE = 7776
+WORDLIST_SIZE = 7772
 ATTACK_GPUS = 10000
 GUESSES_PER_GPU_SECOND = 14800
 USD_PER_GPU_HOUR = 0.89
@@ -140,15 +140,15 @@ SECTIONS = {
 <h3>What does brute force mean?</h3>
 <p>Someone who steals an encrypted backup can try candidate passphrases on their own computers. This is an <b>offline guessing attack</b>: they do not need permission from Vault and there is no online account that locks them out. Randomness makes the candidate list large. The file's password-to-key calculation makes each guess cost work.</p>
 <h3>4, 5 or 6 random KeePassXC words: a rough comparison</h3>
-<p><b>Illustrative calculation, not a measured cracking test of this ISO.</b> We retain the earlier discussion's assumptions: the full 7,776-word EFF list, 10,000 graphics processors (GPUs), 14,800 complete guesses per second per GPU, and US$0.89 per GPU-hour. These are model inputs, not a current rental quote or a guaranteed attacker cost. Each row is the <b>average successful search</b>, roughly half of all possible phrases.</p>
+<p><b>Illustrative calculation, not a measured cracking test of this ISO.</b> We retain the earlier discussion's cost assumptions, using the 7,772 entries in this Vault's bundled EFF large wordlist: 10,000 graphics processors (GPUs), 14,800 complete guesses per second per GPU, and US$0.89 per GPU-hour. These are model inputs, not a current rental quote or a guaranteed attacker cost. Each row is the <b>average successful search</b>, roughly half of all possible phrases.</p>
 ''' + attack_table() + '''
-<p>The examples are lengths, not sample secrets: <b>word 1 · word 2 · word 3 · word 4</b>; add a newly generated fifth or sixth word for the longer lengths. Never use those literal placeholders. In this model every extra independent word multiplies the search work by 7,776.</p>
+<p>The examples are lengths, not sample secrets: <b>word 1 · word 2 · word 3 · word 4</b>; add a newly generated fifth or sixth word for the longer lengths. Never use those literal placeholders. In this model every extra independent word multiplies the search work by 7,772.</p>
 <h3>How to use these numbers</h3>
 <p>Compare the possible value an attacker could recover with the cost of attacking it, and leave a <b>large margin</b> for cheaper hardware, improved attacks, price changes and years of storage. For example, US$100,000 is far below the model's US$30.5 million four-word cost; US$10 million is much closer. Neither comparison proves that four words are safe for that amount. Five and six words provide much more guessing resistance at a small typing cost; six remains Vault's generator default.</p>
 <p><b>Do not treat a dollar figure as a maximum safe balance.</b> The time is not a minimum waiting period: an attacker can be lucky early. With only 1% of the combinations tried, success probability is about 1% under this uniform-random model. More GPUs shorten the time; at the same rental rate they do not reduce total model cost. Faster or cheaper guesses reduce the cost. The enormous long-term figures are comparisons at a fixed assumed speed, not forecasts of computers millions of years from now.</p>
 <p>These estimates concern guessing a secret, not malware, a copied passphrase, coercion, a lost backup or a broken recovery plan. If an attacker obtains the secret directly, this cost table offers no protection.</p>
 <h3>What the calculation does and does not measure</h3>
-<p>There are <b>7,776 to the power of the word count</b> possible ordered phrases. Average guesses are approximately half that number. Divide by the combined guesses per second for time; multiply the hours by the rental cost of all GPUs for dollars. The decimal units above use a billion as 1,000 million and a quadrillion as 1,000 trillion.</p>
+<p>The original EFF list has 7,776 words; this installed KeePassXC list has 7,772. The table uses the bundled count. There are <b>7,772 to the power of the word count</b> possible ordered phrases. Average guesses are approximately half that number. Divide by the combined guesses per second for time; multiply the hours by the rental cost of all GPUs for dollars. The decimal units above use a billion as 1,000 million and a quadrillion as 1,000 trillion.</p>
 <p>The earlier 14,800-guess assumption was an extrapolation for a SHA-512-based GPG password calculation, not a benchmark of the current Vault backup. This image uses <b>SHA-256, iterated-and-salted S2K, count 65,011,712 bytes</b>. S2K is the work that turns your words into an encryption key; a salt is extra random data that makes each file's calculation different. The current file format, S2K settings and actual attack hardware must be benchmarked before treating the numbers as its cracking cost. This table must not be substituted for the different Core-wallet or KeePassXC-database password calculations.</p>
 <h3>Bitcoin Core wallet encryption</h3>
 <p>Core locks its private signing keys with the Core passphrase. Public addresses and transaction records may still be readable in wallet.dat. You need a usable wallet file to recover; spending from a Core-encrypted wallet also needs its Core passphrase.</p>
