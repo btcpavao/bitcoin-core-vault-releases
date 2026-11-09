@@ -78,7 +78,7 @@ def start_view(source, destination):
     destination.mkdir(mode=0o700)
     process = subprocess.Popen(
         [BINDFS, '-f', '-r', '--no-allow-other',
-         '-o', 'nosuid,nodev,noexec,attr_timeout=0,entry_timeout=0,negative_timeout=0',
+         '-o', 'subtype=bindfs,nosuid,nodev,noexec,attr_timeout=0,entry_timeout=0,negative_timeout=0',
          str(source), str(destination)], stdout=subprocess.DEVNULL)
     try:
         for _ in range(50):
