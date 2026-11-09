@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-"""Name the stock Bitcoin Core file chooser's two Vault sidebar shortcuts.
+"""Give stock Qt file choosers wide Vault and mounted USB sidebar shortcuts.
 
 Qt 6's non-native QFileDialog reads FileDialog/shortcuts from QtProject.conf.
 A runtime symlink supplies a display name for .bitcoin; wallet data and the
@@ -15,6 +15,7 @@ import re
 import stat
 import sys
 import tempfile
+import time
 
 from PySide6.QtCore import QSettings, QUrl
 
@@ -22,6 +23,10 @@ KEY = 'FileDialog/shortcuts'
 WIDTH = 'FileDialog/sidebarWidth'
 ALIAS_DIR = 'core-vault-core-file-dialogs'
 BACKUP = 'QtProject.conf.before-core-vault-core-file-dialogs-v1'
+MIN_WIDTH = 320
+MEDIA_ROOTS = (Path('/media/vault'), Path('/run/media/vault'))
+MOUNTINFO = Path('/proc/self/mountinfo')
+USB_ALIAS = 'USB Media'
 
 
 def directory(path: Path, *, private: bool = False) -> None:
@@ -84,18 +89,62 @@ def normalized(value: str) -> str:
     return bytes(url.toEncoded()).decode('ascii')
 
 
-def merge_shortcuts(previous: list[str], home: Path, alias: Path) -> list[str]:
+def mounted_media(text: str | None = None) -> list[Path]:
+    """Discover mounted UDisks volumes by mount metadata, never their contents.
+
+    Only direct, canonical children of the desktop's media roots are offered.
+    Missing drives, stale empty mount directories, symlinks and the live boot
+    medium are omitted. This changes no filesystem permissions or Core sandbox.
+    """
+    def unescape(value: str) -> str:
+        return re.sub(r'\\([0-7]{3})', lambda match: chr(int(match[1], 8)), value)
+    records = []
+    for line in (MOUNTINFO.read_text(encoding='utf-8') if text is None else text).splitlines():
+        fields = line.split()
+        try:
+            split = fields.index('-')
+        except ValueError:
+            continue
+        if split >= 6 and len(fields) >= split + 3:
+            records.append((Path(unescape(fields[4])), unescape(fields[split + 2])))
+    boot_sources = {source for target, source in records
+                    if str(target) in ('/run/live/medium', '/lib/live/mount/medium')}
+    result = []
+    for target, source in records:
+        if target.parent not in MEDIA_ROOTS or source in boot_sources or target in result:
+            continue
+        try:
+            if not target.is_dir() or target.is_symlink() or target.resolve(strict=True) != target:
+                continue
+        except OSError:
+            continue
+        result.append(target)
+    return sorted(result, key=lambda path: (path.name.casefold(), str(path)))[:16]
+
+
+def desired_width(media: list[Path]) -> int:
+    labels = ['Bitcoin Core', 'Private Workspace', USB_ALIAS, *(path.name for path in media)]
+    return max(MIN_WIDTH, min(420, 35 + max(map(len, labels)) * 8))
+
+
+def merge_shortcuts(previous: list[str], home: Path, alias: Path,
+                    media: list[Path] | None = None) -> list[str]:
     private = home / 'Private Workspace'
-    desired = [alias.as_uri(), private.as_uri()]
+    if media is None:
+        media = mounted_media()
+    usb = alias.parent / USB_ALIAS
+    desired = [alias.as_uri(), private.as_uri(), *(path.as_uri() for path in media), usb.as_uri()]
     result = list(desired)
     for value in previous:
         url = QUrl(value)
         local = url.toLocalFile()
         if url.scheme() == 'file' and not url.path():
             continue  # Qt's built-in Computer shortcut.
-        if local in (str(home), str(home / '.bitcoin'), str(private), str(alias)):
+        if local in (str(home), str(home / '.bitcoin'), str(private), str(alias), str(usb)):
             continue
-        if re.fullmatch(r'/run/user/[0-9]+/core-vault-core-file-dialogs/Bitcoin Core', local):
+        if any(local == str(root) or local.startswith(str(root) + '/') for root in MEDIA_ROOTS):
+            continue  # Retire a disconnected drive, then add only mounted media above.
+        if re.fullmatch(r'/run/user/[0-9]+/core-vault-core-file-dialogs/(?:Bitcoin Core|USB Media)', local):
             continue  # Refresh a managed alias left by an earlier session.
         value = normalized(value)
         if value not in result:
@@ -146,44 +195,58 @@ def configure(home: Path, runtime: Path, config: Path) -> None:
     else:
         alias.symlink_to(core, target_is_directory=True)
 
+    usb = alias_dir / USB_ALIAS
+    if usb.exists() or usb.is_symlink():
+        if not usb.is_symlink() or usb.readlink() != MEDIA_ROOTS[0]:
+            raise RuntimeError('Unexpected object at the USB Media display shortcut.')
+    else:
+        usb.symlink_to(MEDIA_ROOTS[0], target_is_directory=True)
+
+    media = mounted_media()
+    minimum = desired_width(media)
     path = config / 'QtProject.conf'
     settings = settings_at(path)
     previous = urls(settings.value(KEY))
-    desired = merge_shortcuts(previous, home, alias)
+    desired = merge_shortcuts(previous, home, alias, media)
     width = settings.value(WIDTH)
     try:
-        widen = width is None or int(width) < 180
+        widen = width is None or int(width) < minimum
     except (TypeError, ValueError):
         raise RuntimeError('Unexpected Qt sidebar width; settings were not changed.')
     changed = [normalized(value) for value in previous] != desired or widen
     if not changed:
-        check(home, runtime, config)
+        check(home, runtime, config, media=media)
         return
     if regular_or_missing(path):
         save_backup(config / BACKUP, path.read_bytes())
     settings.setValue(KEY, desired)
     if widen:
-        settings.setValue(WIDTH, 180)
+        settings.setValue(WIDTH, minimum)
     settings.sync()
     if settings.status() != QSettings.NoError:
         raise RuntimeError('Qt sidebar settings could not be saved.')
-    check(home, runtime, config)
+    check(home, runtime, config, media=media)
 
 
-def check(home: Path, runtime: Path, config: Path) -> None:
+def check(home: Path, runtime: Path, config: Path, *, media: list[Path] | None = None) -> None:
     alias = runtime / ALIAS_DIR / 'Bitcoin Core'
     if not alias.is_symlink() or alias.resolve(strict=True) != home / '.bitcoin':
         raise RuntimeError('Bitcoin Core shortcut does not point to the original data directory.')
     directory(home / '.bitcoin')
     directory(home / 'Private Workspace', private=True)
+    usb = alias.parent / USB_ALIAS
+    if not usb.is_symlink() or usb.readlink() != MEDIA_ROOTS[0]:
+        raise RuntimeError('USB Media shortcut does not point to the desktop media root.')
+    if media is None:
+        media = mounted_media()
     settings = settings_at(config / 'QtProject.conf')
     current = urls(settings.value(KEY))
     expected = [alias.as_uri(), (home / 'Private Workspace').as_uri()]
     if [normalized(value) for value in current[:2]] != expected:
         raise RuntimeError('Expected Bitcoin Core then Private Workspace in the Qt sidebar.')
-    if [normalized(value) for value in current] != merge_shortcuts(current, home, alias):
+    if [normalized(value) for value in current] != merge_shortcuts(current, home, alias, media):
         raise RuntimeError('Duplicate or stale Vault file chooser shortcuts.')
-    if not settings.contains(WIDTH) or int(settings.value(WIDTH)) < 180:
+    if not settings.contains(WIDTH) or int(settings.value(WIDTH)) < desired_width(media):
         raise RuntimeError('Qt file chooser sidebar width is too narrow for the Vault labels.')
 
 
@@ -192,16 +255,29 @@ def main() -> int:
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument('--apply', action='store_true')
     mode.add_argument('--check', action='store_true')
+    mode.add_argument('--watch', action='store_true', help='Refresh mounted USB shortcuts during the desktop session.')
     args = parser.parse_args()
     os.umask(0o077)
     home, runtime, config = paths_from_session()
-    if args.apply:
+    if args.watch:
+        failed = False
+        while True:
+            try:
+                configure(home, runtime, config)
+                failed = False
+            except (OSError, RuntimeError, ValueError) as exc:
+                if not failed:
+                    print('VAULT FILE DIALOG REFRESH ERROR: ' + str(exc), file=sys.stderr, flush=True)
+                failed = True
+            time.sleep(2)
+    elif args.apply:
         configure(home, runtime, config)
     else:
         check(home, runtime, config)
     print('VAULT CORE FILE DIALOGS CHECK PASSED')
     print('Bitcoin Core -> ' + str(home / '.bitcoin'))
     print('Private Workspace -> ' + str(home / 'Private Workspace'))
+    print('USB Media -> ' + str(MEDIA_ROOTS[0]))
     return 0
 
 

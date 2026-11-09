@@ -15,3 +15,6 @@ popover.background > contents {
     box-shadow: none;
     margin: 0;
 }
+
+/* VAULT_WIDE_FILE_PLACES_V1: same readable Places width as Node. */
+placessidebar { min-width: 300px; }

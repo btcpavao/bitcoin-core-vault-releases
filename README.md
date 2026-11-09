@@ -10,7 +10,7 @@ Run Vault as a Live RAM session or install its operating system on an internal
 disk. In both modes, the Vault account's home and private working data stay in
 RAM. Export the files you want to keep before ending the session.
 
-**Current release: Bitcoin Core Vault v0.3.0**, including Bitcoin Core
+**Current release: Bitcoin Core Vault v0.4.0**, including Bitcoin Core
 32.1 and encrypted-backup module 0.7.3. A single valid Bitcoin Core SQLite
 `wallet.dat` is encrypted directly using standard AES-256 CFB+MDC OpenPGP,
 without TAR. With two separate passphrases, decryption is
@@ -18,8 +18,8 @@ without TAR. With two separate passphrases, decryption is
 multiple files or folders. The built-in recovery tool also reads previous
 GPG/TAR and AES-256 OCB backup files.
 
-**[Download the verified v0.3.0 ISO and checksums](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/tag/v0.3.0)**.
-See the [exact-image release notes](docs/RELEASE-v0.3.0.md). This project is
+**[Download the v0.4.0 ISO and checksums](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/tag/v0.4.0)**.
+See the [exact-image release notes](docs/RELEASE-v0.4.0.md). This project is
 independently developed and has not been independently security audited;
 building from source has not been shown to be byte-for-byte reproducible.
 
@@ -47,8 +47,9 @@ to external media.
 ## Watch-only wallet
 
 Use **Bitcoin Core → File → Export watch-only wallet** to save `watch-only.dat`
-in Private Workspace, then copy that public file to USB using Files. On an
+in Private Workspace (the default export folder), then copy that public file to USB using Files. On an
 online computer running Core 32.1 or newer, use **File → Restore Wallet**.
+File choosers have wider Places sidebars and show mounted USB volumes. The USB Media shortcut also lets an already-open Core process read newly attached media; Core still saves only to checked RAM locations.
 Vault no longer includes a separate watch-only export tool or its JSON format.
 Keep the original signing wallet offline. See [the native workflow](docs/WATCH-ONLY.md).
 
@@ -152,7 +153,7 @@ successful boot, installation or recovery.
 
 ## Release verification and status
 
-The public [v0.3.0 release](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/tag/v0.3.0)
+The public [v0.3.0 release](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/tag/v0.4.0)
 provides `bitcoin-core-vault-v0.3.0-core32.1-amd64.iso` and a `SHA256SUMS`
 file. The image has exactly **795,148,288 bytes** and SHA-256:
 
@@ -191,7 +192,7 @@ The same exact ISO passes BIOS/USB disk-selection tests with SATA and VirtIO
 drives and package integrity and critical ownership checks. The test record
 does **not** certify every installed-mode reboot, wallet recovery, hardware
 configuration or the absence of security vulnerabilities. See the
-[release notes](docs/RELEASE-v0.3.0.md).
+[release notes](docs/RELEASE-v0.4.0.md).
 Earlier [v0.2.0](https://github.com/btcpavao/bitcoin-core-vault/releases/tag/v0.2.0)
 release evidence remains historical, not a certification of v0.3.0.
 

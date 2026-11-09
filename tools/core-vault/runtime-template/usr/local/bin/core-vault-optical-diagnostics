@@ -1,0 +1,174 @@
+#!/usr/bin/python3
+"""Read-only optical discovery report. Run as the logged-in desktop user.
+
+Does not open, mount, eject or write a device; emits JSON to stdout only.
+Hardware identity, permissions and discovery state are reported, not file contents.
+"""
+import argparse
+import grp
+import json
+import os
+from pathlib import Path
+import re
+import stat
+import subprocess
+import sys
+import time
+
+OPTICAL_NAME = re.compile(r"sr[0-9]+\Z")
+MODULES = ("sr_mod", "sg", "cdrom", "usb_storage", "uas", "xhci_hcd", "ehci_hcd")
+UDEV_KEYS = {
+    "DEVNAME", "DEVTYPE", "ID_BUS", "ID_CDROM", "ID_CDROM_CD_R",
+    "ID_CDROM_CD_RW", "ID_CDROM_DVD", "ID_CDROM_DVD_R",
+    "ID_CDROM_DVD_RW", "ID_CDROM_DVD_PLUS_R", "ID_CDROM_DVD_PLUS_RW",
+    "ID_CDROM_MEDIA", "ID_CDROM_MEDIA_STATE", "ID_VENDOR", "ID_MODEL",
+    "TAGS", "CURRENT_TAGS",
+}
+
+
+def read_text(path):
+    try:
+        return path.read_text().strip()
+    except OSError:
+        return None
+
+
+def command(argv, timeout=8):
+    try:
+        result = subprocess.run(argv, capture_output=True, text=True, timeout=timeout)
+        return {"returncode": result.returncode, "stdout": result.stdout.strip(),
+                "stderr": result.stderr.strip()}
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return {"error": str(exc)}
+
+
+def optical_devices(sys_class=Path("/sys/class/block"), dev_root=Path("/dev")):
+    """Classify optical drives by SCSI peripheral type, even with no disc inserted."""
+    devices = []
+    for entry in sorted(sys_class.glob("*")):
+        if read_text(entry / "device/type") != "5":
+            continue
+        node = dev_root / entry.name
+        record = {
+            "device": str(node),
+            "sysfs": str(entry.resolve()),
+            "vendor": read_text(entry / "device/vendor"),
+            "model": read_text(entry / "device/model"),
+            "usb_transport": any(re.fullmatch(r"usb[0-9]+", part)
+                                 for part in entry.resolve().parts),
+            "readable": os.access(node, os.R_OK),
+            "writable": os.access(node, os.W_OK),
+        }
+        try:
+            info = node.stat()
+            record.update(mode=stat.filemode(info.st_mode), uid=info.st_uid,
+                          gid=info.st_gid, block_device=stat.S_ISBLK(info.st_mode))
+        except OSError as exc:
+            record["device_error"] = str(exc)
+        devices.append(record)
+    return devices
+
+
+def desktop_snapshot():
+    """Run in a bounded child because desktop D-Bus may be unavailable."""
+    from gi.repository import Gio, GLib
+    monitor = Gio.VolumeMonitor.get()
+    context = GLib.MainContext.default()
+    deadline = time.monotonic() + 0.5
+    while time.monotonic() < deadline:
+        # Dispatch late monitor replies without waiting indefinitely.
+        if context.pending():
+            context.iteration(False)
+        else:
+            time.sleep(0.02)
+    drives = []
+    for drive in monitor.get_connected_drives():
+        device = drive.get_identifier(Gio.VOLUME_IDENTIFIER_KIND_UNIX_DEVICE)
+        if device and OPTICAL_NAME.fullmatch(Path(os.path.realpath(device)).name):
+            drives.append({"device": device, "name": drive.get_name(),
+                           "has_media": drive.has_media(),
+                           "removable": drive.is_removable()})
+    result = {"gio_optical_drives": drives}
+    try:
+        bus = Gio.bus_get_sync(Gio.BusType.SYSTEM, None)
+        objects = bus.call_sync(
+            "org.freedesktop.UDisks2", "/org/freedesktop/UDisks2",
+            "org.freedesktop.DBus.ObjectManager", "GetManagedObjects",
+            None, None, Gio.DBusCallFlags.NONE, 5000, None).unpack()[0]
+        udisks = []
+        for interfaces in objects.values():
+            block = interfaces.get("org.freedesktop.UDisks2.Block", {})
+            raw_device = block.get("Device", [])
+            device = bytes(raw_device).rstrip(b"\0").decode(errors="replace")
+            if not OPTICAL_NAME.fullmatch(Path(device).name):
+                continue
+            drive = objects.get(block.get("Drive"), {}).get(
+                "org.freedesktop.UDisks2.Drive", {})
+            udisks.append({
+                "device": device,
+                **{key: drive.get(key) for key in (
+                    "ConnectionBus", "Optical", "MediaAvailable",
+                    "MediaCompatibility", "OpticalBlank")},
+            })
+        result["udisks_optical_drives"] = udisks
+    except Exception as exc:
+        result["udisks_error"] = str(exc)
+    return result
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--desktop-json", action="store_true", help=argparse.SUPPRESS)
+    args = parser.parse_args()
+    if args.desktop_json:
+        try:
+            print(json.dumps(desktop_snapshot()))
+        except Exception as exc:
+            print(json.dumps({"gio_error": str(exc)}))
+        return
+    devices = optical_devices()
+    for device in devices:
+        output = command(["udevadm", "info", "--query=property",
+                          "--path=" + device["sysfs"]])
+        device["udev"] = {
+            key: value for line in output.get("stdout", "").splitlines()
+            if "=" in line for key, value in [line.split("=", 1)] if key in UDEV_KEYS
+        }
+        if output.get("error") or output.get("returncode") != 0:
+            device["udev_error"] = output.get("error") or output.get("stderr")
+    desktop = command([sys.executable, str(Path(__file__).resolve()), "--desktop-json"])
+    try:
+        desktop = json.loads(desktop["stdout"])
+    except (KeyError, ValueError):
+        desktop = {"desktop_probe_error": desktop}
+    group_ids = sorted(set(os.getgroups()) | {os.getegid()})
+    groups = []
+    for gid in group_ids:
+        try:
+            name = grp.getgrgid(gid).gr_name
+        except KeyError:
+            name = None
+        groups.append({"gid": gid, "name": name})
+    report = {
+        "schema": 1,
+        "uid": os.geteuid(),
+        "groups": groups,
+        "session_type": os.environ.get("XDG_SESSION_TYPE"),
+        "session_bus_present": bool(os.environ.get("DBUS_SESSION_BUS_ADDRESS")),
+        "kernel": os.uname().release,
+        "modules_present": {name: Path("/sys/module", name).exists() for name in MODULES},
+        "optical_devices": devices,
+        "desktop": desktop,
+        "packages": command([
+            "dpkg-query", "-W", "-f=${Package} ${Version}\n",
+            "brasero", "brasero-cdrkit", "growisofs", "libburn4t64", "libisofs6t64",
+            "gvfs", "gvfs-daemons", "udisks2", "udev", "dbus-x11",
+        ]),
+        "note": "Discovery and access checks only; no device was opened or written. "
+                "This does not establish that the drive can burn a disc.",
+    }
+    print(json.dumps(report, indent=2, sort_keys=True))
+
+
+if __name__ == "__main__":
+    main()

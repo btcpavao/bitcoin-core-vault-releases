@@ -1,0 +1,153 @@
+#!/usr/bin/python3
+"""Keep removable media readable after hotplug without granting Core disk writes.
+
+The FUSE servers run in the desktop mount namespace. Core receives read-only
+binds of their stable mount roots, so a newly attached child filesystem can be
+read even though Core's mount namespace predates it. No file contents are copied.
+"""
+import json
+import os
+from pathlib import Path
+import signal
+import stat
+import subprocess
+import sys
+import tempfile
+import time
+
+RUNTIME = Path('/run/user/1000')
+SOURCES = (Path('/media/vault'), Path('/run/media/vault'))
+BINDFS = '/usr/bin/bindfs'
+FUSERMOUNT = '/usr/bin/fusermount3'
+
+
+def mount_record(path):
+    result = subprocess.run(
+        ['/usr/bin/findmnt', '--uniq', '-J', '-T', str(path),
+         '-o', 'TARGET,FSTYPE,OPTIONS'], capture_output=True, text=True,
+        timeout=5, check=True)
+    rows = json.loads(result.stdout).get('filesystems', [])
+    if len(rows) != 1:
+        raise RuntimeError('The media view mount could not be identified.')
+    return rows[0]
+
+
+def is_read_only_view(path):
+    row = mount_record(path)
+    return (row.get('target') == str(path)
+            and row.get('fstype') == 'fuse.bindfs'
+            and {'ro', 'nosuid', 'nodev', 'noexec'}.issubset(row.get('options', '').split(','))
+            and bool(os.statvfs(path).f_flag & os.ST_RDONLY))
+
+
+def validate_runtime():
+    if (os.getuid(), os.getgid()) != (1000, 1000):
+        raise RuntimeError('Media views require the Vault desktop account.')
+    if os.environ.get('HOME') != '/home/vault' or os.environ.get('XDG_RUNTIME_DIR') != str(RUNTIME):
+        raise RuntimeError('Media views require the desktop runtime.')
+    metadata = RUNTIME.lstat()
+    if (not stat.S_ISDIR(metadata.st_mode)
+            or (metadata.st_uid, metadata.st_gid, stat.S_IMODE(metadata.st_mode)) != (1000, 1000, 0o700)
+            or mount_record(RUNTIME).get('fstype') != 'tmpfs'):
+        raise RuntimeError('The media view runtime is not private RAM.')
+
+
+def stop_views(views):
+    for destination, process in reversed(views):
+        # Only our fresh, process-owned mountpoints are ever unmounted.
+        try:
+            subprocess.run([FUSERMOUNT, '-u', '-z', str(destination)],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                           timeout=5, check=False)
+        except (OSError, subprocess.SubprocessError) as error:
+            print('Core media view cleanup: ' + str(error), file=sys.stderr)
+        if process.poll() is None:
+            try:
+                process.terminate()
+                process.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=3)
+            except ProcessLookupError:
+                pass
+
+
+def start_view(source, destination):
+    if source.is_symlink() or source.resolve(strict=True) != source or not source.is_dir():
+        raise RuntimeError('A removable-media root is unavailable or redirected.')
+    destination.mkdir(mode=0o700)
+    process = subprocess.Popen(
+        [BINDFS, '-f', '-r', '--no-allow-other',
+         '-o', 'nosuid,nodev,noexec,attr_timeout=0,entry_timeout=0,negative_timeout=0',
+         str(source), str(destination)], stdout=subprocess.DEVNULL)
+    try:
+        for _ in range(50):
+            if process.poll() is not None:
+                raise RuntimeError('The read-only media server exited.')
+            if is_read_only_view(destination):
+                return destination, process
+            time.sleep(.1)
+        raise RuntimeError('The read-only media view did not become ready.')
+    except BaseException:
+        stop_views([(destination, process)])
+        raise
+
+
+def command_with_views(command, views):
+    if (not command or command[0] != '/usr/bin/bwrap'
+            or command[-1] != '/usr/local/libexec/core-vault-core-session'
+            or command[1:4] != ['--ro-bind', '/', '/']):
+        raise RuntimeError('The media helper only wraps the confined Core command.')
+    extra = []
+    for source, (destination, _) in zip(SOURCES, views):
+        extra.extend(['--ro-bind', str(destination), str(source)])
+    return command[:-1] + extra + command[-1:]
+
+
+def main():
+    command = sys.argv[1:]
+    if command[:1] == ['--']:
+        command = command[1:]
+    command_with_views(command, [])
+    validate_runtime()
+    os.fstat(3)  # Keep the launcher's already-held startup lock through Core exit.
+    os.umask(0o077)
+    views = []
+    child = None
+    received_signal = None
+
+    def forward_signal(number, _frame):
+        nonlocal received_signal
+        received_signal = number
+        if child is not None and child.poll() is None:
+            child.send_signal(number)
+
+    for number in (signal.SIGHUP, signal.SIGINT, signal.SIGTERM):
+        signal.signal(number, forward_signal)
+    with tempfile.TemporaryDirectory(prefix='core-vault-media-view-', dir=RUNTIME) as temporary:
+        try:
+            try:
+                for index, source in enumerate(SOURCES):
+                    views.append(start_view(source, Path(temporary) / str(index)))
+            except (OSError, RuntimeError, subprocess.SubprocessError) as error:
+                stop_views(views)
+                views.clear()
+                # Preserve the existing root read-only snapshot if FUSE is
+                # unavailable. Never replace it with writable mount propagation.
+                print('Core live USB refresh unavailable; existing media remains read-only: '
+                      + str(error), file=sys.stderr)
+            if received_signal is not None:
+                return 128 + received_signal
+            child = subprocess.Popen(command_with_views(command, views), pass_fds=(3,))
+            result = child.wait()
+            return result if result >= 0 else 128 - result
+        finally:
+            stop_views(views)
+
+
+if __name__ == '__main__':
+    try:
+        raise SystemExit(main())
+    except (OSError, RuntimeError, subprocess.SubprocessError) as error:
+        print('Core media isolation: ' + str(error), file=sys.stderr)
+        raise SystemExit(1)

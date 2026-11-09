@@ -39,6 +39,26 @@ class Xfconf:
         return ''
 
 
+class WidthXfconf:
+    def __init__(self, width=None):
+        self.width, self.writes = width, 0
+
+    def __call__(self, args):
+        prop = '/last-separator-position'
+        if args == ['-l']:
+            return prop + '\n' if self.width is not None else ''
+        require(args[:2] == ['-p', prop], 'Wrong sidebar property')
+        if len(args) == 2:
+            return str(self.width) + '\n'
+        require('--set' in args, 'Expected sidebar width write')
+        if self.width is None:
+            require('--create' in args and args[args.index('--type') + 1] == 'int',
+                    'New sidebar width must have integer type')
+        self.width = int(args[args.index('--set') + 1])
+        self.writes += 1
+        return ''
+
+
 class GioConstants:
     VOLUME_IDENTIFIER_KIND_UUID = 'uuid'
     VOLUME_IDENTIFIER_KIND_UNIX_DEVICE = 'unix-device'
@@ -117,6 +137,27 @@ def main():
     exec(compile(source, str(helper), 'exec'), module)
     require(module.get('POLICY_VERSION') == 'places-v3', 'Expected Places V3 policy')
     cases = []
+    for initial, expected in ((None, 320), (180, 320), (320, 320), (480, 480)):
+        xf = WidthXfconf(initial)
+        module['ensure_sidebar_width'](xf)
+        require(xf.width == expected, 'Thunar minimum or wider sidebar preference lost')
+        writes = xf.writes
+        module['ensure_sidebar_width'](xf)
+        require(xf.writes == writes, 'Thunar width reapply is not idempotent')
+    invalid = WidthXfconf('invalid')
+    try:
+        module['ensure_sidebar_width'](invalid)
+    except RuntimeError:
+        require(invalid.writes == 0, 'Malformed sidebar preference overwritten')
+    else:
+        raise RuntimeError('Malformed sidebar width accepted')
+    for version in ('gtk-3.0', 'gtk-4.0'):
+        relative = Path('etc/skel/.config') / version / 'gtk.css'
+        css = (root / 'config/includes.chroot' / relative).read_text()
+        require(css == (root / 'tools/core-vault/runtime-template' / relative).read_text(),
+                'GTK sidebar CSS runtime/template mismatch')
+        require('placessidebar { min-width: 300px; }' in css, 'GTK Places minimum missing')
+    cases.append('Thunar 320px minimum, wider choices preserved, GTK3/4 300px Places')
 
     with tempfile.TemporaryDirectory(prefix='vault-places-policy-') as td:
         base = Path(td)

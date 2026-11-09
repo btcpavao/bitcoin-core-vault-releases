@@ -1,0 +1,3 @@
+# Core save/export dialogs use the XDG Documents location.
+# Private Workspace is recreated in RAM for every Vault session.
+XDG_DOCUMENTS_DIR="$HOME/Private Workspace"

@@ -11,6 +11,7 @@ pkg = (
 
 for required in (
     "udisks2",
+    "usbutils",
     "udiskie",
     "brasero",
     "brasero-cdrkit",
@@ -25,5 +26,10 @@ floppy = (
 
 assert "blacklist floppy" in floppy
 assert "install floppy /bin/false" in floppy
+
+diagnostics = ROOT / "config/includes.chroot/usr/local/bin/core-vault-optical-diagnostics"
+template = ROOT / "tools/core-vault/runtime-template/usr/local/bin/core-vault-optical-diagnostics"
+assert diagnostics.is_file() and diagnostics.stat().st_mode & 0o111
+assert template.read_bytes() == diagnostics.read_bytes(), "optical diagnostics template drift"
 
 print("VAULT MEDIA POLICY CHECK PASSED")

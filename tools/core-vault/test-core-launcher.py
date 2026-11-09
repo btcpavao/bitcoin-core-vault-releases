@@ -319,6 +319,7 @@ def main():
         '/usr/local/bin/bitcoin-qt': core_root / 'usr/local/bin/bitcoin-qt',
         '/usr/local/bin/bitcoin-cli': core_root / 'usr/local/bin/bitcoin-cli',
         '/usr/local/bin/core-vault-bitcoin': inc / 'usr/local/bin/core-vault-bitcoin',
+        '/usr/local/bin/core-vault-media-view': inc / 'usr/local/bin/core-vault-media-view',
         '/usr/local/libexec/core-vault-core-session': inc / 'usr/local/libexec/core-vault-core-session',
     }
     for path in payload.values():

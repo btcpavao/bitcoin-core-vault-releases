@@ -68,7 +68,7 @@ fi
 # Keep the network/PID namespaces: host loopback RPC, Finish and the addressed
 # X11 observer retain their existing identities. Bubblewrap keeps fd3's lock
 # in its supervisor until Core exits; no unsupported FD-preservation option.
-exec /usr/bin/bwrap \
+exec /usr/local/bin/core-vault-media-view -- /usr/bin/bwrap \
     --ro-bind / / \
     --bind /run/core-vault /run/core-vault \
     --bind /home/vault /home/vault \

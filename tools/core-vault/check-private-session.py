@@ -19,6 +19,7 @@ REQUIRED=(
     'usr/local/bin/core-vault-wallet-backup','usr/local/bin/core-vault-security-check',
     'usr/local/bin/core-vault-storage-check','usr/local/bin/core-vault-session',
     'usr/local/bin/core-vault-bitcoin','usr/local/bin/core-vault-keepassxc',
+    'usr/local/bin/core-vault-media-view','etc/tmpfiles.d/core-vault-media.conf',
     'usr/local/bin/core-vault-numlock','usr/local/bin/core-vault-open-passphrase',
     'usr/local/bin/core-vault-taskbar',
     'usr/local/bin/core-vault-show-home',
@@ -99,7 +100,7 @@ def check():
         if 'shred' in (INC/relative).read_text():
             raise RuntimeError('Wallet lifecycle must not rely on shredding.')
     wrapper=(INC/'usr/local/bin/core-vault-bitcoin').read_text()
-    if 'exec /usr/bin/bwrap' not in wrapper or '--ro-bind / /' not in wrapper or '--sync-fd 3' not in wrapper:
+    if 'exec /usr/local/bin/core-vault-media-view -- /usr/bin/bwrap' not in wrapper or '--ro-bind / /' not in wrapper or '--sync-fd 3' not in wrapper:
         raise RuntimeError('Core write confinement or session lock is missing.')
     if ('--bind /run/user/1000 /run/user/1000' in wrapper or
             '--setenv XDG_RUNTIME_DIR /run/core-vault/state/core-runtime' not in wrapper):
@@ -128,7 +129,7 @@ def check():
     if 'def check_core_mounts():' not in runtime or "'--uniq', '--list', '-J'" not in runtime:
         raise RuntimeError('Core mount topology validation is missing.')
     for relative in ('config/package-lists/core-vault.list.chroot','tools/core-vault/manifests/core-vault.list.chroot'):
-        if 'bubblewrap' not in (ROOT/relative).read_text().splitlines():
+        if not {'bubblewrap', 'bindfs', 'fuse3'}.issubset((ROOT/relative).read_text().splitlines()):
             raise RuntimeError('Core filesystem isolation dependency is missing.')
     print('VAULT RAM-ONLY PRIVATE SESSION SOURCE CHECK PASSED')
 
@@ -141,9 +142,11 @@ def iso_check(iso):
             data=subprocess.check_output(['unsquashfs','-no-wildcards','-cat',str(squash),relative],stderr=subprocess.PIPE)
             if data!=(INC/relative).read_bytes():
                 raise RuntimeError('Stale private session payload in ISO: '+relative)
-        isolation=subprocess.check_output(['unsquashfs','-no-wildcards','-cat',str(squash),'usr/bin/bwrap'],stderr=subprocess.PIPE)
-        if not isolation.startswith(b'\x7fELF'):
-            raise RuntimeError('ISO lacks the native Debian bubblewrap executable.')
+        for executable in ('bwrap', 'bindfs', 'fusermount3'):
+            isolation=subprocess.check_output(['unsquashfs','-no-wildcards','-cat',str(squash),
+                                               'usr/bin/'+executable],stderr=subprocess.PIPE)
+            if not isolation.startswith(b'\x7fELF'):
+                raise RuntimeError('ISO lacks a native Debian isolation executable: '+executable)
         links=Path(tmp)/'enabled-mounts'
         required_links=['etc/systemd/system/local-fs.target.wants/'+name for name in ('tmp.mount','var-tmp.mount')]
         subprocess.run(['unsquashfs','-no-progress','-no-wildcards','-d',str(links),str(squash),*required_links],

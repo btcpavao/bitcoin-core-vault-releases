@@ -121,6 +121,21 @@ def set_hidden(values: list[str], run=query, prop=PROP) -> None:
     run(args)
 
 
+def ensure_sidebar_width(run=query) -> None:
+    """Match Node's 320 logical pixel minimum without shrinking a wider choice."""
+    prop = '/last-separator-position'
+    exists = prop in run(['-l']).splitlines()
+    try:
+        width = int(run(['-p', prop]).strip()) if exists else 0
+    except ValueError:
+        raise RuntimeError('Unexpected Thunar sidebar width; settings were not changed.')
+    if width < 320:
+        args = ['-p', prop]
+        if not exists:
+            args.extend(['--create', '--type', 'int'])
+        run([*args, '--set', '320'])
+
+
 def mount_records(text: str) -> list[dict[str, str]]:
     """Parse kernel mount metadata; no mounted directory contents are inspected."""
     def unescape(value: str) -> str:
@@ -310,6 +325,7 @@ def main() -> int:
     home, runtime, config = paths_from_session()
     if args.apply:
         configure(home, runtime, config)
+        ensure_sidebar_width()
     else:
         check(home, runtime, config)
     print('VAULT FILE PLACES CHECK PASSED')

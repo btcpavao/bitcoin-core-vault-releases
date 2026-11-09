@@ -76,11 +76,15 @@ UDISKIE
 /usr/bin/udiskie --automount --no-notify --no-tray --no-password-prompt \
     --no-file-manager >"$XDG_RUNTIME_DIR/core-vault-udiskie.log" 2>&1 &
 MEDIA_PID=$!
+# Keep Qt Places current when media is inserted or removed after app startup.
+/usr/local/bin/core-vault-core-file-dialogs --watch \
+    >>"$XDG_RUNTIME_DIR/core-vault-core-file-dialogs.log" 2>&1 &
+PLACES_PID=$!
 HOME_PID=
 PANEL_PID=
 OPENBOX_PID=
 cleanup() {
-    for pid in "$HOME_PID" "$PANEL_PID" "$OPENBOX_PID" "$MEDIA_PID"; do
+    for pid in "$HOME_PID" "$PANEL_PID" "$OPENBOX_PID" "$MEDIA_PID" "$PLACES_PID"; do
         [ -z "$pid" ] || kill "$pid" 2>/dev/null || true
     done
 }
