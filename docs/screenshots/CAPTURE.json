@@ -1,0 +1,28 @@
+{
+  "product": "Bitcoin Core Vault",
+  "release": "v0.4.0",
+  "capture_date": "2026-11-09",
+  "iso_sha256": "7320f3e3cb1c906d5cfbe701c2e9fb1cce95e0488283ac82ef6415d9498ac864",
+  "session": "Live RAM session booted from the published ISO",
+  "method": "Unaltered QEMU display capture; PNG originals. Website previews use lossless WebP.",
+  "images": [
+    {
+      "file": "home.png",
+      "sha256": "8408fbde5915af5e2f598fa57794b0912ec744f37427f77b2dac63c52e4abf2f",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "file": "backup.png",
+      "sha256": "1e9718b97d40fec91cba23cc73e44aaa3368b0539fbed4ca000653b91c01d362",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "file": "guide.png",
+      "sha256": "626f215b0a6c0a135f0d64856edb5959f314b3dd33c829877e5a8a0d234ee913",
+      "width": 1280,
+      "height": 800
+    }
+  ]
+}

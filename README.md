@@ -23,6 +23,30 @@ See the [exact-image release notes](docs/RELEASE-v0.4.0.md). This project is
 independently developed and has not been independently security audited;
 building from source has not been shown to be byte-for-byte reproducible.
 
+## Screenshots
+
+Actual Bitcoin Core Vault v0.4.0 interface, captured at 1280 × 800 in a demonstration session. No personal wallets, credentials or funds are shown. Open an image to see it at full size.
+
+### Offline workspace
+
+![image: Offline workspace](docs/screenshots/home.png)
+
+Wallet tools, encrypted backups and recovery in one place.
+
+### Create Encrypted Backup
+
+![image: Create Encrypted Backup](docs/screenshots/backup.png)
+
+The native backup interface with empty passphrase fields. The demonstration wallet is unfunded.
+
+### Vault Guide
+
+![image: Vault Guide](docs/screenshots/guide.png)
+
+Built-in guidance for wallet protection and recovery.
+
+[Capture details](docs/screenshots/CAPTURE.json) · [Website gallery](https://btcpavao.com/en/bitcoin-core/debian-images/#vault)
+
 ## Use Vault
 
 The boot configuration provides **Start Bitcoin Core Vault (Live RAM)** and
