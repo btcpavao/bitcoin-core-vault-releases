@@ -27,7 +27,7 @@ if args.self_test:
 if args.assets and not (args.preview or args.self_test):
     parser.error('--assets is only permitted for preview/self-test')
 
-from PySide6.QtCore import Qt, QSize, QTimer, QRect, QRectF, QPoint
+from PySide6.QtCore import Qt, QSize, QTimer, QRect, QRectF, QPoint, QThread, Signal, Slot
 from PySide6.QtGui import QFont, QIcon, QPixmap, QImage, QPainter
 from PySide6.QtWidgets import (
     QApplication, QFrame, QGridLayout, QHBoxLayout, QLabel, QMessageBox,
@@ -39,6 +39,8 @@ from PySide6.QtWidgets import QAbstractButton, QScrollBar
 
 ASSETS = args.assets or Path('/usr/share/core-vault')
 PRIVATE = Path.home() / 'Private Workspace'
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'lib/core-vault'))
+from ram_notice import NOTICE, UNCERTAIN, session_files
 TITLE = 'Bitcoin Core Vault'
 VERSION = 'home-suite-v1'
 HOVER_DELAY_MS = 800
@@ -341,6 +343,17 @@ class HintButton(QPushButton):
         super().mousePressEvent(event)
 
 
+class RamNoticeWorker(QThread):
+    received = Signal(str)
+
+    def run(self):
+        try:
+            result = session_files()
+        except Exception:
+            result = 'unknown'  # Never log wallet paths or treat a failure as empty.
+        self.received.emit(result)
+
+
 class VaultHome(QWidget):
     def __init__(self):
         super().__init__()
@@ -357,10 +370,15 @@ class VaultHome(QWidget):
         self.cards = []
         self._layout_key = None
         self._test_size = None
+        self.notice_job = None
+        self.notice_position_timer = QTimer(self)
+        self.notice_position_timer.setSingleShot(True)
+        self.notice_position_timer.timeout.connect(self.position_ram_notice)
         self.screen_ref = QApplication.primaryScreen()
         if self.screen_ref is None:
             raise RuntimeError('No graphical screen is available')
         self.build_ui()
+        self.build_ram_notice()
         self.build_hover_popup()
         self.screen_ref.geometryChanged.connect(self.fit_screen)
         self.screen_ref.availableGeometryChanged.connect(self.fit_screen)
@@ -371,6 +389,14 @@ class VaultHome(QWidget):
 
         self._background_action = None
         QApplication.instance().installEventFilter(self)
+        self.notice_timer = QTimer(self)
+        self.notice_timer.setInterval(1500)
+        self.notice_timer.timeout.connect(self.poll_ram_notice)
+        QApplication.instance().aboutToQuit.connect(self.stop_ram_notice)
+        if not (args.preview or args.self_test):
+            self.notice_timer.start()
+            QTimer.singleShot(0, lambda: self.poll_ram_notice()
+                              if self.notice_timer.isActive() else None)
 
     def build_ui(self):
         self.outer = QVBoxLayout(self)
@@ -467,8 +493,8 @@ class VaultHome(QWidget):
         credit = QVBoxLayout(self.credit_box)
         credit.setContentsMargins(0, 0, 0, 0)
         credit.setSpacing(2)
-        credit.addWidget(image_label(ASSETS / 'debian-ui.png', (20, 26)),
-                         alignment=Qt.AlignCenter)
+        self.debian_logo = image_label(ASSETS / 'debian-ui.png', (20, 26))
+        credit.addWidget(self.debian_logo, alignment=Qt.AlignCenter)
         caption = QLabel('Powered by Debian GNU/Linux')
         caption.setObjectName('Credit')
         caption.setAlignment(Qt.AlignCenter)
@@ -514,6 +540,88 @@ class VaultHome(QWidget):
         power.addWidget(self.shutdown_button)
         footer.addWidget(power_box, 0, Qt.AlignVCenter)
         self.outer.addWidget(self.footer)
+
+    def build_ram_notice(self):
+        # Reserve room even while hidden, so showing the reminder cannot move
+        # the launchers and the 800x600 layout cannot cover the Debian credit.
+        self.ram_notice_slot = QWidget()
+        self.ram_notice_slot.setStyleSheet('background:transparent;')
+        self.ram_notice_slot.setFixedHeight(88)
+        self.body_layout.insertWidget(self.body_layout.indexOf(self.grid_wrap) + 1,
+                                      self.ram_notice_slot)
+        self.ram_notice_state = 'checking'
+        self.ram_notice = QLabel(NOTICE, self)
+        self.ram_notice.setObjectName('PrivateRamReminder')
+        self.ram_notice.setWordWrap(True)
+        self.ram_notice.setAlignment(Qt.AlignCenter)
+        self.ram_notice.setTextFormat(Qt.PlainText)
+        self.ram_notice.setAccessibleName('Temporary RAM files reminder')
+        self.ram_notice.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+        self.ram_notice.setStyleSheet('background:transparent;color:#f2f2f2;font-style:italic;font-size:14px;')
+        self.ram_notice.hide()
+
+    def poll_ram_notice(self):
+        if self.notice_job is not None:
+            return
+        job = RamNoticeWorker(self)
+        self.notice_job = job
+        job.received.connect(self.update_ram_notice)
+        job.finished.connect(self.notice_finished)
+        job.start()
+
+    @Slot(str)
+    def update_ram_notice(self, result):
+        self.ram_notice_state = result
+        self.ram_notice.setText(NOTICE if result == 'files' else UNCERTAIN)
+        self.ram_notice.setVisible(result != 'empty')
+        self.queue_ram_notice_position()
+
+    @Slot()
+    def notice_finished(self):
+        job = self.notice_job
+        self.notice_job = None
+        if job is not None:
+            job.deleteLater()
+
+    @Slot()
+    def stop_ram_notice(self):
+        self.notice_timer.stop()
+        if self.notice_job is not None:
+            self.notice_job.wait()  # Metadata scan has its own time/entry bounds.
+
+    def queue_ram_notice_position(self):
+        timer = getattr(self, 'notice_position_timer', None)
+        if timer is not None and not timer.isActive():
+            timer.start(0)
+
+    def position_ram_notice(self):
+        if not hasattr(self, 'ram_notice') or not self.cards:
+            return
+        self.body_layout.activate(); self.grid.activate()
+        self.footer.layout().activate(); self.credit_box.layout().activate()
+        width = min(620, max(300, self.width() - 60))
+        size = 14 if getattr(self, '_home_density', 0) == 0 else 12
+        style = f'background:transparent;color:#f2f2f2;font-style:italic;font-size:{size}px;'
+        if self.ram_notice.styleSheet() != style:
+            self.ram_notice.setStyleSheet(style)
+        self.ram_notice.ensurePolished()
+        self.ram_notice.setFixedWidth(width)
+        height = max(self.ram_notice.minimumSizeHint().height(), self.ram_notice.heightForWidth(width))
+        self.ram_notice.setFixedHeight(height)
+        bottoms = [card.mapTo(self, QPoint(0, card.height())).y()
+                   for card in self.cards if not card.isHidden()]
+        if not bottoms:
+            return
+        top = max(bottoms)
+        bottom = self.debian_logo.mapTo(self, QPoint()).y()
+        self.ram_notice.move((self.width() - width) // 2, round((top + bottom - height) / 2))
+        if not self.ram_notice.isHidden():
+            self.ram_notice.raise_()
+        geometry = (self.ram_notice_state, not self.ram_notice.isHidden(),
+                    self.ram_notice.x(), self.ram_notice.y(), width, height, top, bottom)
+        if getattr(self, '_last_notice_geometry', None) != geometry:
+            self._last_notice_geometry = geometry
+            self.write_geometry()
 
     def build_hover_popup(self):
         self.hover_popup = QFrame(self)
@@ -624,6 +732,7 @@ class VaultHome(QWidget):
                          for name in ('activity_text', 'status') if hasattr(self, name))
         key = (viewport.width(), viewport.height(), len(self.cards), feedback)
         if key == self._layout_key:
+            self.queue_ram_notice_position()
             return
         self._layout_key = key
         self.hide_card_help()
@@ -687,6 +796,7 @@ class VaultHome(QWidget):
                                    self.grid_wrap.height() + 2 * vertical_margin)
         self.body_layout.invalidate()
         QTimer.singleShot(0, self.write_geometry)
+        self.queue_ram_notice_position()
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -711,6 +821,11 @@ class VaultHome(QWidget):
                'card_sizes': [[c.width(), c.height()] for c in self.cards],
                'card_titles': [c.tool['title'] for c in self.cards]}
         obj['window_behavior'] = 'background-click-v1.2'
+        if hasattr(self, 'ram_notice'):
+            # Only display state and rectangles; never filenames or file counts.
+            obj['private_ram_notice'] = dict(state=self.ram_notice_state,
+                visible=not self.ram_notice.isHidden(), rect=rect(self.ram_notice.geometry()),
+                debian_logo_top=self.debian_logo.mapTo(self, QPoint()).y())
         obj['card_rects'] = [
             [c.mapTo(self, QPoint(0, 0)).x(), c.mapTo(self, QPoint(0, 0)).y(),
              c.width(), c.height()] for c in self.cards]
@@ -821,6 +936,11 @@ class VaultHome(QWidget):
             print('Vault background click:', exc, file=sys.stderr)
 
     def eventFilter(self, watched, event):
+        # Match the Node's centering after taskbar/work-area and layout changes.
+        boundaries = ('body', 'grid_wrap', 'footer', 'credit_box', 'debian_logo')
+        if (event.type() in (QEvent.Move, QEvent.Resize, QEvent.Show, QEvent.Hide, QEvent.LayoutRequest)
+                and any(watched is getattr(self, name, None) for name in boundaries)):
+            self.queue_ram_notice_position()
         if watched is self.body and event.type() == QEvent.LayoutRequest:
             QTimer.singleShot(0, self.layout_cards)
         if (event.type() == QEvent.MouseButtonPress
