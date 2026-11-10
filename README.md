@@ -23,6 +23,30 @@ See the [exact-image release notes](docs/RELEASE-v0.4.0.md). This project is
 independently developed and has not been independently security audited;
 building from source has not been shown to be byte-for-byte reproducible.
 
+## Screenshots
+
+Actual Bitcoin Core Vault v0.4.0 interface, captured at 1280 × 800 in a demonstration session. No personal wallets, credentials or funds are shown. Open an image to see it at full size.
+
+### Offline workspace
+
+![image: Offline workspace](docs/screenshots/home.png)
+
+Wallet tools, encrypted backups and recovery in one place.
+
+### Create Encrypted Backup
+
+![image: Create Encrypted Backup](docs/screenshots/backup.png)
+
+The native backup interface with empty passphrase fields. The demonstration wallet is unfunded.
+
+### Vault Guide
+
+![image: Vault Guide](docs/screenshots/guide.png)
+
+Built-in guidance for wallet protection and recovery.
+
+[Capture details](docs/screenshots/CAPTURE.json) · [Website gallery](https://btcpavao.com/en/bitcoin-core/debian-images/#vault)
+
 ## Use Vault
 
 The boot configuration provides **Start Bitcoin Core Vault (Live RAM)** and
@@ -153,18 +177,16 @@ successful boot, installation or recovery.
 
 ## Release verification and status
 
-The public [v0.3.0 release](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/tag/v0.4.0)
-provides `bitcoin-core-vault-v0.3.0-core32.1-amd64.iso` and a `SHA256SUMS`
-file. The image has exactly **795,148,288 bytes** and SHA-256:
+The [v0.4.0 release](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/tag/v0.4.0)
+provides `bitcoin-core-vault-v0.4.0-core32.1-amd64.iso` and `SHA256SUMS`.
+The image has exactly **769,654,784 bytes** and SHA-256:
 
 ```text
-26a1cb255db3cd48b5427a87c6692cb2cfce94bb249207acac90ea7e4f4bb047
+7320f3e3cb1c906d5cfbe701c2e9fb1cce95e0488283ac82ef6415d9498ac864
 ```
 
-On 2026-11-04, btcpavao added a detached OpenPGP signature and public key
-to the existing release. Download `SHA256SUMS.asc` and `btcpavao-pgp.asc` alongside `SHA256SUMS` and the release files.
-
-The Ed25519 primary key fingerprint is:
+Download `SHA256SUMS.asc` and `btcpavao-pgp.asc` alongside `SHA256SUMS`
+and the ISO. The maintainer's Ed25519 primary key fingerprint is:
 
 ```text
 787A 2AAF B0D1 19CA 0522 B2A5 B9C9 9AF8 5788 96D0
@@ -172,29 +194,34 @@ The Ed25519 primary key fingerprint is:
 
 Inspect the downloaded key with `gpg --show-keys --fingerprint btcpavao-pgp.asc`
 and compare its full fingerprint with a value you trust before importing it.
-The fingerprint and public key are also published at
-[btcpavao.com/pgp.txt](https://btcpavao.com/pgp.txt).
+The public key is also published at [btcpavao.com/pgp.txt](https://btcpavao.com/pgp.txt).
 After confirming the fingerprint, run from the download directory:
 
 ```bash
 gpg --import btcpavao-pgp.asc &&
 gpg --verify SHA256SUMS.asc SHA256SUMS &&
-sha256sum -c SHA256SUMS
+sha256sum --ignore-missing --check SHA256SUMS
 ```
 
-On macOS, use `shasum -a 256 -c SHA256SUMS` for the last command.
-The signature must validate for the full fingerprint above, and each release
-file must report `OK`. The signature authenticates the checksum list;
+The signature must validate for the full fingerprint above and the ISO must
+report `OK`. `--ignore-missing` permits downloading the ISO without the optional
+source and evidence bundles. The signature authenticates the checksum list;
 it does not establish independent security review or reproducibility.
 
-The user confirmed successful installation on ThinkPad T530 on Nov 2, 2026.
-The same exact ISO passes BIOS/USB disk-selection tests with SATA and VirtIO
-drives and package integrity and critical ownership checks. The test record
-does **not** certify every installed-mode reboot, wallet recovery, hardware
-configuration or the absence of security vulnerabilities. See the
-[release notes](docs/RELEASE-v0.4.0.md).
-Earlier [v0.2.0](https://github.com/btcpavao/bitcoin-core-vault/releases/tag/v0.2.0)
-release evidence remains historical, not a certification of v0.3.0.
+`ACCEPTANCE.json` records the exact-image test scope: BIOS Live operation,
+UEFI Live boot and installation, installed operation, native backup and recovery,
+synthetic recovered-wallet signing, Finish controls, restart checks and test-marker
+scans on virtual disks. The QA evidence bundle includes release-specific adapters
+for the current GPG backup and Finish interfaces, their hashes and preserved failed
+attempts. Older probes in the source snapshot target the previous interface;
+use the accompanying adapters to inspect this release's recorded tests.
+
+USB optical-reader discovery and Brasero startup were tested with emulated
+hardware. **Writing to a physical external DVD burner has not been verified.**
+The image includes `core-vault-optical-diagnostics` for collecting read-only
+information about a specific drive. See the [release notes](docs/RELEASE-v0.4.0.md)
+for the remaining scope and limitations. Previous physical-machine reports apply
+to their original releases, not automatically to this ISO.
 
 ## Source and licenses
 
