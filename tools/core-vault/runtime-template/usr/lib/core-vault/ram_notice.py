@@ -59,6 +59,8 @@ def _ignored(parts, scope, is_dir):
     if scope == 'home':
         if parts[0] in ('.config', '.cache'):
             return True
+        if parts[:2] == ('.dbus', 'session-bus'):
+            return True  # Desktop bus-address cache, not a saved document.
         if len(parts) == 1 and not is_dir and parts[0] in HOME_DEFAULTS:
             return True
         if parts[:2] == ('.local', 'state'):

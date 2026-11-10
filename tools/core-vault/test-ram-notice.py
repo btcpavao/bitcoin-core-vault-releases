@@ -30,7 +30,7 @@ class Detection(unittest.TestCase):
   p=self.make('Private Workspace/empty.txt');p.chmod(0o000)
   self.assertEqual(self.scan(),'files');p.chmod(0o600)
  def test_automatic_core_and_desktop_metadata_are_excluded(self):
-  for name in ('.profile','.bashrc','.Xauthority','.xsession-errors','.config/Bitcoin/Bitcoin-Qt.conf','.cache/thumbnails/thumb.png','.local/state/session.json','.bitcoin/debug.log','.bitcoin/settings.json','.bitcoin/.cookie','.bitcoin/peers.dat','.bitcoin/blocks/index/CURRENT','.bitcoin/chainstate/CURRENT'):
+  for name in ('.dbus/session-bus/test-display','.profile','.bashrc','.Xauthority','.xsession-errors','.config/Bitcoin/Bitcoin-Qt.conf','.cache/thumbnails/thumb.png','.local/state/session.json','.bitcoin/debug.log','.bitcoin/settings.json','.bitcoin/.cookie','.bitcoin/peers.dat','.bitcoin/blocks/index/CURRENT','.bitcoin/chainstate/CURRENT'):
    self.make(name)
   self.assertEqual(self.scan(),'empty')
   self.make('.bitcoin/wallets/test/wallet.dat');self.assertEqual(self.scan(),'files')
