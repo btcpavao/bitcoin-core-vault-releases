@@ -121,6 +121,26 @@
       "uid": 0,
       "gid": 997,
       "mode": "drwx-wx--T"
+    },
+    "etc/core-vault/installer-payload.json": {
+      "uid": 0,
+      "gid": 0,
+      "mode": "-rw-r--r--"
+    },
+    "usr/lib/core-vault/guide_visuals.py": {
+      "uid": 0,
+      "gid": 0,
+      "mode": "-rw-r--r--"
+    },
+    "usr/lib/core-vault/guide_content.py": {
+      "uid": 0,
+      "gid": 0,
+      "mode": "-rw-r--r--"
+    },
+    "usr/lib/core-vault/ram_notice.py": {
+      "uid": 0,
+      "gid": 0,
+      "mode": "-rw-r--r--"
     }
   },
   "reviewed_updates": [

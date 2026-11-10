@@ -73,8 +73,15 @@ with tempfile.TemporaryDirectory(prefix='vault-installer-iso-') as td:
             any(part in ('','..','.') for part in name.split('/')) or
             not isinstance(digest,str) or not re.fullmatch(r'[0-9a-f]{64}',digest)):
             raise RuntimeError('Invalid installer payload manifest record.')
-    for name in ('usr/bin/bwrap','usr/local/libexec/core-vault-core-session'):
-        if name not in files: raise RuntimeError('Installer manifest omits Core isolation: '+name)
+    required={'usr/bin/bwrap','usr/local/libexec/core-vault-core-session',
+        'usr/local/bin/core-vault-home','usr/local/bin/core-vault-guide'}
+    # Every shipped Vault helper must be covered, including newly split Guide
+    # text and the RAM reminder. Outer ISO checksums cannot validate this inner
+    # manifest: a local remaster must rebuild it from its final reviewed tree.
+    required.update(p.relative_to(root/'config/includes.chroot').as_posix()
+        for p in (root/'config/includes.chroot/usr/lib/core-vault').glob('*.py'))
+    for name in sorted(required):
+        if name not in files: raise RuntimeError('Installer manifest omits runtime dependency: '+name)
     payload=d/'installed-payload'
     subprocess.run(['unsquashfs','-no-progress','-no-wildcards','-d',str(payload),
                     str(d/'root.squashfs'),*files],check=True,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
@@ -87,6 +94,7 @@ with tempfile.TemporaryDirectory(prefix='vault-installer-iso-') as td:
         source=root/'config/includes.chroot'/name
         if source.is_file() and not source.is_symlink() and path.read_bytes()!=source.read_bytes():
             raise RuntimeError('ISO installer payload differs from current source: '+name)
+    print('VAULT INSTALLER PAYLOAD SHA256 CHECK PASSED ('+str(len(files))+' files)')
     if b'corevault@verify' not in cat('etc/calamares/settings.conf'):
         raise RuntimeError('Installed verification job is missing.')
     print('VAULT CALAMARES STAGED ELF ISO CHECK PASSED ('+str(len(expected_elf))+' files)')

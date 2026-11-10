@@ -54,6 +54,7 @@ for d in ('/usr/share/core-vault','/usr/share/themes/CoreVault','/usr/share/plym
     paths.update(Path(d).rglob('*'))
 required=('/usr/bin/bwrap','/usr/local/libexec/core-vault-core-session',
     '/usr/lib/core-vault/guide_visuals.py',
+    '/usr/lib/core-vault/guide_content.py','/usr/lib/core-vault/ram_notice.py',
     '/usr/bin/shred','/usr/lib/core-vault-shred/engine.py',
     '/usr/local/bin/core-vault-shred','/usr/local/bin/core-vault-core-file-dialogs',
     '/usr/share/core-vault/shred-policy.json',
