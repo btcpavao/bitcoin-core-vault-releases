@@ -28,8 +28,15 @@ def main():
     ap=argparse.ArgumentParser(description=__doc__);ap.add_argument('--project',type=Path,default=Path(__file__).resolve().parents[2]);root=ap.parse_args().project.resolve()
     active=root/'config/includes.chroot';template=root/'tools/core-vault/runtime-template'
     rels=['usr/local/bin/core-vault-home','usr/share/core-vault/openbox.xml','usr/local/bin/core-vault-guide']
-    for rel in rels:assert (active/rel).read_bytes()==(template/rel).read_bytes(),'Keyboard runtime/template mismatch: '+rel
-    for base in (active,template):check_home_keyboard(*[(base/rel).read_text() for rel in rels])
+    guide_modules=['usr/lib/core-vault/guide_content.py','usr/lib/core-vault/guide_visuals.py']
+    for rel in rels + guide_modules:
+        assert (active/rel).read_bytes()==(template/rel).read_bytes(),'Keyboard runtime/template mismatch: '+rel
+    for base in (active,template):
+        home, config, guide = [(base/rel).read_text() for rel in rels]
+        # The updated Guide keeps keyboard instructions in imported modules,
+        # not in the thin launcher; inspect all packaged Guide source files.
+        guide += '\n' + '\n'.join((base/rel).read_text() for rel in guide_modules)
+        check_home_keyboard(home,config,guide)
     print('VAULT HOME KEYBOARD ENTRY + GUARDED CANCEL SOURCE CHECK PASSED')
 
 if __name__=='__main__':main()
