@@ -36,7 +36,7 @@ def main():
     guide = load_source(root / 'config/includes.chroot/usr/local/bin/core-vault-guide')
     app.setFont(guide.UI_FONT)
     assert set(guide.SECTIONS) == set(guide.VISUALS) == set(guide.SECTION_ICONS), 'Every chapter needs an illustration and icon'
-    assert len(guide.SECTIONS) == 19, 'Preserve every Vault chapter'
+    assert len(guide.SECTIONS) == 21, 'Preserve existing chapters plus tutorial and component plan'
     for relative in ('usr/local/bin/core-vault-guide', 'usr/lib/core-vault/guide_visuals.py'):
         assert (root / 'config/includes.chroot' / relative).read_bytes() == (root / 'tools/core-vault/runtime-template' / relative).read_bytes()
     license_root = root / 'config/includes.chroot/usr/share/core-vault/licenses/elementary-xfce'
@@ -55,8 +55,8 @@ def main():
     assert 'USB Media' in guide.SECTIONS['Files'] and 'read-only' in guide.SECTIONS['Files']
     assert 'core-vault-optical-diagnostics' in guide.SECTIONS['Brasero']
     assert 'does not read files from the disc or test burning' in guide.SECTIONS['Brasero']
-    assert 'single supported wallet.dat is encrypted directly' in guide.SECTIONS['Encryption security levels']
-    assert 'AES-256 CFB with MDC integrity protection' in guide.SECTIONS['Encryption security levels']
+    assert 'single supported wallet.dat is encrypted directly' in guide.SECTIONS['Files']
+    assert 'AES-256 CFB with MDC integrity protection' in guide.SECTIONS['How to choose a passphrase']
     assert 'There is no TAR extraction for this direct-wallet format' in guide.SECTIONS['Recovery / inheritance']
     assert 'Vault backups always use a standard TAR package' not in ''.join(guide.SECTIONS.values())
     assert 'a complete wallet.dat or a TAR package' in guide.VISUALS['Decrypt Backup'][2]
@@ -97,7 +97,7 @@ def main():
             resource = window.viewer.document().resource(
                 QTextDocument.ResourceType.ImageResource, QUrl('vault-guide:illustration'))
             assert resource is not None and not resource.isNull(), (section, 'missing illustration')
-            assert window.demo.isVisible() == (section == 'Encryption security levels')
+            assert window.demo.isVisible() == (section == 'Backup components & storage')
             if output and width == 1366:
                 slug = section.lower().replace(' / ', '-').replace(' & ', '-').replace(' ', '-')
                 window.grab().save(str(output / (slug + '.png')))
@@ -110,7 +110,7 @@ def main():
                 'Brasero': ('If an external writer is missing', 'brasero-troubleshooting'),
                 'Recovery / inheritance': ('Example: two-layer single-wallet backup', 'recovery-direct-wallet'),
                 'Files': ('The same Places in your applications', 'files-shared-sidebar'),
-                'Encryption security levels': ('One GPG layer', 'encryption-current-format'),
+                'How to choose a passphrase': ('Brute force', 'passphrase-cost-model'),
             }
             if output and width in (800, 1366) and section in focus:
                 phrase, label = focus[section]
@@ -121,14 +121,14 @@ def main():
                 window.viewer.moveCursor(QTextCursor.MoveOperation.Start)
                 window.viewer.verticalScrollBar().setValue(0)
             records.append({'viewport':[width,height], 'section':section, 'status':'PASS'})
-        row = list(guide.SECTIONS).index('Encryption security levels')
+        row = list(guide.SECTIONS).index('Backup components & storage')
         window.nav.setCurrentRow(row)
         settle()
         for count in (3, 2, 1):
             window.layer_buttons.button(count).click()
             settle()
             assert window.layer_count == count and window.layer_buttons.checkedId() == count
-            assert window.current_svg.count('GPG layer') == count
+            assert window.current_svg.count('GPG passphrase') == count
             assert window.viewer.horizontalScrollBar().maximum() == 0
             if output and width == 1366 and count == 3:
                 window.grab().save(str(output / 'encryption-three-layers.png'))
@@ -140,7 +140,7 @@ def main():
     if output:
         (output / 'checks.json').write_text(json.dumps(records, indent=2) + '\n')
     window.close()
-    print(f'PASS: {len(guide.SECTIONS)} chapters × 4 sizes, 1/2/3-layer interaction, compact navigation, shared Node icons, current wallet/TAR recovery, readable descriptions, no horizontal overflow')
+    print(f'PASS: {len(guide.SECTIONS)} chapters × 4 sizes, 1/2/3-layer component plans, compact navigation, shared Node icons, current wallet/TAR recovery, readable descriptions, no horizontal overflow')
     print('VAULT GUIDE VISUALS QT CHECK PASSED')
 
 

@@ -59,6 +59,8 @@ from guide_content import SECTIONS
 # license; application chapters use the same installed theme icons as Home.
 ASSETS = Path(__file__).resolve().parents[2] / 'share/core-vault'
 SECTION_ICONS = {
+    'Start here: Vault & Node': ('bitcoin-ui.png', (), QStyle.SP_ComputerIcon),
+    'Backup components & storage': ('icons/settings-chain-backup.png', (), QStyle.SP_DialogSaveButton),
     'Home & keyboard': ('', ('input-keyboard',), QStyle.SP_ComputerIcon),
     'Bitcoin Core': ('bitcoin-ui.png', (), QStyle.SP_ComputerIcon),
     'KeePassXC': ('', ('keepassxc',), QStyle.SP_FileDialogDetailedView),
@@ -71,7 +73,7 @@ SECTION_ICONS = {
     'USB & optical media': ('', ('drive-removable-media-usb', 'drive-removable-media'), QStyle.SP_DriveHDIcon),
     'Create & encrypt a wallet': ('bitcoin-ui.png', (), QStyle.SP_ComputerIcon),
     'Generate a passphrase': ('', ('keepassxc',), QStyle.SP_FileDialogDetailedView),
-    'Encryption security levels': ('icons/decrypt-backup.png', (), QStyle.SP_DriveHDIcon),
+    'How to choose a passphrase': ('icons/decrypt-backup.png', (), QStyle.SP_DriveHDIcon),
     'Backup & verify': ('icons/settings-chain-backup.png', (), QStyle.SP_DialogSaveButton),
     'Finish Private Session': ('icons/system-shutdown.png', (), QStyle.SP_DialogCloseButton),
     'Sign a PSBT offline': ('icons/settings-chain-backup.png', (), QStyle.SP_DialogSaveButton),
@@ -128,7 +130,7 @@ class Guide(QWidget):
         title = QLabel('Vault Guide')
         title.setObjectName('Title')
         outer.addWidget(title)
-        sub = QLabel('Start here: simple words, step-by-step backups and offline wallet care.')
+        sub = QLabel('Create and back up your wallet, connect its public copy to Node, then receive and sign.')
         sub.setObjectName('Subtitle')
         sub.setFont(UI_FONT)
         sub.setWordWrap(True)
@@ -170,7 +172,7 @@ class Guide(QWidget):
         demo_layout = QHBoxLayout(self.demo)
         demo_layout.setContentsMargins(0, 0, 0, 0)
         demo_layout.setSpacing(12)
-        label = QLabel('Illustration:')
+        label = QLabel('GPG layers in your plan:')
         label.setFont(UI_FONT)
         demo_layout.addWidget(label)
         self.layer_buttons = QButtonGroup(self)
@@ -181,7 +183,7 @@ class Guide(QWidget):
             button.setMinimumHeight(40)
             button.setFont(UI_FONT)
             button.setAccessibleName('Illustrate %d GPG layer%s' % (count, '' if count == 1 else 's'))
-            button.setToolTip('Diagram only. Does not open files or perform encryption.')
+            button.setToolTip('Show the file, GPG secrets and Core secret required by this plan. Illustration only; no encryption is performed.')
             self.layer_buttons.addButton(button, count)
             demo_layout.addWidget(button)
         demo_layout.addStretch(1)
@@ -206,7 +208,7 @@ class Guide(QWidget):
         if row < 0:
             return
         self.section_picker.setCurrentIndex(row)
-        self.demo.setVisible(list(SECTIONS)[row] == 'Encryption security levels')
+        self.demo.setVisible(list(SECTIONS)[row] == 'Backup components & storage')
         self._render_timer.start(0)
 
     def choose_layers(self, count):
@@ -267,7 +269,7 @@ class Guide(QWidget):
                   '" height="' + str(height) + '" alt="' + escape(description, quote=True) + '"></p>'
                   '<p style="color:#c4c4c4;margin-bottom:24px">' + escape(description) + '</p>')
         content = source[:split] + figure + source[split:]
-        if section == 'Encryption security levels':
+        if section == 'How to choose a passphrase':
             _, cw, ch, comparison_description, comparison = render_comparison(width, self.devicePixelRatioF())
             self.viewer.document().addResource(QTextDocument.ResourceType.ImageResource,
                 QUrl('vault-guide:comparison'), comparison)

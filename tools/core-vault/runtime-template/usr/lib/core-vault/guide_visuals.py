@@ -15,6 +15,8 @@ FILLS = {'blue': '#142431', 'amber': '#2a2117', 'green': '#17271d',
 
 # Alt text is also shown as selectable text, independent of the illustration.
 VISUALS = {
+    'Start here: Vault & Node': ('workflow', 'From wallet creation to an authorized payment', 'Vault creates and signs offline. Node watches, prepares and broadcasts online. Back up the encrypted file and every required passphrase independently.'),
+    'Backup components & storage': ('components', 'Three component groups; redundant copies of each', 'Recover one encrypted file copy, one GPG-passphrase copy and one Core-passphrase copy. Keep the groups separate. An additional GPG layer adds another required secret group.'),
     'Watch-Only Wallet in Bitcoin Core': ('pairing', 'Public view and private authority',
         'Vault keeps the private keys. Core exports a public watch-only copy into Private Workspace by default. Files copies that export to USB for Restore Wallet on the online node. Compare receiving addresses independently; only Vault signs.'),
     'Home & keyboard': ('keyboard', 'Move around Home with the keyboard',
@@ -41,8 +43,8 @@ VISUALS = {
         'Write a simple inventory and recovery checklist without embedding secrets automatically. The location where you save a document determines whether it remains after the session.'),
     'Terminal': ('terminal', 'Read the command before running it',
         'GPG is the program. For a current one-layer wallet backup, wallet.dat.gpg is the encrypted input and wallet.dat is the recovered output. No TAR step is needed. Enter the passphrase at the prompt and follow the RAM-only recovery instructions.'),
-    'Encryption security levels': ('layers', 'Every extra layer adds a required secret',
-        'A single wallet.dat is encrypted directly; other files and folders first become a standard TAR package. Every GPG layer has an independent required passphrase. Layers do not create Bitcoin multisig or a signing threshold.'),
+    'How to choose a passphrase': ('phrases', 'Four, five or six independently generated words',
+        'Each extra random word multiplies the candidate space by the wordlist size. Six words is the Vault starting recommendation. The word boxes are placeholders, never passphrases to use.'),
     'Backup & verify': ('verify', 'Verify the round trip before relying on a copy',
         'Vault compares full authenticated recovery with the original snapshot, then checks the encrypted copy on the destination. A complete restore and signing drill tests the wider recovery plan.'),
     'Finish Private Session': ('finish', 'Two confirmations, then five minutes to reconsider',
@@ -50,7 +52,7 @@ VISUALS = {
     'Sign a PSBT offline': ('psbt', 'Transaction files travel; private keys do not',
         'An online coordinator prepares a PSBT. Transfer it by removable media to Private Workspace, review and sign in the offline Vault, then return the signed PSBT for online broadcast. A PSBT transfer does not carry private keys.'),
     'Recovery / inheritance': ('recovery', 'Redundancy within groups; every required group available',
-        'This three-layer example needs one usable backup copy plus A, B and C. Copies within a group are alternatives. Each group is still required. Core-encrypted private keys additionally need the separate Core passphrase for signing.'),
+        'The standard plan needs one encrypted file copy, the GPG passphrase and the separate Core passphrase. Copies within a group are alternatives; every group remains necessary. Extra GPG layers add extra secret groups.'),
     'Decrypt Backup': ('decrypt', 'Stop when the original files are recovered',
         'Enter all required passphrases in any order. Vault opens the outer layers and validates either a complete wallet.dat or a TAR package. An original document.gpg inside a package stays encrypted.'),
 }
@@ -225,7 +227,7 @@ def wallet(d, _):
 
 def phrases(d, _):
     y = 1
-    for count in (6, 8):
+    for count in (4, 5, 6):
         y += d.text(0, y, '%d random words' % count, d.width, 20, 'blue', True) + 12
         columns = min(count, 4)
         gap = 10
@@ -386,15 +388,33 @@ def psbt(d, _):
     return d.footer(y + h + 14, 'The PSBT transfer does not contain private keys.', 'green')
 
 
+def components(d, count):
+    count = max(1, min(3, int(count)))
+    groups = [('Encrypted file', 'File copy 1 OR file copy 2. Separate media and locations.', 'green')]
+    for index in range(count):
+        title = 'GPG passphrase' if count == 1 else 'GPG passphrase %d' % (index + 1)
+        groups.append((title, 'Secret copy 1 OR secret copy 2. Separate from every other component group.', 'amber' if index % 2 == 0 else 'purple'))
+    groups.append(('Core passphrase', 'Secret copy 1 OR secret copy 2. Unlocks signing after the file is recovered.', 'blue'))
+    y = 1
+    for title, body, tone in groups:
+        y += d.box(1, y, d.width - 2, title, body, tone) + 18
+    return d.footer(y, 'One usable copy from EVERY group. Extra copies reduce loss risk.', 'green')
+
+
 def recovery(d, _):
+    return components(d, 1)
+
+
+def workflow(d, _):
     y = d.pair(1,
-        ('BACKUP FILE', 'Copy 1  OR  Copy 2\nDifferent media / locations', 'green'),
-        ('SECRET A', 'Copy A1  OR  Copy A2\nIndependent recovery arrangements', 'blue'))
-    y = d.pair(y + 24,
-        ('SECRET B', 'Copy B1  OR  Copy B2\nSeparate from group A', 'purple'),
-        ('SECRET C', 'Copy C1  OR  Copy C2\nSeparate from groups A and B', 'amber'))
-    y = d.footer(y + 12, 'ONE usable backup + A + B + C', 'green')
-    return d.footer(y, 'All groups are required. Extra copies protect against loss.', 'muted')
+        ('OFFLINE VAULT', 'Create wallet and encrypted backup. Keep signing keys offline.', 'amber'),
+        ('ONLINE NODE', 'Import the public watch-only copy. Receive and prepare payments.', 'blue'))
+    y += 20
+    y += d.box(1, y, d.width - 2, 'Public watch-only copy: Vault to Node',
+               'Export in Core; save in Private Workspace; transfer using Files and USB.', 'green') + 20
+    y += d.box(1, y, d.width - 2, 'Payment file: Node to Vault to Node',
+               'Create unsigned PSBT -> review and sign offline -> broadcast online.', 'blue')
+    return d.footer(y + 12, 'Backup file + GPG secret + Core secret: copy each, store separately.', 'muted')
 
 
 def decrypt(d, _):
@@ -421,11 +441,14 @@ def pairing(d, _):
 RENDERERS = {name: value for name, value in globals().copy().items()
              if name in ('keyboard', 'wallet', 'phrases', 'storage', 'media', 'optical',
                          'paper', 'terminal', 'layers', 'verify', 'finish', 'psbt',
-                         'recovery', 'decrypt', 'pairing')}
+                         'recovery', 'decrypt', 'pairing', 'components', 'workflow')}
 
 
 def render_visual(section, width, layer_count=1, scale=1.0):
     kind, title, description = VISUALS[section]
+    if kind == 'components':
+        title = '%d component groups; redundant copies of each' % (layer_count + 2)
+        description = ('One final encrypted file, %d independent GPG passphrase%s and the separate Core passphrase. Keep multiple copies of every component and keep the groups separate.' % (layer_count, '' if layer_count == 1 else 's'))
     drawing = Drawing(max(490, min(960, int(width))))
     height = RENDERERS[kind](drawing, layer_count)
     svg, height = drawing.finish(height)
