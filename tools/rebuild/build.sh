@@ -7,6 +7,7 @@ cd "$root"
 docker_command=(docker)
 if [[ ${1:-} == --sudo-docker ]]; then
     docker_command=(sudo docker)
+    export VAULT_SUDO_DOCKER=1
     shift
 fi
 if (( $# != 1 )); then echo 'Usage: bash tools/rebuild/build.sh [--sudo-docker] NEW_OUTPUT_DIRECTORY' >&2; exit 2; fi
@@ -22,11 +23,16 @@ cleanup() {
 }
 trap cleanup EXIT
 git -c tar.umask=0022 archive --format=tar "$revision" > "$stage/source.tar"
+mkdir "$stage/native"
+for package in calamares thunar; do
+    bash tools/rebuild/compile-package.sh "$package" "$stage/source.tar" "$stage/native/$package"
+done
 # Only committed files enter /work. The container sees no writable host directory.
 container=$("${docker_command[@]}" create --platform linux/amd64 --hostname vault-builder \
     --cap-add SYS_ADMIN --security-opt seccomp=unconfined --security-opt apparmor=unconfined \
     --security-opt systempaths=unconfined --env "VAULT_REVISION=$revision" \
     --mount "type=bind,source=$stage/source.tar,target=/source.tar,readonly" \
+    --mount "type=bind,source=$stage/native,target=/verified-native,readonly" \
     "$BUILDER_IMAGE" /bin/bash -ec \
     'mkdir /work; cd /work; tar --no-same-owner --no-same-permissions -xf /source.tar; exec bash tools/rebuild/inside.sh')
 "${docker_command[@]}" start --attach "$container"

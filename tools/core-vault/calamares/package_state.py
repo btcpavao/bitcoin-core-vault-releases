@@ -1,19 +1,20 @@
 #!/usr/bin/python3
 from pathlib import Path
 import hashlib,json,subprocess
-VERSION='3.3.14-1+corevault4'
-INPUTS=('base_patch.py','patch_calamares_source.py','CoreOfflineGuard.h','package_state.py','visual_polish.py')
+VERSION='3.3.14-1+corevault5'
+INPUTS = (
+    'tools/rebuild/inputs.env', 'tools/rebuild/InRelease.sha256',
+    'tools/rebuild/packages/build.sh', 'tools/rebuild/packages/compiler-entry.sh',
+    'tools/rebuild/compile-package.sh',
+)
+
 
 def digest(root):
-    h=hashlib.sha256()
+    result = hashlib.sha256()
     for name in INPUTS:
-        h.update(name.encode()+b'\0');h.update((root/'tools/core-vault/calamares'/name).read_bytes())
-    h.update((root/'tools/core-vault/prepare-installer.sh').read_bytes())
-    # These exact resources are consumed by the styled native Qt self-test.
-    for name in ('stylesheet.qss','checkmark.svg','checkmark.png','bitcoin.png','debian.png'):
-        path='config/includes.chroot/etc/calamares/branding/core-offline/'+name
-        h.update(path.encode()+b'\0');h.update((root/path).read_bytes())
-    return h.hexdigest()
+        result.update(name.encode() + b'\0')
+        result.update((root / name).read_bytes())
+    return result.hexdigest()
 
 def verify(root):
     work=root/'build-assets/core-vault-calamares-v1'

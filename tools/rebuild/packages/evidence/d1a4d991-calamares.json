@@ -1,0 +1,74 @@
+{
+  "component": "calamares",
+  "comparison": {
+    "whole_deb": {
+      "expected": "2aee74ce7ac20ae2fefe40b3a2c4c196ed79170b97d36b9d4d56976c7a650227",
+      "rebuilt": "be198b02638d1cdb0c7f82fa9917cac3546b2d3dceefee7a7ba62c63f8d5463d",
+      "match": false
+    },
+    "installed_elf": {
+      "expected": "6857eba088eca99fa2ddcb3ec3006fa114d2960708243c32b8a2179f0cf1f7e3",
+      "rebuilt": "73eb490b9cee0614bd47d73699fb17d4e0bd9cfbf9549871e5e78f7461202183",
+      "match": false
+    }
+  },
+  "selected_elf_sections": {
+    ".text": {
+      "expected": "aed806154e051a2051b166bd0295c9b2366b18a51c356b4985de72afbb8b27a3",
+      "rebuilt": "aed806154e051a2051b166bd0295c9b2366b18a51c356b4985de72afbb8b27a3",
+      "match": true
+    },
+    ".rodata": {
+      "expected": "9a6f388a5a51a4b6d66b2ac52379cd8d1ef3469eae6390bcaca9ad741287ef29",
+      "rebuilt": "e6a177041e2658088c1923a769f0b885ecb6b421379f4deffc745998de2d20f7",
+      "match": false
+    },
+    ".data": {
+      "expected": "1027db78eabb36b164bd2566747e4bc0b13c96b9112cc626b5b966a3fe922339",
+      "rebuilt": "1027db78eabb36b164bd2566747e4bc0b13c96b9112cc626b5b966a3fe922339",
+      "match": true
+    },
+    ".note.gnu.build-id": {
+      "expected": "f93ff84089af93108228fe583c8a44f5f9f6f80bdc11fdcf7f62488a7f7bfc0e",
+      "rebuilt": "abb6484de23bf2a059790e93d48e81682dd69b205a9c7320d055eb3af151a282",
+      "match": false
+    }
+  },
+  "full_installed_elf_byte_comparison": {
+    "expected_length": 1923512,
+    "rebuilt_length": 1923696,
+    "differing_bytes": 12103,
+    "gnu_build_id_offset": 896,
+    "gnu_build_id_length": 20,
+    "expected_gnu_build_id": "594206048896ed1cc9f2085821f832e9c9995689",
+    "rebuilt_gnu_build_id": "d42937ab4a3bc48f3f20255cb7cf27a541e514d0",
+    "all_bytes_outside_gnu_build_id_match": false
+  },
+  "source_commit": "d1a4d9917f461572a9a259ab29502bf549dbc4cd",
+  "first_job": "https://github.com/btcpavao/bitcoin-core-vault-releases/actions/runs/43010134280/job/130487362704",
+  "second_job": "https://github.com/btcpavao/bitcoin-core-vault-releases/actions/runs/43010134280/job/130487362363",
+  "both_rebuilders_reported_same_deb_and_elf_hashes": true,
+  "zip_artifact_used_for_byte_comparison": {
+    "id": 13851340201,
+    "sha256": "fce9d75e35c9cf5983f0bf2c362d63e1b1f74a02019197f6edf7cb107077bf28"
+  },
+  "manual_payload_inspection": {
+    "paths_in_each_extracted_tree": 570,
+    "changed_paths": 42,
+    "elf_files": 40,
+    "elf_text_matches": 40,
+    "elf_files_with_whole_file_differences": 40,
+    "main_rodata_differing_bytes": 12,
+    "historical_qt_resource_timestamps_ms": 1793113241000,
+    "rebuilt_qt_resource_timestamps_ms": 1794268800000,
+    "historical_main_DT_RUNPATH": "/root/node-display/calamares-build/calamares-3.3.14/obj-x86_64-linux-gnu:",
+    "rebuilt_main_DT_RUNPATH": null,
+    "main_DT_NEEDED_entries_match": true,
+    "changed_non_elf_files": [
+      "usr/share/calamares/branding/default/languages.png",
+      "usr/share/doc/calamares/changelog.Debian.gz"
+    ],
+    "languages_png_pixels_identical": true,
+    "changed_png_chunk": "tIME"
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "component": "thunar",
+  "comparison": {
+    "whole_deb": {
+      "expected": "1cf16b20f4b72e9bf0c4cee76630e51d72bf3026057269df193d724a29f7cbf5",
+      "rebuilt": "90d505dd6dc50c2d4b0db180c79be0e0b483b33c1fa85a924133206f32b3c6ed",
+      "match": false
+    },
+    "installed_elf": {
+      "expected": "ae317acc943003bf3736f5e4206f536d67bc0a74184327be1dd3e1db703b4378",
+      "rebuilt": "b447268cb1bd0e7ef09cb190c790555a59e85a8f5dc13f19f8d40fae65056ad6",
+      "match": false
+    }
+  },
+  "selected_elf_sections": {
+    ".text": {
+      "expected": "2e88ddefd1cbaa8f1d5234dfe3f3e9ceb6e924398201f347989725fc8a1ba918",
+      "rebuilt": "2e88ddefd1cbaa8f1d5234dfe3f3e9ceb6e924398201f347989725fc8a1ba918",
+      "match": true
+    },
+    ".rodata": {
+      "expected": "be8bc631191c2225ac43a55e36876f60949524a742c8422aba317b281d1e0259",
+      "rebuilt": "be8bc631191c2225ac43a55e36876f60949524a742c8422aba317b281d1e0259",
+      "match": true
+    },
+    ".data": {
+      "expected": "aaa16a0074bd660f04e0bdb35e38aeb021526d6def441605ee917089468d8641",
+      "rebuilt": "aaa16a0074bd660f04e0bdb35e38aeb021526d6def441605ee917089468d8641",
+      "match": true
+    },
+    ".note.gnu.build-id": {
+      "expected": "0d4dbf2e31fade804510e9183a8f2b0bb85502ccc6443e66a91391c128101297",
+      "rebuilt": "85b2ca713dd1f3746e80d6cb5676089ddb27156bb83b7f6e6188b2db661a4053",
+      "match": false
+    }
+  },
+  "full_installed_elf_byte_comparison": {
+    "expected_length": 1002336,
+    "rebuilt_length": 1002336,
+    "differing_bytes": 20,
+    "gnu_build_id_offset": 896,
+    "gnu_build_id_length": 20,
+    "expected_gnu_build_id": "f51b572ac22b992e4622310fe04a4393732b92d2",
+    "rebuilt_gnu_build_id": "bcfa8965d31b4f2bf5bb4229ded66fe48ca6f8de",
+    "all_bytes_outside_gnu_build_id_match": true
+  },
+  "source_commit": "d1a4d9917f461572a9a259ab29502bf549dbc4cd",
+  "first_job": "https://github.com/btcpavao/bitcoin-core-vault-releases/actions/runs/43010134280/job/130487362823",
+  "second_job": "https://github.com/btcpavao/bitcoin-core-vault-releases/actions/runs/43010134280/job/130487363036",
+  "both_rebuilders_reported_same_deb_and_elf_hashes": true,
+  "zip_artifact_used_for_byte_comparison": {
+    "id": 13851200089,
+    "sha256": "bc54b1116f5501407c5b52cad06d1929b33cc1656ce892608474fa691b00a5ea"
+  }
+}

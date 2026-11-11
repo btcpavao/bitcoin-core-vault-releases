@@ -1,8 +1,7 @@
-name: Rebuild and compare Vault ISOs
+name: Rebuild Vault with native sources and test UEFI installation
 on:
   push:
-    branches: ['build/reproducible-vault']
-    tags: ['v*']
+    branches: ['build/native-source-vault']
   workflow_dispatch:
 
 permissions:
@@ -80,3 +79,44 @@ jobs:
           name: vault-differences-${{ github.sha }}
           path: '*-differences.txt'
           if-no-files-found: ignore
+
+  install:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: vault-first-${{ github.sha }}
+          path: ${{ runner.temp }}/candidate
+      - name: Install the exact candidate in an isolated UEFI virtual disk
+        run: |
+          set -euo pipefail
+          sudo apt-get -qq update
+          sudo apt-get install -y --no-install-recommends qemu-system-x86 qemu-utils ovmf mtools python3-pil tesseract-ocr tesseract-ocr-eng
+          cd "$RUNNER_TEMP/candidate"
+          sha256sum --check SHA256SUMS
+          iso="$PWD/bitcoin-core-vault-amd64.iso"
+          sha=$(sha256sum "$iso" | cut -d' ' -f1)
+          curl --fail --silent --show-error --location --retry 3 \
+            https://github.com/btcpavao/bitcoin-core-vault-releases/releases/download/v0.4.0/bitcoin-core-vault-v0.4.0-qa-evidence.tar.gz -o harness.tar.gz
+          echo '6c0fb72d6a29a8cbf7fbeef3a6677e208df3d064bd470c793e27c1b2d2e6071e  harness.tar.gz' | sha256sum --check
+          tar -xzf harness.tar.gz bitcoin-core-vault-v0.4.0-qa/qa-adapted/tools/core-vault
+          harness="$PWD/bitcoin-core-vault-v0.4.0-qa/qa-adapted/tools/core-vault/ci-vm-acceptance.py"
+          accel=tcg
+          if [[ -c /dev/kvm && -r /dev/kvm && -w /dev/kvm ]]; then accel=kvm; fi
+          /usr/bin/python3 "$harness" --iso "$iso" --sha256 "$sha" \
+            --firmware uefi --accel "$accel" --install --output "$RUNNER_TEMP/uefi"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: vault-uefi-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/uefi/**/*.json
+            ${{ runner.temp }}/uefi/**/*.log
+            ${{ runner.temp }}/uefi/**/*.png
+          retention-days: 7
+          if-no-files-found: warn
