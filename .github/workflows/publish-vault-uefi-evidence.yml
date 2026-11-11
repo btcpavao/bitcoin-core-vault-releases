@@ -1,0 +1,61 @@
+name: Attach successful UEFI evidence to the existing matched Vault candidate
+on:
+  push:
+    branches: ['test/publish-native-vault-uefi-evidence']
+permissions: {}
+jobs:
+  publish:
+    if: github.repository == 'btcpavao/bitcoin-core-vault-releases' && github.actor == 'btcpavao'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Validate the exact test and append its evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag=native-rebuild-candidate-71242344618b
+          sha=2b8f8fd5225b4b2ccee1d8ccc6847c647cb6f5d2481fa2d9ef94820a13b09ddc
+          api="repos/$GITHUB_REPOSITORY"
+          gh api "$api/actions/runs/43020288189" |
+            jq -e --arg repo "$GITHUB_REPOSITORY" '.status=="completed" and .conclusion=="success" and .head_sha=="3c18603485fb7063659cd274071329fb9ff6d740" and .head_branch=="test/vault-uefi-43015346532" and .head_repository.full_name==$repo and .path==".github/workflows/vault-uefi-repeat.yml"'
+          gh api "$api/actions/runs/43020288189/jobs" |
+            jq -e '[.jobs[]|select(.name=="install" and .id==130521493888 and .conclusion=="success")]|length==1'
+          gh api "$api/actions/runs/43020288189/artifacts" |
+            jq -e '[.artifacts[]|select(.id==13854498232 and .name=="vault-native-uefi-71242344618b" and .expired==false)]|length==1'
+          gh api "$api/actions/artifacts/13854498232/zip" > uefi-acceptance-evidence.zip
+          echo '93f350faf081a0d145aea78a46e40a4fce6514e06b6a3956a6596381772fa1db  uefi-acceptance-evidence.zip' | sha256sum --check
+          unzip -p uefi-acceptance-evidence.zip vm-result.json > uefi-install-and-boot.json
+          echo 'cd201b558879692ff6ff78fbcf7047aa6a4e733e913b89116030d0b03bf2276b  uefi-install-and-boot.json' | sha256sum --check
+          jq -e --arg sha "$sha" '.iso_sha256==$sha and .iso_bytes==714080256 and .status=="passed-covered-checks" and .normal_live_home_boot=="passed" and .installation=="passed" and .installed_boot_and_runtime_probe=="passed" and .stages.installer.genuine_installer_restart=="passed" and ([.stages.live.guest_probe.psbt_signing.status,.stages.installed.guest_probe.psbt_signing.status]==["passed","passed"])' uefi-install-and-boot.json
+          sha256sum uefi-acceptance-evidence.zip uefi-install-and-boot.json > UEFI-ACCEPTANCE.sha256
+          gh api "$api/releases/tags/$tag" > before.json
+          jq -e --arg sha "$sha" '.id==441661516 and .prerelease and (.draft|not) and ([.assets[]|select((.name|endswith(".iso")) and .digest==("sha256:"+$sha))]|length==1)' before.json
+          gh release upload "$tag" --repo "$GITHUB_REPOSITORY" uefi-acceptance-evidence.zip uefi-install-and-boot.json UEFI-ACCEPTANCE.sha256
+          python3 - <<'PY'
+          import json,pathlib
+          obj=json.loads(pathlib.Path('before.json').read_text())
+          old="The installer and installed-system boot checks are pending."
+          new="The UEFI installer subsequently finished on a blank disposable 24 GiB disk. A new VM booted that disk with the ISO detached and repeated the wallet backup, recovery and PSBT tests."
+          notes=obj['body']
+          assert notes.count(old)==1
+          notes=notes.replace(old,new)
+          notes+="\n[Successful UEFI installation and installed-system acceptance](https://github.com/btcpavao/bitcoin-core-vault-releases/actions/runs/43020288189/job/130521493888). The separate UEFI-ACCEPTANCE.sha256 lists the final report and full evidence archive. The original build manifest and earlier diagnostic remain available.\n"
+          pathlib.Path('notes.md').write_text(notes)
+          PY
+          gh api "$api/releases/tags/$tag" > attached.json
+          python3 - <<'PY'
+          import hashlib,json,pathlib
+          before=json.loads(pathlib.Path('before.json').read_text())
+          after=json.loads(pathlib.Path('attached.json').read_text())
+          assets={a['name']:a for a in after['assets']}
+          assert len(assets)==len(before['assets'])+3
+          for old in before['assets']:
+              for key in ('id','digest','size'):
+                  assert assets[old['name']][key]==old[key]
+          for name in ('uefi-acceptance-evidence.zip','uefi-install-and-boot.json','UEFI-ACCEPTANCE.sha256'):
+              assert assets[name]['digest']=='sha256:'+hashlib.sha256(pathlib.Path(name).read_bytes()).hexdigest()
+          PY
+          gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --notes-file notes.md
