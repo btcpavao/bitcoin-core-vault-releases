@@ -1,6 +1,6 @@
 # Build Bitcoin Core Vault and compare the complete ISO
 
-[Hrvatske upute za provjeru korak po korak](REBUILD.hr.md) · [Verified candidate with exact commit and expected hash](rebuilds/9f466c5df912.md)
+[Verified candidate with exact commit and expected hash](rebuilds/9f466c5df912.md)
 
 A checksum is a fingerprint of a file. One different byte changes its SHA-256 fingerprint. To check the path from source to download, build the precise published source revision on another computer and compare your ISO with the signed release. Reading the changes in the source is a separate step. Someone can publish a perfectly repeatable image containing unsafe code.
 

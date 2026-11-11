@@ -150,10 +150,9 @@ Test recovery on the actual target operating system before relying on it.
 
 ## Rebuild and compare the ISO
 
-[Compile the project-modified Calamares and Thunar and build the native-source candidate (English / hrvatski)](docs/NATIVE-REBUILD.md).
+[Compile the project-modified Calamares and Thunar and build the native-source candidate](docs/NATIVE-REBUILD.md).
 
 [Build in a clean environment, inspect the changes and compare the full ISO](docs/REBUILD.md).
-[Hrvatske upute za neovisnu gradnju](docs/REBUILD.hr.md).
 [November 11 candidate, matching SHA-256 and complete build evidence](docs/rebuilds/9f466c5df912.md).
 The signed v0.5.0 release has its own verification record.
 
