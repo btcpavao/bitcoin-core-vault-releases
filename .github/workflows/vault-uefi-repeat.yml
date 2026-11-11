@@ -1,0 +1,61 @@
+name: Test the verified Vault ISO on a blank UEFI disk
+on:
+  push:
+    branches: ['test/vault-uefi-43015346532']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  install:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    steps:
+      - name: Confirm the source and the two-builder proof
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/43015346532" |
+            jq -e '.head_sha == "71242344618ba499278ea2abe49d7343a7f9a1c4" and .head_branch == "build/native-source-vault" and .path == ".github/workflows/vault-rebuild.yml" and .head_repository.full_name == "btcpavao/bitcoin-core-vault-releases"'
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/43015346532/jobs?per_page=100" |
+            jq -e '[.jobs[] | select(.conclusion == "success") | .name] | sort == ["build (first)","build (second)","compare"]'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          run-id: 43015346532
+          github-token: ${{ github.token }}
+          name: vault-first-71242344618ba499278ea2abe49d7343a7f9a1c4
+          path: ${{ runner.temp }}/candidate
+      - name: Install the exact candidate in an isolated UEFI virtual disk
+        run: |
+          set -euo pipefail
+          sudo apt-get -qq update
+          sudo apt-get install -y --no-install-recommends qemu-system-x86 qemu-utils ovmf acl mtools python3-pil tesseract-ocr tesseract-ocr-eng
+          cd "$RUNNER_TEMP/candidate"
+          sha256sum --check SHA256SUMS
+          echo '2b8f8fd5225b4b2ccee1d8ccc6847c647cb6f5d2481fa2d9ef94820a13b09ddc  bitcoin-core-vault-amd64.iso' | sha256sum --check
+          iso="$PWD/bitcoin-core-vault-amd64.iso"
+          sha=$(sha256sum "$iso" | cut -d' ' -f1)
+          curl --fail --silent --show-error --location --retry 3 \
+            https://github.com/btcpavao/bitcoin-core-vault-releases/releases/download/v0.4.0/bitcoin-core-vault-v0.4.0-qa-evidence.tar.gz -o harness.tar.gz
+          echo '6c0fb72d6a29a8cbf7fbeef3a6677e208df3d064bd470c793e27c1b2d2e6071e  harness.tar.gz' | sha256sum --check
+          tar -xzf harness.tar.gz bitcoin-core-vault-v0.4.0-qa/qa-adapted/tools/core-vault
+          harness="$PWD/bitcoin-core-vault-v0.4.0-qa/qa-adapted/tools/core-vault/ci-vm-acceptance.py"
+          export OMP_THREAD_LIMIT=1 OMP_NUM_THREADS=1
+          if [[ -c /dev/kvm ]]; then
+            sudo setfacl -m "u:$(id -un):rw" /dev/kvm
+          fi
+          accel=tcg
+          if [[ -c /dev/kvm && -r /dev/kvm && -w /dev/kvm ]]; then accel=kvm; fi
+          echo "UEFI acceptance accelerator: $accel"
+          /usr/bin/python3 "$harness" --iso "$iso" --sha256 "$sha" \
+            --firmware uefi --accel "$accel" --install --output "$RUNNER_TEMP/uefi"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: vault-native-uefi-71242344618b
+          path: |
+            ${{ runner.temp }}/uefi/**/*.json
+            ${{ runner.temp }}/uefi/**/*.log
+            ${{ runner.temp }}/uefi/**/*.png
+          retention-days: 7
+          if-no-files-found: warn
