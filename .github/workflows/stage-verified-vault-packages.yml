@@ -1,0 +1,90 @@
+name: Stage verified Vault native package objects
+on:
+  push:
+    branches: ['build/stage-vault-native-packages']
+permissions:
+  contents: read
+jobs:
+  stage-verified-blobs:
+    if: github.repository == 'btcpavao/bitcoin-core-vault-releases'
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PRODUCER: '43012149337'
+      REVISION: '938a22bafc25843f44dfeeabf4dcdb8625cbf61d'
+    steps:
+      - name: Check exact producer revision and the independent comparison job
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$PRODUCER" > "$RUNNER_TEMP/run.json"
+          jq -e --arg revision "$REVISION" '.head_sha == $revision and .head_branch == "build/check-vault-packages" and .path == ".github/workflows/vault-native-packages.yml"' "$RUNNER_TEMP/run.json"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$PRODUCER/jobs?per_page=100" > "$RUNNER_TEMP/jobs.json"
+          jq -e '([.jobs[] | select(.name | startswith("compile ("))] | length == 4 and all(.conclusion == "success")) and ([.jobs[] | select(.name == "compare" and .conclusion == "success")] | length == 1)' "$RUNNER_TEMP/jobs.json"
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 36c03670e7505ca87a5c71ec485e2405dad088fc
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          github-token: ${{ github.token }}
+          run-id: '43012149337'
+          pattern: native-*-938a22bafc25843f44dfeeabf4dcdb8625cbf61d
+          path: builds
+      - name: Verify both compiled copies and export the matching public sources
+        run: |
+          set -euo pipefail
+          umask 022
+          python3 tools/rebuild/export-native-sources.py source-evidence
+          diff tools/rebuild/packages/evidence/938a22ba-sources.SHA256SUMS source-evidence/SHA256SUMS
+          for package in thunar calamares; do
+            left="builds/native-$package-first-$REVISION"
+            right="builds/native-$package-second-$REVISION"
+            (cd "$left" && sha256sum --check SHA256SUMS)
+            (cd "$right" && sha256sum --check SHA256SUMS)
+            cmp "$left/$package-rebuilt.deb" "$right/$package-rebuilt.deb"
+            cmp "$left/rebuilt-$package.elf" "$right/rebuilt-$package.elf"
+          done
+          test "$(dpkg-deb -f builds/native-calamares-first-"$REVISION"/calamares-rebuilt.deb Version)" = '3.3.14-1+corevault5'
+          test "$(dpkg-deb -f builds/native-thunar-first-"$REVISION"/thunar-rebuilt.deb Version)" = '4.20.2-1+deb13u1+corevault2'
+      - name: Store content-addressed Git blobs and report identities
+        run: |
+          python3 - <<'PY'
+          import base64
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import subprocess
+          import urllib.request
+          revision = os.environ['REVISION']
+          items = {
+              Path(f'builds/native-calamares-first-{revision}/calamares-rebuilt.deb'): '565ce762648d6a4df92fa133371c6a310ef85c0cbe54ae533884920a48eba1bf',
+              Path(f'builds/native-thunar-first-{revision}/thunar-rebuilt.deb'): '4cd1b5fc0d38c94fbc4c357fa923a69d097893d3a9831bbbb5570f5c05e77ebd',
+              Path('source-evidence/calamares-3.3.14-1+corevault5-source.tar.xz'): '8bc16e59f20a1745479a0be39ffb5b330e310926ba26a57c9a09fa4a1193971e',
+              Path('source-evidence/thunar-4.20.2-1+deb13u1+corevault2-source.tar.xz'): '7e93fe6e259892f87258e72dfbfb0478bc09cd443073f1521940537342e17a75',
+          }
+          for path, expected in items.items():
+              if hashlib.sha256(path.read_bytes()).hexdigest() != expected:
+                  raise SystemExit(f'Unexpected content: {path}')
+          result = {}
+          for path, expected in items.items():
+              body = {'encoding': 'base64', 'content': base64.b64encode(path.read_bytes()).decode('ascii')}
+              request = urllib.request.Request(
+                  f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/git/blobs",
+                  data=json.dumps(body).encode(), method='POST',
+                  headers={'Authorization': 'Bearer ' + os.environ['GH_TOKEN'],
+                           'Content-Type': 'application/json', 'Accept': 'application/vnd.github+json'})
+              with urllib.request.urlopen(request, timeout=120) as response:
+                  git_id = json.load(response)['sha']
+              local_id = subprocess.check_output(['git', 'hash-object', str(path)], text=True).strip()
+              if git_id != local_id:
+                  raise SystemExit(f'Git object mismatch: {path}')
+              result[path.name] = {'sha256': expected, 'git_blob': git_id}
+          report = json.dumps(result, indent=2, sort_keys=True)
+          print(report)
+          Path(os.environ['GITHUB_STEP_SUMMARY']).write_text('Verified Git blob IDs\n\n```json\n' + report + '\n```\n')
+          PY
