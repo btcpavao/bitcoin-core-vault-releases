@@ -150,38 +150,9 @@ Test recovery on the actual target operating system before relying on it.
 
 ## Rebuild and compare the ISO
 
-[Compile the project-modified Calamares and Thunar and build the native-source candidate](docs/NATIVE-REBUILD.md).
+[Follow the beginner's build guide](docs/REBUILD.md) or [open the exact native-source candidate record and download](docs/rebuilds/71242344618b.md). Each native candidate build compiles Calamares, Thunar and Vault Backup, then assembles the full image with the pinned Debian, Bitcoin Core and KeePassXC inputs.
 
-[Build in a clean environment, inspect the changes and compare the full ISO](docs/REBUILD.md).
-[November 11 candidate, matching SHA-256 and complete build evidence](docs/rebuilds/9f466c5df912.md).
-The signed v0.5.0 release has its own verification record.
-
-## Build from complete sources
-
-Use a separate Debian 13 amd64 build computer with network access for package
-preparation. Calamares is built in a dedicated chroot; its preparation script
-requires more than 20 GiB free for that builder.
-
-Host dependencies referenced by the scripts include `live-build`, `debootstrap`,
-Python 3 with Pillow and PyYAML, DejaVu fonts, Debian package tools, `sudo`, mount
-utilities, `xorriso` and `squashfs-tools`. Runtime dependencies are declared in
-`config/package-lists/`; Calamares compiler dependencies are installed in its
-builder chroot.
-
-The build also needs verified Core executables, branding assets and reviewed
-local backup, Calamares and Thunar packages. Their versions, hashes and
-source/package payloads must pass the existing gates. Use `umask 022` when cloning or extracting sources so runtime files are not
-writable by other users. Once these inputs are present, run from the project root:
-
-```bash
-umask 022
-bash tools/core-vault/prepare-installer.sh
-bash tools/core-vault/build-live-iso.sh
-```
-
-The output is `live-image-amd64.hybrid.iso`. Source/package checks run before
-building; ISO content checks run afterward. Content checks do not establish
-successful boot, installation or recovery.
+The [earlier assembly candidate](docs/rebuilds/9f466c5df912.md) used the historical Calamares and Thunar binaries. Existing signed stable releases have their own source and verification records.
 
 ## Release verification and status
 

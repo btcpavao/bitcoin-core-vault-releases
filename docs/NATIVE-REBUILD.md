@@ -2,6 +2,8 @@
 
 This separate candidate recompiles the Calamares installer and the Thunar file manager. It uses the same Debian snapshot and pinned amd64 builder as the earlier ISO assembly. Each compiler runs in its own clean container. The image builder separately rebuilds Vault Backup. Debian system packages and the verified upstream Bitcoin Core and KeePassXC release binaries remain external inputs.
 
+[Exact source revision, ISO download and comparison commands](rebuilds/71242344618b.md).
+
 ## Independent build
 
 1. Use a separate disposable Linux amd64 VM with Git, Docker and Internet access. Approximately 40 GiB of free disk space gives the native compilers and ISO builder room. The upper bound depends on Docker's storage driver.
