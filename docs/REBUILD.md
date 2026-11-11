@@ -1,6 +1,6 @@
 # Build Bitcoin Core Vault and compare the complete ISO
 
-[Hrvatske upute za provjeru korak po korak](REBUILD.hr.md)
+[Hrvatske upute za provjeru korak po korak](REBUILD.hr.md) · [Verified candidate with exact commit and expected hash](rebuilds/9f466c5df912.md)
 
 A checksum is a fingerprint of a file. One different byte changes its SHA-256 fingerprint. To check the path from source to download, build the precise published source revision on another computer and compare your ISO with the signed release. Reading the changes in the source is a separate step. Someone can publish a perfectly repeatable image containing unsafe code.
 
@@ -61,8 +61,15 @@ Vault v0.5.0 is an existing signed release built from a locally modified earlier
      shopt -s nullglob
      isos=(*.iso)
      [[ ${#isos[@]} == 1 ]] || { echo 'Place exactly one release ISO here.'; exit 1; }
-     gpg --homedir "$keyring" --import btcpavao-pgp.asc
-     gpg --homedir "$keyring" --verify SHA256SUMS.asc SHA256SUMS
+     read -r -p 'Independently confirmed PGP fingerprint: ' trusted
+     trusted=${trusted//[[:space:]]/}
+     [[ ${trusted^^} =~ ^[0-9A-F]{40}$ ]]
+     actual=$(gpg --homedir "$keyring" --batch --with-colons --show-keys btcpavao-pgp.asc |
+       awk -F: '$1=="pub" { primary=1; next } primary && $1=="fpr" { print $10; primary=0 }')
+     [[ $actual == "${trusted^^}" ]]
+     gpg --homedir "$keyring" --batch --dearmor --output "$keyring/confirmed.gpg" btcpavao-pgp.asc
+     gpg --homedir "$keyring" --batch --no-default-keyring --keyring "$keyring/confirmed.gpg" \
+       --no-auto-key-retrieve --verify SHA256SUMS.asc SHA256SUMS
      expected=$(awk -v name="${isos[0]}" '($2 == name || $2 == "*" name) { print $1 }' SHA256SUMS)
      [[ $expected =~ ^[[:xdigit:]]{64}$ ]]
      printf '%s  %s\n' "$expected" "${isos[0]}" | sha256sum --check

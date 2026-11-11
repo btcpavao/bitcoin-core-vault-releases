@@ -4,6 +4,8 @@ Možeš provjeriti što preuzimaš na dva načina. Čitanjem izvornog koda vidi�
 
 **Koju verziju mogu provjeriti?** Vault v0.5.0 ima potpisan popis otisaka i javne izvore u reviziji `723d3a8957e86a06853e3ac059159c71174f3c50`. Taj je ISO izvorno nastao preradom ranije lokalne slike. Novi postupak ispod kreće od Debianovih paketa i projektnih datoteka te gradi kandidata za sljedeće izdanje. Za potvrdu podudaranja treba provjeriti isti konkretni rezultat na oba računala.
 
+Dva odvojena računala na GitHubu izgradila su bajt po bajt jednak ISO za javni kandidat `rebuild-candidate-9f466c5df912`. [Preuzimanje, točan commit, očekivani SHA-256 i zapis usporedbe](rebuilds/9f466c5df912.md).
+
 ## 1. Pripremi odvojeno računalo
 
 Treba ti Linux na 64-bitnom Intelovu ili AMD-ovu računalu. Može poslužiti i nova Linux virtualna mašina s približno 30 GiB slobodnog prostora. Pokretanje gradnje ne traži fizički USB, wallet, Bitcoin ni privatni ključ. Koristiš terminal i internetsku vezu za preuzimanje provjerenih ulaza.
@@ -92,8 +94,15 @@ Kad potvrdiš otisak ključa, pokreni ovaj blok u Bashu. Zahtijeva upravo jedan 
   shopt -s nullglob
   isos=(*.iso)
   [[ ${#isos[@]} == 1 ]] || { echo 'Ovdje treba biti jedan preuzeti ISO.'; exit 1; }
-  gpg --homedir "$keyring" --import btcpavao-pgp.asc
-  gpg --homedir "$keyring" --verify SHA256SUMS.asc SHA256SUMS
+  read -r -p 'Puni PGP otisak koji si neovisno potvrdio: ' trusted
+  trusted=${trusted//[[:space:]]/}
+  [[ ${trusted^^} =~ ^[0-9A-F]{40}$ ]]
+  actual=$(gpg --homedir "$keyring" --batch --with-colons --show-keys btcpavao-pgp.asc |
+    awk -F: '$1=="pub" { primary=1; next } primary && $1=="fpr" { print $10; primary=0 }')
+  [[ $actual == "${trusted^^}" ]]
+  gpg --homedir "$keyring" --batch --dearmor --output "$keyring/confirmed.gpg" btcpavao-pgp.asc
+  gpg --homedir "$keyring" --batch --no-default-keyring --keyring "$keyring/confirmed.gpg" \
+    --no-auto-key-retrieve --verify SHA256SUMS.asc SHA256SUMS
   expected=$(awk -v name="${isos[0]}" '($2 == name || $2 == "*" name) { print $1 }' SHA256SUMS)
   [[ $expected =~ ^[[:xdigit:]]{64}$ ]]
   printf '%s  %s\n' "$expected" "${isos[0]}" | sha256sum --check
