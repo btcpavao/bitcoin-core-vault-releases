@@ -26,3 +26,15 @@ The first pair of Thunar builds produced identical executables and identical reb
 The new packages carry project revisions `3.3.14-1+corevault5` (Calamares) and `4.20.2-1+deb13u1+corevault2` (Thunar). To build from a checkout whose image already uses the new revisions, mount a directory containing the two historical v0.5.0 reference packages into the builder and set `VAULT_HISTORICAL_PACKAGES` to that mounted directory. The same pinned package hashes are checked before extracting source or comparing historical binaries.
 
 Both clean Calamares compiles for the first comparison produced the same complete Debian package. The historical archive and the full new Debian build contain 570 paths each. All 40 native ELF files have matching `.text` machine-instruction sections. Their full ELF files differ. The historical main program records an extra build-directory library search path, and the new main program has no `DT_RUNPATH` entry. Its read-only data also differs at three Qt resource timestamps. Installer boot, disk selection, installation and reboot require acceptance on the full candidate image. [Calamares comparison for source commit d1a4d991](evidence/d1a4d991-calamares.json)
+
+## Download and unpack the corresponding source
+
+The source-only bundles for the versioned native packages include the patched code, build inputs and provenance. In a fresh clone containing the native compiler commit and this export tool, run the following using Debian 13 with Python 3, Git, GNU tar, xz and dpkg installed. The exporter checks the archived inputs against the frozen hashes before unpacking them.
+
+```bash
+python3 tools/rebuild/export-native-sources.py ../vault-native-sources
+(cd ../vault-native-sources && sha256sum --check SHA256SUMS)
+diff tools/rebuild/packages/evidence/938a22ba-sources.SHA256SUMS ../vault-native-sources/SHA256SUMS
+```
+
+An empty `diff` output and a zero exit status mean both source archives match the recorded bytes. Calamares contains `source/debian/changelog` for the new revision and the full patched source tree. Thunar includes the complete corresponding-source directory with its pinned dependency manifest, Debian originals and prepatched source archive.
