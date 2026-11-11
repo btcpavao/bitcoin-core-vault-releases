@@ -57,6 +57,16 @@ before = '\t\t# Updating indices\n\t\tApt chroot update\n'
 after = '\t\tif [ "${LB_APT_INDICES}" != false ]; then Apt chroot update; fi\n'
 if script.count(before) != 1:
     raise SystemExit("Unrecognized live-build archive update block")
+script = script.replace(before, after)
+# Debian's cache-less cleanup uses a plain mkdir for partial. Recreate both
+# APT sandbox directories with Debian's required owner and permissions.
+before = '\t\t\tmkdir -p chroot/var/lib/apt/lists/partial\n'
+after = (
+    '\t\t\tChroot chroot "install -d -m 0700 -o _apt -g root /var/lib/apt/lists/partial"\n'
+    '\t\t\tChroot chroot "install -d -m 0755 -o _apt -g root /var/lib/apt/lists/auxfiles"\n'
+)
+if script.count(before) != 1:
+    raise SystemExit("Unrecognized live-build APT cache cleanup")
 path.write_text(script.replace(before, after))
 PYCODE
 backup=core-vault-backup_0.7.3_all.deb
