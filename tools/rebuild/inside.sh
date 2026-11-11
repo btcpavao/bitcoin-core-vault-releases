@@ -45,6 +45,18 @@ for index in /evidence/archives/*.InRelease; do
     gpgv --keyring "$keyring" "$index"
 done
 dpkg-query -W -f='${binary:Package}\t${Version}\n' | LC_ALL=C sort > /evidence/builder-packages.tsv
+# Every ISO uses two new locally compiled packages. Their expected artifacts
+# are stored in the checkout so a change to a compiler or native source fails
+# before image assembly unless it reproduces the reviewed bytes.
+for kind in calamares thunar; do
+    staged=(config/packages.chroot/"$kind"_*.deb)
+    [[ ${#staged[@]} == 1 && -f ${staged[0]} ]]
+    cmp "/verified-native/$kind/$kind-rebuilt.deb" "${staged[0]}"
+    install -m 0644 "/verified-native/$kind/$kind-rebuilt.deb" "${staged[0]}"
+    touch -d "@$SOURCE_DATE_EPOCH" "${staged[0]}"
+done
+mkdir /evidence/native
+cp -a /verified-native/{calamares,thunar} /evidence/native/
 # live-build rewrites sources.list for the installed system and then fetches
 # current archive indexes even when configured to discard them. Omit that final
 # lookup only. All package fetching and index checks at install time remain active.

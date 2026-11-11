@@ -1,6 +1,6 @@
 {
-  "filename": "calamares_3.3.14-1+corevault4_amd64.deb",
-  "version": "3.3.14-1+corevault4",
-  "sha256": "2aee74ce7ac20ae2fefe40b3a2c4c196ed79170b97d36b9d4d56976c7a650227",
-  "input_sha256": "911387309817c7a4049c3cd42341867886888eb88ceab606c2add2b2d0a0e4b5"
+  "filename": "calamares_3.3.14-1+corevault5_amd64.deb",
+  "version": "3.3.14-1+corevault5",
+  "sha256": "565ce762648d6a4df92fa133371c6a310ef85c0cbe54ae533884920a48eba1bf",
+  "input_sha256": "7657d464fa680f045638c3cae6d9ca8554473fa2f82c0780203a63412e061240"
 }

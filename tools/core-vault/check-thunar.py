@@ -3,7 +3,7 @@
 from pathlib import Path
 import argparse, hashlib, io, json, re, subprocess, tarfile
 
-VERSION='4.20.2-1+deb13u1+corevault1'
+VERSION='4.20.2-1+deb13u1+corevault2'
 META='usr/share/core-vault/thunar-shred.json'
 DOC='usr/share/doc/thunar/core-vault-source/'
 
@@ -40,6 +40,9 @@ def metadata(root):
                 and len(p.parts)==4 and p.suffix=='.py','Invalid source input path')
         require(hashlib.sha256((root/p).read_bytes()).hexdigest()==digest,
                 'Thunar package source input changed: '+name)
+    native_build = (root/'tools/rebuild/packages/build.sh').read_bytes()
+    require(hashlib.sha256(native_build).hexdigest() == value['native_build_sha256'],
+            'Native Thunar compiler recipe changed.')
     return raw,value
 
 def check(root):

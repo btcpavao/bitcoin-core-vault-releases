@@ -1,8 +1,8 @@
 #!/bin/sh
 set -eu
 # Runs inside live-build's image chroot, not on the developer's running system.
-test "$(dpkg-query -W -f='${Version}' calamares)" = '3.3.14-1+corevault4'
-test "$(dpkg-query -W -f='${Version}' thunar)" = '4.20.2-1+deb13u1+corevault1'
+test "$(dpkg-query -W -f='${Version}' calamares)" = '3.3.14-1+corevault5'
+test "$(dpkg-query -W -f='${Version}' thunar)" = '4.20.2-1+deb13u1+corevault2'
 for module in partition keyboard summary mount unpackfs machineid fstab initramfs bootloader umount finished; do
     test -f "/usr/lib/x86_64-linux-gnu/calamares/modules/$module/module.desc"
 done
@@ -90,6 +90,6 @@ for p in sorted(paths):
     if p.is_file() and not p.is_symlink():
         files[str(p).lstrip('/')]=hashlib.sha256(p.read_bytes()).hexdigest()
 Path('/etc/core-vault/installer-payload.json').write_text(json.dumps(
-    {'schema':1,'calamares_version':'3.3.14-1+corevault4','files':files},indent=2)+'\n')
+    {'schema':1,'calamares_version':'3.3.14-1+corevault5','files':files},indent=2)+'\n')
 print('VAULT CALAMARES CHROOT CHECK PASSED')
 PY

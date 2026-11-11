@@ -15,7 +15,7 @@ v=(CAL/'visual_polish.py').read_text()
 assert 'CoreVaultWizardSurface' in v and 'CORE_VAULT_VISUAL_POLISH_V3_PROGRESS' in v
 assert 'visual_polish.patch_tree(work)' in (CAL/'patch_calamares_source.py').read_text()
 assert "'visual_polish.py'" in (CAL/'package_state.py').read_text()
-assert 'visual_polish.py --self-test' in (ROOT/'tools/core-vault/prepare-installer.sh').read_text()
+assert 'visual_polish.py --self-test' in (ROOT/'tools/rebuild/packages/compiler-entry.sh').read_text()
 style=(INC/'etc/calamares/branding/core-offline/stylesheet.qss').read_text()
 assert 'CORE_VAULT_VISUAL_POLISH_V3' in style
 assert 'font-size:13px' in v
