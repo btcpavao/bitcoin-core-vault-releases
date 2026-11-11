@@ -1,0 +1,1426 @@
+diff --git debian/debian/changelog vault/debian/changelog
+index b4094be4804961f829f2c6020c127a19d51d1a73..64158117e3f874d3d02bdc20f08c2750b8fb4c9f 100644
+--- debian/debian/changelog
++++ vault/debian/changelog
+@@ -1,3 +1,9 @@
++calamares (3.3.14-1+corevault5) trixie; urgency=medium
++
++  * Recompile the archived Vault installer source using the frozen Debian build inputs.
++
++ -- Bitcoin Core Vault builders <build@localhost>  Tue, 10 Nov 2026 00:00:00 +0000
++
+ calamares (3.3.14-1) unstable; urgency=medium
+ 
+   * New upstream release 
+diff --git debian/src/calamares/CalamaresWindow.cpp vault/src/calamares/CalamaresWindow.cpp
+index bad04809ebc2865ed1e31546e921b3ab837f6ee5..eb567ab9ac3a12425703de8f086a047bcd414e1e 100644
+--- debian/src/calamares/CalamaresWindow.cpp
++++ vault/src/calamares/CalamaresWindow.cpp
+@@ -1,3 +1,10 @@
++#include <QResizeEvent>
++#include <QShowEvent>
++#include <QStyle>
++#include <QStackedWidget>
++#include <QCoreApplication>
++#include <QVariant>
++#include <QTimer>
+ /* === This file is part of Calamares - <https://calamares.io> ===
+  *
+  *   SPDX-FileCopyrightText: 2014-2015 Teo Mrnjavac <teo@kde.org>
+@@ -41,6 +48,138 @@
+ #endif
+ #include <QTreeView>
+ 
++
++// CORE_VAULT_VISUAL_POLISH_V3
++// Header/footer never borrow space from a page. Existing controls keep their signals.
++static void coreVaultSizeNavigationSlots(QWidget* navigation,int step);
++class CoreVaultWizardSurface final : public QWidget
++{
++public:
++    QWidget *header, *page, *nav, *footer;
++    int step = 0;
++    CoreVaultWizardSurface(QWidget* parent, QWidget* h, QWidget* p, QWidget* n)
++        : QWidget(parent), header(h), page(p), nav(n), footer(new QWidget(this))
++    {
++        setObjectName(QStringLiteral("coreVaultWizardSurface"));
++        for (auto* w : {header, page, nav}) w->setParent(this);
++        page->setMinimumSize(0,0);
++        if (page->layout()) page->layout()->setSizeConstraint(QLayout::SetNoConstraint);
++        auto* f = new QVBoxLayout(footer);
++        f->setContentsMargins(0,0,0,0); f->setSpacing(4);
++        auto* logo = new QLabel(footer);
++        logo->setObjectName(QStringLiteral("coreVaultFooterLogo"));
++        logo->setAlignment(Qt::AlignCenter);
++        logo->setPixmap(QPixmap("/etc/calamares/branding/core-offline/debian.png")
++                        .scaled(40,49,Qt::KeepAspectRatio,Qt::SmoothTransformation));
++        f->addWidget(logo);
++        auto* text = new QLabel(QStringLiteral("Powered by Debian GNU/Linux"),footer);
++        text->setObjectName(QStringLiteral("coreOfflineDebianCredit"));
++        text->setAlignment(Qt::AlignCenter); f->addWidget(text);
++        header->show(); page->show(); nav->show(); footer->show();
++    }
++    void setStep(int s) { step=s; arrange(); QTimer::singleShot(0,this,[this](){arrange();}); }
++    void arrange()
++    {
++        const bool compact = height()<680;
++        // Recompute only presentation when the viewport enters the compact mode.
++        // Scoped QSS uses this property to keep the complete Review readable.
++        if (!property("coreVaultCompact").isValid()
++            || property("coreVaultCompact").toBool()!=compact) {
++            setProperty("coreVaultCompact",compact);
++            const QString ownSheet=styleSheet();
++            setStyleSheet(QStringLiteral(" ")); setStyleSheet(ownSheet);
++            // Clear the selector cache on the property-bearing ancestor first.
++            style()->unpolish(this); style()->polish(this);
++            for (auto* w : findChildren<QWidget*>()) {
++                w->style()->unpolish(w); w->style()->polish(w); w->updateGeometry();
++            }
++        }
++        // CORE_VAULT_REGISTERED_PAGE_MARGINS_V4
++        // ViewManager assigns style-default margins after module construction.
++        // Normalize the registered page here, including Partition's stacked wrapper.
++        if (step<=2) {
++            // Qt style polishing resets button minimum sizes. Restore the shared slots afterwards.
++            coreVaultSizeNavigationSlots(nav,step);
++            auto* views=page->findChild<QStackedWidget*>(QStringLiteral("viewManagerStack"));
++            if (views && views->currentWidget() && views->currentWidget()->layout())
++                views->currentWidget()->layout()->setContentsMargins(0,0,0,0);
++        }
++        const int edge = compact ? 12 : 22;
++        const int hh = compact ? qMax(132,header->minimumSizeHint().height()) : 162;
++        const int fh = 70;
++        const int cw = qMin(944, qMax(1,width()-2*(compact?20:32)));
++        const int x = (width()-cw)/2;
++        header->setFixedHeight(hh);
++        header->setGeometry(0,edge,width(),hh);
++        footer->setGeometry(0,height()-edge-fh,width(),fh);
++        const int top = edge+hh+(compact?4:10);
++        const int bottom = height()-edge-fh-(compact?4:12);
++        const int room = qMax(1,bottom-top);
++        if (step==3) {
++            nav->hide(); page->setGeometry(x,top,cw,room); return;
++        }
++        nav->show();
++        const int navh=compact?32:34, gap=compact?8:12;
++        // The first three pages share one rectangle and one navigation baseline.
++        // Short viewports cap the region; their content uses the compact QSS.
++        const int wanted=step>=4 ? 190 : 432;
++        const int ph=qMin(wanted,qMax(1,room-navh-gap));
++        // Forms start below the stepper. The finished message/button are a centered group.
++        const int offset=step>=4 ? qMax(0,(room-ph-navh-gap)/2) : 0;
++        page->setGeometry(x,top+offset,cw,ph);
++        nav->setGeometry(x,top+offset+ph+gap,cw,navh);
++    }
++protected:
++    void resizeEvent(QResizeEvent* e) override { QWidget::resizeEvent(e); arrange(); }
++    void showEvent(QShowEvent* e) override {
++        QWidget::showEvent(e); QTimer::singleShot(0,this,[this](){arrange();});
++    }
++};
++
++// Shared slots retain their width when Back is unavailable on Keyboard.
++static void coreVaultInstallNavigationSlots(QWidget* navigation, QBoxLayout* row)
++{
++    auto* back=navigation->findChild<QPushButton*>(QStringLiteral("view-button-back"));
++    auto* next=navigation->findChild<QPushButton*>(QStringLiteral("view-button-next"));
++    auto* quit=navigation->findChild<QPushButton*>(QStringLiteral("view-button-cancel"));
++    if (!back || !next || !quit) return;
++    while (auto* item=row->takeAt(0)) delete item; // Controls and their signals survive.
++    row->setContentsMargins(0,0,0,0); row->setSpacing(10);
++    row->addStretch();
++    const char* names[]={"coreVaultBackSlot","coreVaultPrimarySlot","coreVaultCancelSlot"};
++    int i=0;
++    for (auto* button : {back,next,quit}) {
++        auto* slot=new QWidget(navigation);
++        slot->setObjectName(QString::fromLatin1(names[i++]));
++        slot->setFixedHeight(32);
++        auto* layout=new QHBoxLayout(slot);
++        layout->setContentsMargins(0,0,0,0); layout->setSpacing(0);
++        layout->addWidget(button,0,Qt::AlignCenter);
++        row->addWidget(slot,0,Qt::AlignCenter);
++    }
++    row->addStretch();
++}
++static void coreVaultSizeNavigationSlots(QWidget* navigation,int step)
++{
++    auto* back=navigation->findChild<QPushButton*>(QStringLiteral("view-button-back"));
++    auto* next=navigation->findChild<QPushButton*>(QStringLiteral("view-button-next"));
++    auto* quit=navigation->findChild<QPushButton*>(QStringLiteral("view-button-cancel"));
++    auto* backSlot=navigation->findChild<QWidget*>(QStringLiteral("coreVaultBackSlot"));
++    auto* primarySlot=navigation->findChild<QWidget*>(QStringLiteral("coreVaultPrimarySlot"));
++    auto* cancelSlot=navigation->findChild<QWidget*>(QStringLiteral("coreVaultCancelSlot"));
++    if (!back || !next || !quit || !backSlot || !primarySlot || !cancelSlot) return;
++    for (auto* button : {back,next,quit}) button->ensurePolished();
++    const int primaryWidth=qMax(194,
++        next->fontMetrics().horizontalAdvance(QStringLiteral("Erase drive and install"))+30);
++    const int quitWidth=step>=4
++        ? qMax(104,quit->fontMetrics().horizontalAdvance(quit->text().remove('&'))+30) : 104;
++    back->setFixedSize(104,32); next->setFixedSize(primaryWidth,32); quit->setFixedSize(quitWidth,32);
++    backSlot->setFixedWidth(104); primarySlot->setFixedWidth(primaryWidth);
++    cancelSlot->setFixedWidth(quitWidth);
++    backSlot->setVisible(step<=2); primarySlot->setVisible(step<=2);
++    cancelSlot->setVisible(step!=3);
++}
++
+ static QSize
+ desktopSize( QWidget* w )
+ {
+@@ -106,83 +245,82 @@ getWidgetSidebar( Calamares::DebugWindowManager* debug,
+                   Qt::Orientation,
+                   int desiredWidth )
+ {
+-    const Calamares::Branding* const branding = Calamares::Branding::instance();
+-
+-    QWidget* sideBox = new QWidget( parent );
+-    sideBox->setObjectName( "sidebarApp" );
+-
+-    QBoxLayout* sideLayout = new QVBoxLayout;
+-    sideBox->setLayout( sideLayout );
+-    // Set this attribute into qss file
+-    sideBox->setFixedWidth( desiredWidth );
+-    sideBox->setSizePolicy( QSizePolicy::Expanding, QSizePolicy::Expanding );
+-
+-    QHBoxLayout* logoLayout = new QHBoxLayout;
+-    sideLayout->addLayout( logoLayout );
+-    logoLayout->addStretch();
+-    QLabel* logoLabel = new QLabel( sideBox );
+-    logoLabel->setObjectName( "logoApp" );
+-    //Define all values into qss file
+-    {
+-        QPalette plt = sideBox->palette();
+-        sideBox->setAutoFillBackground( true );
+-        plt.setColor( sideBox->backgroundRole(), branding->styleString( Calamares::Branding::SidebarBackground ) );
+-        plt.setColor( sideBox->foregroundRole(), branding->styleString( Calamares::Branding::SidebarText ) );
+-        sideBox->setPalette( plt );
+-        logoLabel->setPalette( plt );
++    // CORE_OFFLINE_INTEGRATION: Bitcoin Core Vault product header + three-step installer progress.
++    auto* box = new QWidget(parent);
++    auto* layout = new QVBoxLayout(box);
++    layout->setContentsMargins(16, 0, 16, 0);
++    layout->setSpacing(4);
++
++    auto* logo = new QLabel(box);
++    logo->setAlignment(Qt::AlignCenter);
++    logo->setPixmap(QPixmap("/etc/calamares/branding/core-offline/bitcoin.png").scaled(
++        44, 44, Qt::KeepAspectRatio, Qt::SmoothTransformation));
++    layout->addWidget(logo);
++
++    auto* title = new QLabel(QStringLiteral("Bitcoin Core Vault"), box);
++    title->setAlignment(Qt::AlignCenter);
++    title->setObjectName(QStringLiteral("coreOfflineProductTitle"));
++    layout->addWidget(title);
++
++    auto* subtitle = new QLabel(QStringLiteral("Installer"), box);
++    subtitle->setAlignment(Qt::AlignCenter);
++    subtitle->setObjectName(QStringLiteral("coreOfflineProductSubtitle"));
++    layout->addWidget(subtitle);
++
++    auto* steps = new QHBoxLayout;
++    steps->setContentsMargins(0, 4, 0, 0);
++    steps->setSpacing(8);
++    auto* step1 = new QLabel(box);
++    auto* step2 = new QLabel(box);
++    auto* step3 = new QLabel(box);
++    auto* sep1 = new QLabel(QStringLiteral("────────"), box);
++    auto* sep2 = new QLabel(QStringLiteral("────────"), box);
++    for (auto* s : { step1, step2, step3 }) {
++        s->setAlignment(Qt::AlignCenter);
++        s->setFixedWidth(124);
+     }
+-    logoLabel->setAlignment( Qt::AlignCenter );
+-    logoLabel->setFixedSize( 80, 80 );
+-    logoLabel->setPixmap( branding->image( Calamares::Branding::ProductLogo, logoLabel->size() ) );
+-    logoLayout->addWidget( logoLabel );
+-    logoLayout->addStretch();
+-
+-    ProgressTreeView* tv = new ProgressTreeView( sideBox );
+-    tv->setModel( viewManager );
+-    tv->setFocusPolicy( Qt::NoFocus );
+-    sideLayout->addWidget( tv );
+-
+-    QHBoxLayout* extraButtons = new QHBoxLayout;
+-    sideLayout->addLayout( extraButtons );
+-
+-    const int defaultFontHeight = Calamares::defaultFontHeight();
+-
+-    if ( /* About-Calamares Button enabled */ true )
+-    {
+-        QPushButton* aboutDialog = new QPushButton;
+-        aboutDialog->setObjectName( "aboutButton" );
+-        aboutDialog->setIcon( Calamares::defaultPixmap(
+-            Calamares::Information, Calamares::Original, 2 * QSize( defaultFontHeight, defaultFontHeight ) ) );
+-        CALAMARES_RETRANSLATE_FOR(
+-            aboutDialog, aboutDialog->setText( QCoreApplication::translate( "calamares-sidebar", "About", "@button" ) );
+-            aboutDialog->setToolTip(
+-                QCoreApplication::translate( "calamares-sidebar", "Show information about Calamares", "@tooltip" ) ); );
+-        extraButtons->addWidget( aboutDialog );
+-        aboutDialog->setFlat( true );
+-        aboutDialog->setCheckable( true );
+-        QObject::connect( aboutDialog, &QPushButton::clicked, debug, &Calamares::DebugWindowManager::about );
+-    }
+-    if ( debug && debug->enabled() )
+-    {
+-        QPushButton* debugWindowBtn = new QPushButton;
+-        debugWindowBtn->setObjectName( "debugButton" );
+-        debugWindowBtn->setIcon( Calamares::defaultPixmap(
+-            Calamares::Bugs, Calamares::Original, 2 * QSize( defaultFontHeight, defaultFontHeight ) ) );
+-        CALAMARES_RETRANSLATE_FOR(
+-            debugWindowBtn,
+-            debugWindowBtn->setText( QCoreApplication::translate( "calamares-sidebar", "Debug", "@button" ) );
+-            debugWindowBtn->setToolTip(
+-                QCoreApplication::translate( "calamares-sidebar", "Show debug information", "@tooltip" ) ); );
+-        extraButtons->addWidget( debugWindowBtn );
+-        debugWindowBtn->setFlat( true );
+-        debugWindowBtn->setCheckable( true );
+-        QObject::connect( debugWindowBtn, &QPushButton::clicked, debug, &Calamares::DebugWindowManager::show );
+-        QObject::connect(
+-            debug, &Calamares::DebugWindowManager::visibleChanged, debugWindowBtn, &QPushButton::setChecked );
++    for (auto* sep : { sep1, sep2 }) {
++        sep->setAlignment(Qt::AlignCenter);
++        sep->setFixedWidth(64);
+     }
+-
+-    Calamares::unmarginLayout( sideLayout );
+-    return sideBox;
++    sep1->setObjectName(QStringLiteral("coreOfflineStepSeparator"));
++    sep2->setObjectName(QStringLiteral("coreOfflineStepSeparator"));
++    steps->addStretch(); steps->addWidget(step1); steps->addWidget(sep1);
++    steps->addWidget(step2); steps->addWidget(sep2); steps->addWidget(step3); steps->addStretch();
++    layout->addLayout(steps);
++
++    auto* vm = Calamares::ViewManager::instance();
++    auto updateSteps = [vm, step1, step2, step3]() {
++        const int current = vm->currentStepIndex();
++        auto style = [current](QLabel* label, int index, const QString& name) {
++            if (current > index) {
++                label->setText(QStringLiteral("✓  ") + name);
++                label->setStyleSheet(QStringLiteral("QLabel { color:#ffffff; padding:6px 10px; font-weight:600; }"));
++            } else if (current == index) {
++                label->setText(QString::number(index + 1) + QStringLiteral("  ") + name);
++                label->setStyleSheet(QStringLiteral("QLabel { background:#ffffff; color:#000000; border-radius:13px; padding:6px 12px; font-weight:700; }"));
++            } else {
++                label->setText(QString::number(index + 1) + QStringLiteral("  ") + name);
++                label->setStyleSheet(QStringLiteral("QLabel { color:#777777; padding:6px 10px; }"));
++            }
++        };
++        if (current >= 3) {
++            step1->setText(QStringLiteral("✓  Keyboard"));
++            step2->setText(QStringLiteral("✓  Disk"));
++            step3->setText(QStringLiteral("✓  Review"));
++            for (auto* s : { step1, step2, step3 }) {
++                s->setStyleSheet(QStringLiteral("QLabel { color:#ffffff; padding:6px 10px; font-weight:600; }"));
++            }
++        } else {
++            style(step1, 0, QStringLiteral("Keyboard"));
++            style(step2, 1, QStringLiteral("Disk"));
++            style(step3, 2, QStringLiteral("Review"));
++        }
++    };
++    QObject::connect(vm, &Calamares::ViewManager::currentStepChanged, box, updateSteps);
++    updateSteps();
++    box->setFixedHeight(162);
++    return box;
+ }
+ 
+ static QWidget*
+@@ -247,7 +385,58 @@ getWidgetNavigation( Calamares::DebugWindowManager*,
+     }
+ 
+     bottomLayout->setContentsMargins( 0, 0, 6, 6 );
+-    navigation->setLayout( bottomLayout );
++    // CORE_VAULT_VISUAL_POLISH_V4: stable slots; footer is independent.
++    coreVaultInstallNavigationSlots(navigation,bottomLayout);
++    navigation->setLayout(bottomLayout);
++
++    auto updateNavigation = [viewManager, navigation]() {
++        auto* back = navigation->findChild<QPushButton*>(QStringLiteral("view-button-back"));
++        auto* next = navigation->findChild<QPushButton*>(QStringLiteral("view-button-next"));
++        auto* quit = navigation->findChild<QPushButton*>(QStringLiteral("view-button-cancel"));
++        if (!back || !next || !quit) return;
++        for (auto* button : { back, next, quit }) {
++            button->setMinimumSize(0,0);
++            button->setSizePolicy(QSizePolicy::Fixed,QSizePolicy::Fixed);
++        }
++        quit->setStyleSheet(QString());
++        const int i = viewManager->currentStepIndex();
++        if (i == 0) {
++            back->hide(); next->show(); next->setText(QStringLiteral("Continue")); quit->show(); quit->setText(QStringLiteral("Cancel"));
++        } else if (i == 1) {
++            back->show(); next->show(); next->setText(QStringLiteral("Continue")); quit->show(); quit->setText(QStringLiteral("Cancel"));
++        } else if (i == 2) {
++            back->show(); next->show(); next->setText(QStringLiteral("Erase drive and install")); quit->show(); quit->setText(QStringLiteral("Cancel"));
++        } else if (i == 3) {
++            back->hide(); next->hide(); quit->hide();
++        } else if (i >= 4) {
++            back->hide();
++            next->hide();
++            quit->show();
++            quit->setText(QCoreApplication::instance()->property("coreVaultInstallationFailed").toBool() ? QStringLiteral("Close installer") : QStringLiteral("Restart into Bitcoin Core Vault"));
++            quit->setMinimumWidth(220);
++            quit->setStyleSheet(QStringLiteral(
++                "QPushButton { background:#ffffff; color:#000000; border:1px solid #ffffff; "
++                "border-radius:6px; padding:0px 12px; font-size:13px; font-weight:600; } "
++                "QPushButton:hover { background:#e7e7e7; border-color:#e7e7e7; } "
++                "QPushButton:focus { border:2px solid #f7931a; }"));
++        }
++
++        for (auto* button : {back,next,quit}) button->setIcon(QIcon());
++        coreVaultSizeNavigationSlots(navigation,i);
++    };
++    QObject::connect(viewManager, &Calamares::ViewManager::currentStepChanged, navigation, [navigation, updateNavigation]() { updateNavigation(); QTimer::singleShot(0, navigation, updateNavigation); });
++    // Later ViewManager visibility signals must not bring back a disabled
++    // Cancel button while jobs are running. No enabled state is changed here.
++    QObject::connect(viewManager, &Calamares::ViewManager::quitVisibleChanged,
++                     navigation, [viewManager, navigation](bool) {
++        if (viewManager->currentStepIndex() == 3)
++            if (auto* q = navigation->findChild<QPushButton*>(QStringLiteral("view-button-cancel"))) q->hide();
++    });
++
++    QObject::connect(viewManager, &Calamares::ViewManager::nextLabelChanged, navigation, [updateNavigation](const QString&) { updateNavigation(); });
++    QObject::connect(viewManager, &Calamares::ViewManager::quitLabelChanged, navigation, [updateNavigation](const QString&) { updateNavigation(); });
++    QObject::connect(viewManager, &Calamares::ViewManager::backLabelChanged, navigation, [updateNavigation](const QString&) { updateNavigation(); });
++    updateNavigation();
+     return navigation;
+ }
+ 
+@@ -463,52 +652,16 @@ CalamaresWindow::CalamaresWindow( QWidget* parent )
+     //       is too annoying. Instead, leave it up to ignoring-the-quit-
+     //       event, which is also the ViewManager's responsibility.
+ 
+-    QBoxLayout* mainLayout = new QHBoxLayout;
+-    QBoxLayout* contentsLayout = new QVBoxLayout;
+-    contentsLayout->setSpacing( 0 );
+-
+-    QWidget* sideBox
+-        = flavoredWidget( branding->sidebarFlavor(),
+-                          ::orientation( branding->sidebarSide() ),
+-                          m_debugManager,
+-                          baseWidget,
+-                          ::getWidgetSidebar,
+-                          ::getQmlSidebar,
+-                          qBound( 100, Calamares::defaultFontHeight() * 12, w < windowPreferredWidth ? 100 : 190 ) );
+-    QWidget* navigation = flavoredWidget( branding->navigationFlavor(),
+-                                          ::orientation( branding->navigationSide() ),
+-                                          m_debugManager,
+-                                          baseWidget,
+-                                          ::getWidgetNavigation,
+-                                          ::getQmlNavigation,
+-                                          64 );
+-
+-    // Build up the contentsLayout (a VBox) top-to-bottom
+-    // .. note that the bottom is mirrored wrt. the top
+-    insertIf( contentsLayout, PanelSide::Top, sideBox, branding->sidebarSide() );
+-    insertIf( contentsLayout, PanelSide::Top, navigation, branding->navigationSide() );
+-    contentsLayout->addWidget( m_viewManager->centralWidget() );
+-    insertIf( contentsLayout, PanelSide::Bottom, navigation, branding->navigationSide() );
+-    insertIf( contentsLayout, PanelSide::Bottom, sideBox, branding->sidebarSide() );
+-
+-    // .. and then the mainLayout left-to-right
+-    insertIf( mainLayout, PanelSide::Left, sideBox, branding->sidebarSide() );
+-    insertIf( mainLayout, PanelSide::Left, navigation, branding->navigationSide() );
+-    mainLayout->addLayout( contentsLayout );
+-    insertIf( mainLayout, PanelSide::Right, navigation, branding->navigationSide() );
+-    insertIf( mainLayout, PanelSide::Right, sideBox, branding->sidebarSide() );
+-
+-    // layout->count() returns number of things in it; above we have put
+-    // at **least** the central widget, which comes from the view manager,
+-    // both vertically and horizontally -- so if there's a panel along
+-    // either axis, the count in that axis will be > 1.
+-    m_viewManager->setPanelSides(
+-        ( contentsLayout->count() > 1 ? Qt::Orientations( Qt::Horizontal ) : Qt::Orientations() )
+-        | ( mainLayout->count() > 1 ? Qt::Orientations( Qt::Vertical ) : Qt::Orientations() ) );
+-
+-    Calamares::unmarginLayout( mainLayout );
+-    Calamares::unmarginLayout( contentsLayout );
+-    baseWidget->setLayout( mainLayout );
++    auto* header=getWidgetSidebar(m_debugManager,m_viewManager,baseWidget,Qt::Horizontal,0);
++    auto* navigation=getWidgetNavigation(m_debugManager,m_viewManager,baseWidget,Qt::Horizontal,0);
++    auto* shell=new CoreVaultWizardSurface(baseWidget,header,m_viewManager->centralWidget(),navigation);
++    auto* mainLayout=new QVBoxLayout;
++    mainLayout->setContentsMargins(0,0,0,0); mainLayout->setSpacing(0); mainLayout->addWidget(shell);
++    m_viewManager->setPanelSides(Qt::Horizontal);
++    QObject::connect(m_viewManager,&Calamares::ViewManager::currentStepChanged,shell,
++        [this,shell](){shell->setStep(m_viewManager->currentStepIndex());});
++    shell->setStep(m_viewManager->currentStepIndex());
++    baseWidget->setLayout(mainLayout);
+     setStyleSheet( Calamares::Branding::instance()->stylesheet() );
+ }
+ 
+diff --git debian/src/libcalamaresui/viewpages/ExecutionViewStep.cpp vault/src/libcalamaresui/viewpages/ExecutionViewStep.cpp
+index 71ea85b8e17730236e188073d564217d07edf4cd..bbdca4f296279101fe1c823a65b04f347992c7c8 100644
+--- debian/src/libcalamaresui/viewpages/ExecutionViewStep.cpp
++++ vault/src/libcalamaresui/viewpages/ExecutionViewStep.cpp
+@@ -32,12 +32,16 @@
+ #include <QHBoxLayout>
+ #include <QLabel>
+ #include <QPlainTextEdit>
++#include <QPixmap>
+ #include <QProgressBar>
+ #include <QTabBar>
+ #include <QTabWidget>
+ #include <QToolBar>
+ #include <QToolButton>
+ #include <QVBoxLayout>
++#include <QResizeEvent>
++#include <QShowEvent>
++#include <QTimer>
+ 
+ static Calamares::Slideshow*
+ makeSlideshow( QWidget* parent )
+@@ -59,56 +63,79 @@ makeSlideshow( QWidget* parent )
+     }
+ }
+ 
++
++// CORE_VAULT_VISUAL_POLISH_V3_PROGRESS
++class CoreVaultExecutionSurface final : public QWidget
++{
++public:
++    using QWidget::QWidget;
++    QWidget* above=nullptr;
++    QProgressBar* progress=nullptr;
++    QSize sizeHint() const override { return QSize(820,180); }
++    QSize minimumSizeHint() const override { return QSize(360,140); }
++    void arrange() {
++        if (!above || !progress) return;
++        const int cw=qMin(820,qMax(1,width()-32));
++        const int x=(width()-cw)/2;
++        auto* l=above->layout();
++        const int wh=l && l->hasHeightForWidth() ? l->totalHeightForWidth(cw) : -1;
++        const int ah=qMax(1,wh>=0 ? wh : above->sizeHint().height());
++        const int bh=24;
++        const int desired=mapFrom(window(),window()->rect().center()).y();
++        const int lo=ah+16+bh/2;
++        const int hi=height()-bh/2-4;
++        const int cy=hi>=lo ? qBound(lo,desired,hi) : lo;
++        above->setGeometry(x,cy-bh/2-16-ah,cw,ah);
++        progress->setGeometry(x,cy-bh/2,cw,bh);
++    }
++protected:
++    void resizeEvent(QResizeEvent* e) override { QWidget::resizeEvent(e); arrange(); }
++    void showEvent(QShowEvent* e) override {
++        QWidget::showEvent(e); QTimer::singleShot(0,this,[this](){arrange();});
++    }
++};
++
+ namespace Calamares
+ {
+ 
+ ExecutionViewStep::ExecutionViewStep( QObject* parent )
+     : ViewStep( parent )
+-    , m_widget( new QWidget )
++    , m_widget( new CoreVaultExecutionSurface )
+     , m_progressBar( new QProgressBar )
+     , m_label( new QLabel )
+     , m_slideshow( makeSlideshow( m_widget ) )
+     , m_tab_widget( new QTabWidget )
+     , m_log_widget( new LogWidget )
+ {
+-    m_widget->setObjectName( "slideshow" );
+-    m_progressBar->setObjectName( "exec-progress" );
+-    CALAMARES_RETRANSLATE( m_progressBar->setFormat(
+-        tr( "%p%", "Progress percentage indicator: %p is where the number 0..100 is placed" ) ); );
+-    m_label->setObjectName( "exec-message" );
+-
+-    QVBoxLayout* layout = new QVBoxLayout( m_widget );
+-    QVBoxLayout* bottomLayout = new QVBoxLayout;
+-    QHBoxLayout* barLayout = new QHBoxLayout;
+-
+-    m_progressBar->setMaximum( 10000 );
+-
+-    m_tab_widget->addTab( m_slideshow->widget(), "Slideshow" );
+-    m_tab_widget->addTab( m_log_widget, "Log" );
+-    m_tab_widget->tabBar()->hide();
+ 
+-    layout->addWidget( m_tab_widget );
+-    Calamares::unmarginLayout( layout );
+-    layout->addLayout( bottomLayout );
++    m_widget->setObjectName("slideshow");
++    auto* surface=static_cast<CoreVaultExecutionSurface*>(m_widget);
++    m_progressBar->setParent(m_widget);
++    m_progressBar->setObjectName("exec-progress");
++    m_progressBar->setMaximum(10000);
++    m_progressBar->setFormat(QStringLiteral("%p%"));
++    m_progressBar->setAlignment(Qt::AlignCenter);
++    m_progressBar->show();
++    auto* above=new QWidget(m_widget);
++    auto* l=new QVBoxLayout(above);
++    l->setContentsMargins(0,0,0,0); l->setSpacing(12);
++    auto* title=new QLabel(QStringLiteral("Installing Bitcoin Core Vault"),above);
++    title->setObjectName("coreOfflineExecutionTitle");
++    title->setAlignment(Qt::AlignCenter); title->setWordWrap(true);
++    auto* description=new QLabel(QStringLiteral(
++        "Please keep the computer powered on and the installation USB connected."),above);
++    description->setObjectName("coreOfflineExecutionDescription");
++    description->setAlignment(Qt::AlignCenter); description->setWordWrap(true);
++    l->addWidget(title); l->addWidget(description);
++    // Retain upstream diagnostic objects, but do not expose a status/log control in this view.
++    m_label->setParent(m_widget); m_label->hide();
++    m_tab_widget->setParent(m_widget);
++    m_tab_widget->addTab(m_log_widget,QStringLiteral("Log"));
++    m_tab_widget->hide();
++    surface->above=above; surface->progress=m_progressBar;
++    QTimer::singleShot(0,m_widget,[surface](){surface->arrange();});
++    connect(JobQueue::instance(), &JobQueue::progress, this, &ExecutionViewStep::updateFromJobQueue);
+ 
+-    bottomLayout->addSpacing( Calamares::defaultFontHeight() / 2 );
+-    bottomLayout->addLayout( barLayout );
+-    bottomLayout->addWidget( m_label );
+-
+-    QToolBar* toolBar = new QToolBar;
+-    const auto logButtonIcon = QIcon::fromTheme( "utilities-terminal" );
+-    auto toggleLogAction = toolBar->addAction(
+-        Branding::instance()->image(
+-            { "utilities-log-viewer", "utilities-terminal", "text-x-log", "text-x-changelog", "preferences-log" },
+-            QSize( 32, 32 ) ),
+-        "Toggle log" );
+-    auto toggleLogButton = dynamic_cast< QToolButton* >( toolBar->widgetForAction( toggleLogAction ) );
+-    connect( toggleLogButton, &QToolButton::clicked, this, &ExecutionViewStep::toggleLog );
+-
+-    barLayout->addWidget( m_progressBar );
+-    barLayout->addWidget( toolBar );
+-
+-    connect( JobQueue::instance(), &JobQueue::progress, this, &ExecutionViewStep::updateFromJobQueue );
+ }
+ 
+ QString
+@@ -160,7 +187,7 @@ ExecutionViewStep::isAtEnd() const
+ void
+ ExecutionViewStep::onActivate()
+ {
+-    m_slideshow->changeSlideShowState( Slideshow::Start );
++    m_slideshow->widget()->hide(); // CORE_OFFLINE_INTEGRATION: branded progress panel replaces slideshow.
+ 
+     const auto instanceDescriptors = Calamares::Settings::instance()->moduleInstances();
+ 
+@@ -217,21 +244,14 @@ ExecutionViewStep::updateFromJobQueue( qreal percent, const QString& message )
+     {
+         m_label->setText( message );
+     }
++    static_cast<CoreVaultExecutionSurface*>(m_widget)->arrange();
+ }
+ 
+ void
+ ExecutionViewStep::toggleLog()
+ {
+-    const bool logBecomesVisible = m_tab_widget->currentIndex() == 0;  // ie. is not visible right now
+-    if ( logBecomesVisible )
+-    {
+-        m_log_widget->start();
+-    }
+-    else
+-    {
+-        m_log_widget->stop();
+-    }
+-    m_tab_widget->setCurrentIndex( logBecomesVisible ? 1 : 0 );
++    // The minimal installation screen has no technical-log control.
++    m_tab_widget->hide();
+ }
+ 
+ void
+diff --git debian/src/modules/finished/FinishedPage.cpp vault/src/modules/finished/FinishedPage.cpp
+index a31595f913bfe0177b93313746bdb294ba5bb51d..aef2664df96c0d8cd76102d021aea8fcf317ae94 100644
+--- debian/src/modules/finished/FinishedPage.cpp
++++ vault/src/modules/finished/FinishedPage.cpp
+@@ -1,3 +1,6 @@
++#include <QVBoxLayout>
++#include <QCoreApplication>
++#include <QVariant>
+ /* === This file is part of Calamares - <https://calamares.io> ===
+  *
+  *   SPDX-FileCopyrightText: 2014-2015 Teo Mrnjavac <teo@kde.org>
+@@ -27,6 +30,18 @@ FinishedPage::FinishedPage( Config* config, QWidget* parent )
+     , ui( new Ui::FinishedPage )
+ {
+     ui->setupUi( this );
++    // CORE_VAULT_VISUAL_POLISH_V3: text immediately followed by the shared restart row.
++    while (auto* item=ui->verticalLayout->takeAt(0)) {
++        if (auto* nested=item->layout()) { delete nested; }
++        else { delete item; }
++    }
++    ui->verticalLayout->setContentsMargins(0,0,0,0);
++    ui->verticalLayout->setSpacing(0);
++    ui->verticalLayout->addWidget(ui->mainText);
++    ui->mainText->setAlignment(Qt::AlignCenter);
++    ui->mainText->setWordWrap(true);
++
++    ui->restartCheckBox->hide(); // CORE_OFFLINE_INTEGRATION
+ 
+     ui->mainText->setAlignment( Qt::AlignCenter );
+     ui->mainText->setWordWrap( true );
+@@ -34,12 +49,10 @@ FinishedPage::FinishedPage( Config* config, QWidget* parent )
+ 
+     connect( config,
+              &Config::restartModeChanged,
+-             [ this ]( Config::RestartMode mode )
++             [ this ]( Config::RestartMode )
+              {
+-                 using Mode = Config::RestartMode;
+-
+-                 ui->restartCheckBox->setVisible( mode != Mode::Never );
+-                 ui->restartCheckBox->setEnabled( mode != Mode::Always );
++                 ui->restartCheckBox->hide();
++                 ui->restartCheckBox->setEnabled( false );
+              } );
+     connect( config, &Config::restartNowWantedChanged, ui->restartCheckBox, &QCheckBox::setChecked );
+     connect( ui->restartCheckBox,
+@@ -59,6 +72,7 @@ FinishedPage::focusInEvent( QFocusEvent* e )
+ void
+ FinishedPage::onInstallationFailed( const QString& message, const QString& details )
+ {
++    QCoreApplication::instance()->setProperty("coreVaultInstallationFailed", true);
+     m_failure = !message.isEmpty() ? message : details;
+     retranslate();
+ }
+@@ -67,62 +81,17 @@ void
+ FinishedPage::retranslate()
+ {
+ 
+-    const auto* branding = Calamares::Branding::instance();
+-
+-    ui->retranslateUi( this );
+-    if ( !m_failure.has_value() )
+-    {
+-        if ( Calamares::Settings::instance()->isSetupMode() )
+-        {
+-            ui->mainText->setText( tr( "<h1>All done.</h1><br/>"
+-                                       "%1 has been set up on your computer.<br/>"
+-                                       "You may now start using your new system.",
+-                                       "@info" )
+-                                       .arg( branding->versionedName() ) );
+-            ui->restartCheckBox->setToolTip( tr( "<html><head/><body>"
+-                                                 "<p>When this box is checked, your system will "
+-                                                 "restart immediately when you click on "
+-                                                 "<span style=\"font-style:italic;\">Done</span> "
+-                                                 "or close the setup program.</p></body></html>",
+-                                                 "@tooltip" ) );
+-        }
+-        else
+-        {
+-            ui->mainText->setText( tr( "<h1>All done.</h1><br/>"
+-                                       "%1 has been installed on your computer.<br/>"
+-                                       "You may now restart into your new system, or continue "
+-                                       "using the %2 Live environment.",
+-                                       "@info" )
+-                                       .arg( branding->versionedName(), branding->productName() ) );
+-            ui->restartCheckBox->setToolTip( tr( "<html><head/><body>"
+-                                                 "<p>When this box is checked, your system will "
+-                                                 "restart immediately when you click on "
+-                                                 "<span style=\"font-style:italic;\">Done</span> "
+-                                                 "or close the installer.</p></body></html>",
+-                                                 "@tooltip" ) );
+-        }
+-    }
+-    else
+-    {
+-        const QString message = m_failure.value();
+-
+-        if ( Calamares::Settings::instance()->isSetupMode() )
+-        {
+-            ui->mainText->setText( tr( "<h1>Setup Failed</h1><br/>"
+-                                       "%1 has not been set up on your computer.<br/>"
+-                                       "The error message was: %2.",
+-                                       "@info, %1 is product name with version" )
+-                                       .arg( branding->versionedName() )
+-                                       .arg( message ) );
+-        }
+-        else
+-        {
+-            ui->mainText->setText( tr( "<h1>Installation Failed</h1><br/>"
+-                                       "%1 has not been installed on your computer.<br/>"
+-                                       "The error message was: %2.",
+-                                       "@info, %1 is product name with version" )
+-                                       .arg( branding->versionedName() )
+-                                       .arg( message ) );
+-        }
++    ui->retranslateUi(this);
++    ui->restartCheckBox->hide();
++    if (!m_failure.has_value()) {
++        ui->mainText->setText(QStringLiteral(
++            "<p style='font-size:42px;color:#4caf50;margin:0'>&#10003;</p>"
++            "<p style='font-size:28px;font-weight:600;margin-top:8px;margin-bottom:14px'>Bitcoin Core Vault is ready.</p>"
++            "<p>The installation completed successfully.<br/>"
++            "Restart this computer to open Bitcoin Core Vault.</p>"));
++    } else {
++        ui->mainText->setText(tr(
++            "<h1>Installation failed.</h1><p>Bitcoin Core Vault was not installed.</p><p>%1</p>")
++            .arg(m_failure.value().toHtmlEscaped()));
+     }
+ }
+diff --git debian/src/modules/keyboard/Config.cpp vault/src/modules/keyboard/Config.cpp
+index 47c81a347b2483f80f8f8bbb8c3168510f2c8527..548d58a145b10dc3e7849e4f81ae9269aa6254dd 100644
+--- debian/src/modules/keyboard/Config.cpp
++++ vault/src/modules/keyboard/Config.cpp
+@@ -596,19 +596,11 @@ Config::cancel()
+ QString
+ Config::prettyStatus() const
+ {
+-    QString status
+-        = tr( "Keyboard model has been set to %1.", "@label, %1 is keyboard model, as in Apple Magic Keyboard" )
+-              .arg( m_keyboardModelsModel->label( m_keyboardModelsModel->currentIndex() ) );
+-    status += QStringLiteral( "<br/>" );
+-
+     QString layout = m_keyboardLayoutsModel->item( m_keyboardLayoutsModel->currentIndex() ).second.description;
+     QString variant = m_keyboardVariantsModel->currentIndex() >= 0
+         ? m_keyboardVariantsModel->label( m_keyboardVariantsModel->currentIndex() )
+-        : QString( "<default>" );
+-    status += tr( "Keyboard layout has been set to %1/%2.", "@label, %1 is layout, %2 is layout variant" )
+-                  .arg( layout, variant );
+-
+-    return status;
++        : QStringLiteral("Default");
++    return tr( "<b>Keyboard layout</b><br/>%1 · %2", "@label" ).arg( layout, variant );
+ }
+ 
+ Calamares::JobList
+diff --git debian/src/modules/keyboard/KeyboardPage.cpp vault/src/modules/keyboard/KeyboardPage.cpp
+index dbb80c600a12effb36c5ffa9911573994de5efc5..e93941deaadf252ff96cd13a9cf773282bc10322 100644
+--- debian/src/modules/keyboard/KeyboardPage.cpp
++++ vault/src/modules/keyboard/KeyboardPage.cpp
+@@ -1,3 +1,6 @@
++#include <QGridLayout>
++#include <QListView>
++#include <QVBoxLayout>
+ /* === This file is part of Calamares - <https://calamares.io> ===
+  *
+  *   SPDX-FileCopyrightText: 2007 Free Software Foundation, Inc.
+@@ -28,6 +31,7 @@
+ #include "utils/String.h"
+ 
+ #include <QComboBox>
++#include <QLabel>
+ #include <QPushButton>
+ 
+ class LayoutItem : public QListWidgetItem
+@@ -48,8 +52,52 @@ KeyboardPage::KeyboardPage( Config* config, QWidget* parent )
+ {
+     ui->setupUi( this );
+ 
++    // CORE_VAULT_VISUAL_POLISH_V3: preserve selectors/models, rebuild only their layout.
++    auto* spare=new QWidget(this); spare->hide();
++    auto* spareLayout=new QVBoxLayout(spare);
++    while (auto* item=ui->verticalLayout->takeAt(0)) {
++        if (auto* nested=item->layout()) {
++            nested->setParent(nullptr); spareLayout->addLayout(nested);
++        } else { if (auto* w=item->widget()) w->setParent(spare); delete item; }
++    }
++    ui->label->hide(); ui->physicalModelSelector->hide(); ui->buttonRestore->hide();
++    ui->label_2->hide(); ui->groupSelector->hide();
++    auto* pageTitle=new QLabel(QStringLiteral("Choose your keyboard layout"),this);
++    pageTitle->setObjectName("coreOfflinePageTitle");
++    pageTitle->setAlignment(Qt::AlignCenter);
++    pageTitle->setFixedHeight(28);
++    auto* pageDescription=new QLabel(QStringLiteral(
++        "Bitcoin Core Vault and the installer stay in English. Choose your keyboard layout below."),this);
++    pageDescription->setObjectName("coreOfflinePageDescription");
++    pageDescription->setAlignment(Qt::AlignCenter); pageDescription->setWordWrap(true);
++    ui->verticalLayout->setContentsMargins(0,0,0,0);
++    ui->verticalLayout->setSpacing(8);
++    ui->verticalLayout->addWidget(pageTitle);
++    ui->verticalLayout->addWidget(pageDescription);
++    auto* grid=new QGridLayout;
++    grid->setContentsMargins(0,0,0,0); grid->setHorizontalSpacing(14); grid->setVerticalSpacing(6);
++    auto* layoutHeading=new QLabel(QStringLiteral("Keyboard layout"),this);
++    auto* variantHeading=new QLabel(QStringLiteral("Variant"),this);
++    for (auto* label : {layoutHeading,variantHeading}) {
++        label->setObjectName("coreOfflineFieldLabel"); label->setAlignment(Qt::AlignCenter);
++        label->setSizePolicy(QSizePolicy::Preferred,QSizePolicy::Fixed);
++    }
++    grid->addWidget(layoutHeading,0,0); grid->addWidget(variantHeading,0,1);
++    ui->layoutSelector->setParent(this); ui->variantSelector->setParent(this);
++    ui->layoutSelector->setMinimumSize(0,70); ui->variantSelector->setMinimumSize(0,70);
++    grid->addWidget(ui->layoutSelector,1,0); grid->addWidget(ui->variantSelector,1,1);
++    grid->setColumnStretch(0,1); grid->setColumnStretch(1,1); grid->setRowStretch(1,1);
++    ui->verticalLayout->addLayout(grid,1);
++    ui->LE_TestKeyboard->setParent(this);
++    ui->LE_TestKeyboard->setPlaceholderText(QStringLiteral("Type here to test your keyboard"));
++    ui->LE_TestKeyboard->setFixedHeight(32);
++    ui->verticalLayout->addWidget(ui->LE_TestKeyboard);
++    ui->layoutSelector->show(); ui->variantSelector->show(); ui->LE_TestKeyboard->show();
++
++
+     // Keyboard Preview
+     ui->KBPreviewLayout->addWidget( m_keyboardPreview );
++    m_keyboardPreview->hide(); // CORE_OFFLINE_INTEGRATION
+ 
+     {
+         auto* model = config->keyboardModels();
+diff --git debian/src/modules/partition/PartitionViewStep.cpp vault/src/modules/partition/PartitionViewStep.cpp
+index f356c7168553659b881b469b204d3321d377459c..be8537722033f3f4026135d5727d1ec1fc4df7bd 100644
+--- debian/src/modules/partition/PartitionViewStep.cpp
++++ vault/src/modules/partition/PartitionViewStep.cpp
+@@ -118,7 +118,7 @@ PartitionViewStep::~PartitionViewStep()
+ QString
+ PartitionViewStep::prettyName() const
+ {
+-    return tr( "Partitions", "@label" );
++    return tr("Disk");
+ }
+ 
+ /** @brief Gather the pretty descriptions of all the partitioning jobs
+@@ -234,129 +234,55 @@ diskDescription( int listLength, const PartitionCoreModule::SummaryInfo& info, C
+ QString
+ PartitionViewStep::prettyStatus() const
+ {
+-    const Config::InstallChoice choice = m_config->installChoice();
+     const QList< PartitionCoreModule::SummaryInfo > list = m_core->createSummaryInfo();
+-
+-    cDebug() << "Summary for Partition" << list.length() << choice;
+-    const QString diskInfoLabel = [ &choice, &list ]()
++    if ( list.isEmpty() )
+     {
+-        QStringList s;
+-        for ( const auto& i : list )
+-        {
+-            s.append( diskDescription( 1, i, choice ) );
+-        }
+-        return s.join( QString() );
+-    }();
+-    QStringList jobsLabels = jobDescriptions( jobs() );
+-    if ( m_config->swapChoice() == Config::SwapChoice::SwapFile )
+-    {
+-        jobsLabels.append( tr( "Create a swap file." ) );
++        return tr( "No installation drive selected." );
+     }
+-    return diskInfoLabel + "<br/>" + jobsLabels.join( QStringLiteral( "<br/>" ) );
++    const auto& info = list.first();
++    return tr( "<b>Installation drive</b><br/>%1 <span style='color:#aaaaaa'>(%2)</span><br/><br/>"
++               "The selected drive will be completely erased and dedicated to Bitcoin Core Vault." )
++        .arg( info.deviceName, info.deviceNode );
+ }
+ 
+ QWidget*
+ PartitionViewStep::createSummaryWidget() const
+ {
+     QWidget* widget = new QWidget;
+-    QVBoxLayout* mainLayout = new QVBoxLayout;
+-    widget->setLayout( mainLayout );
+-    Calamares::unmarginLayout( mainLayout );
+-
+-    Config::InstallChoice choice = m_config->installChoice();
+-
+-    QFormLayout* formLayout = new QFormLayout( widget );
+-    const int MARGIN = Calamares::defaultFontHeight() / 2;
+-    formLayout->setContentsMargins( MARGIN, 0, MARGIN, MARGIN );
+-    mainLayout->addLayout( formLayout );
+-
+-#if defined( DEBUG_PARTITION_UNSAFE ) || defined( DEBUG_PARTITION_BAIL_OUT ) || defined( DEBUG_PARTITION_SKIP )
+-    auto specialRow = [ = ]( Calamares::ImageType t, const QString& s )
+-    {
+-        QLabel* icon = new QLabel;
+-        icon->setPixmap( Calamares::defaultPixmap( t ) );
+-        formLayout->addRow( icon, new QLabel( s ) );
+-    };
+-#endif
+-#if defined( DEBUG_PARTITION_UNSAFE )
+-    specialRow( Calamares::ImageType::StatusWarning, tr( "Unsafe partition actions are enabled." ) );
+-#endif
+-#if defined( DEBUG_PARTITION_BAIL_OUT )
+-    specialRow( Calamares::ImageType::Information, tr( "Partitioning is configured to <b>always</b> fail." ) );
+-#endif
+-#if defined( DEBUG_PARTITION_SKIP )
+-    specialRow( Calamares::ImageType::Information, tr( "No partitions will be changed." ) );
+-#endif
++    QVBoxLayout* layout = new QVBoxLayout( widget );
++    layout->setContentsMargins(0,0,0,0);
++    layout->setSpacing( 8 );
+ 
+     const QList< PartitionCoreModule::SummaryInfo > list = m_core->createSummaryInfo();
+-    if ( list.length() > 1 )  // There are changes on more than one disk
+-    {
+-        //NOTE: all of this should only happen when Manual partitioning is active.
+-        //      Any other choice should result in a list.length() == 1.
+-        QLabel* modeLabel = new QLabel;
+-        formLayout->addRow( modeLabel );
+-        modeLabel->setText( modeDescription( choice ) );
+-    }
+-    for ( const auto& info : list )
+-    {
+-        QLabel* diskInfoLabel = new QLabel;
+-        diskInfoLabel->setText( diskDescription( list.length(), info, choice ) );
+-        formLayout->addRow( diskInfoLabel );
+-
+-        PartitionBarsView* preview;
+-        PartitionLabelsView* previewLabels;
+-        QVBoxLayout* field;
+-
+-        PartitionBarsView::NestedPartitionsMode mode
+-            = Calamares::JobQueue::instance()->globalStorage()->value( "drawNestedPartitions" ).toBool()
+-            ? PartitionBarsView::DrawNestedPartitions
+-            : PartitionBarsView::NoNestedPartitions;
+-        preview = new PartitionBarsView;
+-        preview->setNestedPartitionsMode( mode );
+-        previewLabels = new PartitionLabelsView;
+-        previewLabels->setExtendedPartitionHidden( mode == PartitionBarsView::NoNestedPartitions );
+-        preview->setModel( info.partitionModelBefore );
+-        previewLabels->setModel( info.partitionModelBefore );
+-        preview->setSelectionMode( QAbstractItemView::NoSelection );
+-        previewLabels->setSelectionMode( QAbstractItemView::NoSelection );
+-        info.partitionModelBefore->setParent( widget );
+-        field = new QVBoxLayout;
+-        Calamares::unmarginLayout( field );
+-        field->setSpacing( 6 );
+-        field->addWidget( preview );
+-        field->addWidget( previewLabels );
+-        formLayout->addRow( tr( "Current:", "@label" ), field );
+-
+-        preview = new PartitionBarsView;
+-        preview->setNestedPartitionsMode( mode );
+-        previewLabels = new PartitionLabelsView;
+-        previewLabels->setExtendedPartitionHidden( mode == PartitionBarsView::NoNestedPartitions );
+-        preview->setModel( info.partitionModelAfter );
+-        previewLabels->setModel( info.partitionModelAfter );
+-        preview->setSelectionMode( QAbstractItemView::NoSelection );
+-        previewLabels->setSelectionMode( QAbstractItemView::NoSelection );
+-        previewLabels->setCustomNewRootLabel(
+-            Calamares::Branding::instance()->string( Calamares::Branding::BootloaderEntryName ) );
+-        info.partitionModelAfter->setParent( widget );
+-        field = new QVBoxLayout;
+-        Calamares::unmarginLayout( field );
+-        field->setSpacing( 6 );
+-        field->addWidget( preview );
+-        field->addWidget( previewLabels );
+-        formLayout->addRow( tr( "After:", "@label" ), field );
+-    }
+-    const QStringList jobsLines = jobDescriptions( jobs() );
+-    if ( !jobsLines.isEmpty() )
++    if ( list.isEmpty() )
+     {
+-        QLabel* jobsLabel = new QLabel( widget );
+-        mainLayout->addWidget( jobsLabel );
+-        jobsLabel->setText( jobsLines.join( "<br/>" ) );
+-        jobsLabel->setMargin( Calamares::defaultFontHeight() / 2 );
+-        QPalette pal;
+-        pal.setColor( WindowBackground, pal.window().color().lighter( 108 ) );
+-        jobsLabel->setAutoFillBackground( true );
+-        jobsLabel->setPalette( pal );
++        auto* missing = new QLabel( tr( "No installation drive selected." ), widget );
++        missing->setObjectName( "coreOfflineEraseWarning" );
++        layout->addWidget( missing );
++        return widget;
+     }
++
++    const auto& info = list.first();
++    auto* drive = new QLabel(
++        tr( "<b>Installation drive</b><br/>%1<br/><span style='color:#aaaaaa'>%2</span>" )
++            .arg( info.deviceName, info.deviceNode ), widget );
++    drive->setObjectName( "coreOfflineReviewCard" );
++    drive->setWordWrap( true );
++    layout->addWidget( drive );
++
++    auto* action = new QLabel(
++        tr( "<b>What will happen</b><br/>The selected drive will be erased. Bitcoin Core Vault will be installed as a dedicated offline environment. No username, password, network, or timezone setup is required." ), widget );
++    action->setObjectName( "coreOfflineReviewCard" );
++    action->setWordWrap( true );
++    layout->addWidget( action );
++
++    auto* warning = new QLabel(
++        tr( "Everything currently stored on this drive will be permanently erased." ), widget );
++    warning->setObjectName( "coreOfflineEraseWarning" );
++    warning->setWordWrap( true );
++    layout->addWidget( warning );
++
++    layout->addStretch();
+     return widget;
+ }
+ 
+diff --git vault/src/modules/partition/core/CoreOfflineGuard.h vault/src/modules/partition/core/CoreOfflineGuard.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..a1102f59a48676ba2f9047cf75a877a991162e90
+--- /dev/null
++++ vault/src/modules/partition/core/CoreOfflineGuard.h
+@@ -0,0 +1,50 @@
++// SPDX-License-Identifier: GPL-3.0-or-later
++// Core Offline integration; read-only validation before upstream disk jobs.
++#pragma once
++#include "Job.h"
++#include <QMap>
++#include <QProcess>
++#include <QStringList>
++
++static QMap<QString, QByteArray> coreOfflineDiskIdentity;
++
++static QByteArray coreOfflineProbe(const QString& node)
++{
++    QProcess p;
++    p.start(QStringLiteral("/usr/bin/python3"),
++            {QStringLiteral("/usr/lib/core-vault-installer/disk_safety.py"),
++             QStringLiteral("probe"), node});
++    if (!p.waitForStarted(5000) || !p.waitForFinished(15000)) {
++        p.kill(); p.waitForFinished(1000); return {};
++    }
++    if (p.exitStatus() != QProcess::NormalExit || p.exitCode() != 0) return {};
++    return p.readAllStandardOutput().trimmed();
++}
++
++class CoreOfflineDiskGuard : public Calamares::Job
++{
++public:
++    CoreOfflineDiskGuard(QStringList nodes, bool eraseOnly)
++        : m_nodes(nodes), m_eraseOnly(eraseOnly) {
++        for (const auto& n : nodes) m_expected[n] = coreOfflineDiskIdentity.value(n);
++    }
++    QString prettyName() const override { return QStringLiteral("Check the selected installation disk"); }
++    QString prettyStatusMessage() const override { return prettyName(); }
++    Calamares::JobResult exec() override {
++        if (!m_eraseOnly || m_nodes.size() != 1) {
++            return Calamares::JobResult::error(QStringLiteral("Installation stopped before partitioning"),
++                QStringLiteral("Only one whole-disk erase installation is permitted."));
++        }
++        const QString n = m_nodes.first();
++        const auto current = coreOfflineProbe(n);
++        if (current.isEmpty() || m_expected.value(n).isEmpty() || current != m_expected.value(n)) {
++            return Calamares::JobResult::error(QStringLiteral("The selected disk is no longer safe to erase"),
++                QStringLiteral("No partition jobs were started. The disk changed, is mounted, removable, too small, or could not be identified. Restart the installer and check the disk selection."));
++        }
++        return Calamares::JobResult::ok();
++    }
++private:
++    QStringList m_nodes;
++    bool m_eraseOnly;
++    QMap<QString, QByteArray> m_expected;
++};
+diff --git debian/src/modules/partition/core/PartitionCoreModule.cpp vault/src/modules/partition/core/PartitionCoreModule.cpp
+index d92c66f72dccdd2837f76573a03103679c7f2e54..e22a16176fb0399760b29a399ee3de2d1151f91b 100644
+--- debian/src/modules/partition/core/PartitionCoreModule.cpp
++++ vault/src/modules/partition/core/PartitionCoreModule.cpp
+@@ -12,6 +12,7 @@
+  */
+ 
+ #include "core/PartitionCoreModule.h"
++#include "CoreOfflineGuard.h"
+ 
+ #include "core/BootLoaderModel.h"
+ #include "core/ColorUtils.h"
+@@ -268,7 +269,20 @@ PartitionCoreModule::doInit()
+     FileSystemFactory::init();
+ 
+     using DeviceList = QList< Device* >;
+-    DeviceList devices = PartUtils::getDevices( PartUtils::DeviceType::WritableOnly );
++    // CORE_OFFLINE_INTEGRATION: omit unsafe targets from the drive selector.
++    DeviceList detected = PartUtils::getDevices( PartUtils::DeviceType::WritableOnly );
++    DeviceList devices;
++    coreOfflineDiskIdentity.clear();
++    for (auto* d : detected) {
++        if (!d) continue;
++        const auto identity = coreOfflineProbe(d->deviceNode());
++        if (!identity.isEmpty()) {
++            devices.append(d);
++            coreOfflineDiskIdentity[d->deviceNode()] = identity;
++        } else {
++            delete d;
++        }
++    }
+ 
+     cDebug() << "LIST OF DETECTED DEVICES:";
+     cDebug() << Logger::SubEntry << "node\tcapacity\tname\tprettyName";
+@@ -293,7 +307,7 @@ PartitionCoreModule::doInit()
+ 
+     // The following PartUtils::runOsprober call in turn calls PartUtils::canBeResized,
+     // which relies on a working DeviceModel.
+-    m_osproberLines = PartUtils::runOsprober( this->deviceModel() );
++    m_osproberLines.clear(); // CORE_OFFLINE_INTEGRATION: whole-disk appliance install only.
+ 
+     // We perform a best effort of filling out filesystem UUIDs in m_osproberLines
+     // because we will need them later on in PartitionModel if partition paths
+@@ -648,6 +662,13 @@ PartitionCoreModule::jobs( const Config* config ) const
+ {
+     Calamares::JobList lst;
+     QList< Device* > devices;
++    // CORE_OFFLINE_INTEGRATION: validate selected disk immediately before writes.
++    QStringList dirty;
++    for (const auto* info : m_deviceInfos) {
++        if (info->isDirty()) dirty.append(info->device->deviceNode());
++    }
++    lst << Calamares::job_ptr(new CoreOfflineDiskGuard(
++        dirty, config->installChoice() == Config::InstallChoice::Erase));
+ 
+ #ifdef DEBUG_PARTITION_UNSAFE
+ #ifdef DEBUG_PARTITION_BAIL_OUT
+diff --git debian/src/modules/partition/gui/ChoicePage.cpp vault/src/modules/partition/gui/ChoicePage.cpp
+index 382c1a7a2604e49ab372cff5d0e88258ed2dac0b..8ad69b6bbb6eefdd7e4320a6448065f9335bb363 100644
+--- debian/src/modules/partition/gui/ChoicePage.cpp
++++ vault/src/modules/partition/gui/ChoicePage.cpp
+@@ -88,6 +88,20 @@ ChoicePage::ChoicePage( Config* config, QWidget* parent )
+ {
+     setupUi( this );
+ 
++    // CORE_OFFLINE_INTEGRATION: clear appliance-style disk page copy.
++    auto* pageTitle = new QLabel(QStringLiteral("Choose where to install Bitcoin Core Vault"), this);
++    pageTitle->setObjectName(QStringLiteral("coreOfflinePageTitle"));
++    auto* pageDescription = new QLabel(
++        QStringLiteral("Select one internal drive. The selected drive will be completely erased and dedicated to Bitcoin Core Vault."), this);
++    pageDescription->setObjectName(QStringLiteral("coreOfflinePageDescription"));
++    pageDescription->setWordWrap(true);
++    pageTitle->setAlignment(Qt::AlignCenter);
++    pageDescription->setAlignment(Qt::AlignCenter);
++    m_mainLayout->setContentsMargins(24, 0, 24, 0);
++    m_mainLayout->setSpacing(12);
++    m_mainLayout->insertWidget(0, pageDescription);
++    m_mainLayout->insertWidget(0, pageTitle);
++
+     auto gs = Calamares::JobQueue::instance()->globalStorage();
+ 
+     m_enableEncryptionWidget = gs->value( "enableLuksAutomatedPartitioning" ).toBool();
+@@ -97,6 +111,7 @@ ChoicePage::ChoicePage( Config* config, QWidget* parent )
+     m_drivesLayout->setDirection( QBoxLayout::LeftToRight );
+ 
+     BootInfoWidget* bootInfoWidget = new BootInfoWidget( this );
++    bootInfoWidget->hide(); // CORE_OFFLINE_INTEGRATION
+     m_drivesLayout->insertWidget( 0, bootInfoWidget );
+     m_drivesLayout->insertSpacing( 1, Calamares::defaultFontHeight() / 2 );
+ 
+@@ -108,12 +123,41 @@ ChoicePage::ChoicePage( Config* config, QWidget* parent )
+     m_drivesLayout->addWidget( m_drivesCombo );
+ 
+     m_deviceInfoWidget = new DeviceInfoWidget;
++    m_deviceInfoWidget->hide(); // CORE_OFFLINE_INTEGRATION
+     m_drivesLayout->addWidget( m_deviceInfoWidget );
+     m_drivesLayout->addStretch();
+ 
+     m_messageLabel->setWordWrap( true );
+     m_messageLabel->hide();
+ 
++    auto* eraseWarning = new QLabel(
++        QStringLiteral("Everything currently stored on the selected drive will be permanently erased."), this);
++    eraseWarning->setObjectName(QStringLiteral("coreOfflineEraseWarning"));
++    eraseWarning->setWordWrap(true);
++    m_mainLayout->insertWidget(3, eraseWarning);
++
++    // Hide Calamares' generic operation chooser and technical before/after partition diagrams.
++    m_itemsScrollArea->hide();
++    hLine->hide();
++    m_previewBeforeLabel->hide();
++    m_previewBeforeFrame->hide();
++    m_previewAfterLabel->hide();
++    m_previewAfterFrame->hide();
++    m_selectLabel->hide();
++    // CORE_VAULT_VISUAL_POLISH_V3: never distribute spare height between text labels.
++    m_mainLayout->setContentsMargins(0,0,0,0);
++    m_mainLayout->setSpacing(12); m_mainLayout->setAlignment(Qt::AlignTop);
++    for (int i=0;i<m_mainLayout->count();++i) m_mainLayout->setStretch(i,0);
++    pageTitle->setSizePolicy(QSizePolicy::Preferred,QSizePolicy::Fixed);
++    pageTitle->setFixedHeight(28);
++    pageDescription->setSizePolicy(QSizePolicy::Preferred,QSizePolicy::Fixed);
++    eraseWarning->setSizePolicy(QSizePolicy::Preferred,QSizePolicy::Fixed);
++    m_drivesLayout->setContentsMargins(0,8,0,0);
++    m_drivesLayout->setSpacing(12);
++    m_rightLayout->setAlignment(Qt::AlignTop);
++    for (int i=0;i<m_rightLayout->count();++i) m_rightLayout->setStretch(i,0);
++
++
+     Calamares::unmarginLayout( m_itemsLayout );
+ 
+     // Drive selector + preview
+@@ -136,7 +180,7 @@ void
+ ChoicePage::retranslate()
+ {
+     retranslateUi( this );
+-    m_drivesLabel->setText( tr( "Select storage de&vice:", "@label" ) );
++    m_drivesLabel->setText( tr( "Installation drive:", "@label" ) );
+     m_previewBeforeLabel->setText( tr( "Current:", "@label" ) );
+     m_previewAfterLabel->setText( tr( "After:", "@label" ) );
+ 
+@@ -439,6 +483,7 @@ ChoicePage::continueApplyDeviceChoice()
+         return;
+     }
+ 
++    m_core->setBootLoaderInstallPath(currd->deviceNode()); // CORE_OFFLINE_INTEGRATION
+     updateDeviceStatePreview();
+ 
+     // Preview setup done. Now we show/hide choices as needed.
+@@ -448,8 +493,8 @@ ChoicePage::continueApplyDeviceChoice()
+     if ( m_lastSelectedDeviceIndex != m_drivesCombo->currentIndex() )
+     {
+         m_lastSelectedDeviceIndex = m_drivesCombo->currentIndex();
+-        m_config->setInstallChoice( m_config->initialInstallChoice() );
+-        checkInstallChoiceRadioButton( m_config->installChoice() );
++        m_config->setInstallChoice( InstallChoice::Erase ); // CORE_OFFLINE_INTEGRATION
++        checkInstallChoiceRadioButton( InstallChoice::Erase );
+     }
+ 
+     Q_EMIT actionChosen();
+@@ -1094,8 +1139,8 @@ ChoicePage::updateActionChoicePreview( InstallChoice choice )
+                              .arg( Calamares::Branding::instance()->shortProductName() ) );
+                  } );
+ 
+-        m_previewAfterFrame->show();
+-        m_previewAfterLabel->show();
++        m_previewAfterFrame->hide();
++        m_previewAfterLabel->hide();
+ 
+         SelectionFilter filter = []( const QModelIndex& index )
+         {
+@@ -1145,8 +1190,8 @@ ChoicePage::updateActionChoicePreview( InstallChoice choice )
+             layout->addWidget( createBootloaderPanel() );
+         }
+ 
+-        m_previewAfterFrame->show();
+-        m_previewAfterLabel->show();
++        m_previewAfterFrame->hide();
++        m_previewAfterLabel->hide();
+ 
+         if ( m_config->installChoice() == InstallChoice::Erase )
+         {
+@@ -1480,6 +1525,12 @@ ChoicePage::setupActions()
+                    << "replaced?" << atLeastOneCanBeReplaced << "resized?" << atLeastOneCanBeResized
+                    << "erased? (not-mounted and not-raid)" << !atLeastOneIsMounted << "and" << !isInactiveRAID;
+     }
++
++    // CORE_OFFLINE_INTEGRATION: whole-disk erase is the only supported install operation.
++    force_uncheck(m_grp, m_replaceButton);
++    force_uncheck(m_grp, m_alongsideButton);
++    force_uncheck(m_grp, m_somethingElseButton);
++
+ }
+ 
+ OsproberEntryList
+@@ -1705,6 +1756,7 @@ ChoicePage::createBootloaderPanel()
+     widgetLabel->setBuddy( m_bootloaderComboBox );
+     mainLayout->addStretch();
+ 
++    panelWidget->hide(); // CORE_OFFLINE_INTEGRATION
+     return panelWidget;
+ }
+ 
+diff --git debian/src/modules/summary/Config.cpp vault/src/modules/summary/Config.cpp
+index 387b03075f5fa7f1e599f08e431993a30577a5f5..d06fc8f5e387a14b66e6755f4c6f5c24528c4ec6 100644
+--- debian/src/modules/summary/Config.cpp
++++ vault/src/modules/summary/Config.cpp
+@@ -32,18 +32,8 @@ Config::Config( QObject* parent )
+ void
+ Config::retranslate()
+ {
+-    m_title = tr( "Summary", "@label" );
+-
+-    if ( Calamares::Settings::instance()->isSetupMode() )
+-    {
+-        m_message = tr( "This is an overview of what will happen once you start "
+-                        "the setup procedure." );
+-    }
+-    else
+-    {
+-        m_message = tr( "This is an overview of what will happen once you start "
+-                        "the install procedure." );
+-    }
++    m_title = tr( "Review", "@label" );
++    m_message = tr( "Ready to install. Check the drive, then confirm below." );
+     Q_EMIT titleChanged( m_title );
+     Q_EMIT messageChanged( m_message );
+ }
+diff --git debian/src/modules/summary/SummaryPage.cpp vault/src/modules/summary/SummaryPage.cpp
+index 41881e479e8c23699a1b469d5f6788afba745cf7..cea7b5b99d153994f87538e2d8061391db3ced5d 100644
+--- debian/src/modules/summary/SummaryPage.cpp
++++ vault/src/modules/summary/SummaryPage.cpp
+@@ -41,8 +41,11 @@ SummaryPage::SummaryPage( Config* config, QWidget* parent )
+ 
+     QLabel* headerLabel = new QLabel( this );
+     headerLabel->setObjectName( "summaryTitle" );
++    headerLabel->setAlignment(Qt::AlignCenter);
++    headerLabel->setFixedHeight(28);
+     headerLabel->setText( config->message() );
+     connect( config, &Config::messageChanged, headerLabel, &QLabel::setText );
++    layout->setSpacing(6);
+     layout->addWidget( headerLabel );
+     layout->addWidget( m_scrollArea );
+     m_scrollArea->setWidgetResizable( true );
+@@ -71,7 +74,7 @@ createBodyLabel( const QString& text, const QPalette& bodyPalette )
+ {
+     QLabel* label = new QLabel;
+     label->setObjectName( "summaryItemBody" );
+-    label->setMargin( Calamares::defaultFontHeight() / 2 );
++    label->setMargin(0);
+     label->setAutoFillBackground( true );
+     label->setPalette( bodyPalette );
+     label->setText( text );
+@@ -86,12 +89,12 @@ createStepWidget( const QString& description, QWidget* innerWidget, const QPalet
+     w->setLayout( itemBodyLayout );
+ 
+     // Indent the inner box by a bit
+-    itemBodyLayout->addSpacing( Calamares::defaultFontHeight() * 2 );
++    // No additional summary indentation.
+     QVBoxLayout* itemBodyCoreLayout = new QVBoxLayout;
+     itemBodyLayout->addLayout( itemBodyCoreLayout );
+     Calamares::unmarginLayout( itemBodyLayout );
+ 
+-    itemBodyCoreLayout->addSpacing( Calamares::defaultFontHeight() / 2 );
++    itemBodyCoreLayout->setContentsMargins(0,0,0,0);
+     if ( innerWidget )
+     {
+         itemBodyCoreLayout->addWidget( innerWidget );
+@@ -125,11 +128,12 @@ ensureSize( QWidget* parent, QScrollArea* container, Calamares::ViewStep* viewst
+ void
+ SummaryPage::buildWidgets( Config* config, SummaryViewStep* viewstep )
+ {
+-    const int SECTION_SPACING = 12;
++    const int SECTION_SPACING = 6;
+ 
+     delete m_contentWidget;  // It might have been created previously
+     m_contentWidget = new QWidget;
+     m_layout = new QVBoxLayout( m_contentWidget );
++    m_layout->setSpacing(4);
+     Calamares::unmarginLayout( m_layout );
+ 
+     QFont titleFont = font();
+@@ -165,7 +169,9 @@ SummaryPage::buildWidgets( Config* config, SummaryViewStep* viewstep )
+     m_layout->addStretch();
+ 
+     m_scrollArea->setWidget( m_contentWidget );
+-    ensureSize( this, m_scrollArea, viewstep );
++    // CORE_VAULT: fullscreen reviews scroll instead of exceeding the display.
++    if (!Calamares::Branding::instance()->windowExpands())
++        ensureSize( this, m_scrollArea, viewstep );
+ }
+ 
+ void
+diff --git debian/src/modules/summary/SummaryViewStep.cpp vault/src/modules/summary/SummaryViewStep.cpp
+index 9d63d0d3747855a7adfa6ed07f51cc8cc3388d62..90eca3fcd04c279120b312118986a8ddf791835d 100644
+--- debian/src/modules/summary/SummaryViewStep.cpp
++++ vault/src/modules/summary/SummaryViewStep.cpp
+@@ -10,6 +10,8 @@
+ #include "SummaryViewStep.h"
+ 
+ #include "SummaryPage.h"
++#include <QCheckBox>
++#include <QVBoxLayout>
+ 
+ CALAMARES_PLUGIN_FACTORY_DEFINITION( SummaryViewStepFactory, registerPlugin< SummaryViewStep >(); )
+ 
+@@ -18,7 +20,15 @@ SummaryViewStep::SummaryViewStep( QObject* parent )
+     , m_config( new Config( this ) )
+     , m_widget( new SummaryPage( m_config ) )
+ {
+-    emit nextStatusChanged( true );
++    // CORE_VAULT_CONSENT_V1
++    auto* consent = new QCheckBox(
++        tr("I understand that everything on the selected drive will be erased."), m_widget);
++    consent->setObjectName(QStringLiteral("coreVaultEraseConsent"));
++    m_widget->layout()->addWidget(consent);
++    connect(consent, &QCheckBox::toggled, this, [this](bool checked) {
++        Q_EMIT nextStatusChanged(checked);
++    });
++    emit nextStatusChanged(false);
+ }
+ 
+ 
+@@ -49,7 +59,8 @@ SummaryViewStep::widget()
+ bool
+ SummaryViewStep::isNextEnabled() const
+ {
+-    return true;
++    auto* consent = m_widget->findChild<QCheckBox*>(QStringLiteral("coreVaultEraseConsent"));
++    return consent && consent->isChecked();
+ }
+ 
+ 
+@@ -84,6 +95,9 @@ SummaryViewStep::jobs() const
+ void
+ SummaryViewStep::onActivate()
+ {
++    if (auto* consent = m_widget->findChild<QCheckBox*>(QStringLiteral("coreVaultEraseConsent")))
++        consent->setChecked(false);
++    Q_EMIT nextStatusChanged(false);
+     m_config->collectSummaries( this, Config::Widgets::Enabled );
+     m_widget->buildWidgets( m_config, this );
+ }

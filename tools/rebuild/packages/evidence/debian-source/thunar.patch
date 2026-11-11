@@ -1,0 +1,408 @@
+diff --git debian/thunar/thunar-action-manager.c vault/thunar/thunar-action-manager.c
+index 5cb1f799623a04b8a4c2b3c38782c0b0d9e82ae1..68c6737a7a3e6bf601e9022d77931fbc021b78e7 100644
+--- debian/thunar/thunar-action-manager.c
++++ vault/thunar/thunar-action-manager.c
+@@ -344,7 +344,7 @@ static XfceGtkActionEntry thunar_action_manager_action_entries[] =
+ 
+     {THUNAR_ACTION_MANAGER_ACTION_RESTORE,            "<Actions>/ThunarActionManager/restore",               "",                  XFCE_GTK_MENU_ITEM,       N_ ("_Restore"),            NULL,                                             NULL,                                                                                         G_CALLBACK (thunar_action_manager_action_restore),             },
+     { THUNAR_ACTION_MANAGER_ACTION_RESTORE_SHOW,      "<Actions>/ThunarActionManager/restore-show",          "",                  XFCE_GTK_MENU_ITEM,       N_ ("Restore and S_how"),   NULL,                                             NULL,                                                                                         G_CALLBACK (thunar_action_manager_action_restore_and_show),    },
+-    {THUNAR_ACTION_MANAGER_ACTION_MOVE_TO_TRASH,      "<Actions>/ThunarActionManager/move-to-trash",         "",                  XFCE_GTK_IMAGE_MENU_ITEM, N_ ("Mo_ve to Trash"),      NULL,                                                                                            "user-trash",                                  G_CALLBACK (thunar_action_manager_action_trash_delete),        },
++    {THUNAR_ACTION_MANAGER_ACTION_MOVE_TO_TRASH,      "<Actions>/ThunarActionManager/move-to-trash",         "",                  XFCE_GTK_IMAGE_MENU_ITEM, N_ ("Permanently _Delete…"),      NULL,                                                                                            "edit-delete",                                  G_CALLBACK (thunar_action_manager_action_trash_delete),        },
+     {THUNAR_ACTION_MANAGER_ACTION_TRASH_DELETE,       "<Actions>/ThunarActionManager/trash-delete",          "Delete",            XFCE_GTK_IMAGE_MENU_ITEM, NULL,                       NULL,                                             NULL,                                                                                         G_CALLBACK (thunar_action_manager_action_trash_delete),        },
+     {THUNAR_ACTION_MANAGER_ACTION_TRASH_DELETE_ALT,   "<Actions>/ThunarActionManager/trash-delete-2",        "KP_Delete",         XFCE_GTK_IMAGE_MENU_ITEM, NULL,                       NULL,                                             NULL,                                                                                         G_CALLBACK (thunar_action_manager_action_trash_delete),        },
+     {THUNAR_ACTION_MANAGER_ACTION_DELETE,             "<Actions>/ThunarActionManager/delete",                "",                  XFCE_GTK_IMAGE_MENU_ITEM, N_ ("_Delete"),             NULL,                                                                                            "edit-delete",                                 G_CALLBACK (thunar_action_manager_action_delete),              },
+@@ -1596,12 +1596,8 @@ thunar_action_manager_append_accelerators (ThunarActionManager *action_mgr,
+ static gboolean
+ thunar_action_manager_show_trash (ThunarActionManager *action_mgr)
+ {
+-  if (action_mgr->parent_folder == NULL)
+-    return FALSE;
+-
+-  /* If the folder is read only, always show trash insensitive */
+-  /* If we are outside waste basket, the selection is trashable and we support trash, show trash */
+-  return !thunar_file_is_writable (action_mgr->parent_folder) || (!thunar_file_is_trashed (action_mgr->parent_folder) && action_mgr->files_to_process_trashable && thunar_g_vfs_is_uri_scheme_supported ("trash"));
++  /* Show one permanent-delete action on local selections, including removable media. */
++  return action_mgr->parent_folder != NULL;
+ }
+ 
+ 
+@@ -1629,7 +1625,6 @@ thunar_action_manager_append_menu_item (ThunarActionManager      *action_mgr,
+   gchar                    *label_text;
+   gchar                    *tooltip_text;
+   const XfceGtkActionEntry *action_entry = get_action_entry (action);
+-  gboolean                  show_delete_item;
+   gboolean                  show_item;
+   ThunarClipboardManager   *clipboard;
+   ThunarFile               *parent;
+@@ -1778,8 +1773,8 @@ thunar_action_manager_append_menu_item (ThunarActionManager      *action_mgr,
+       if (!show_item && !force)
+         return NULL;
+ 
+-      tooltip_text = ngettext ("Move the selected file to the Trash",
+-                               "Move the selected files to the Trash", action_mgr->n_files_to_process);
++      tooltip_text = ngettext ("Overwrite and permanently delete the selected file",
++                               "Overwrite and permanently delete the selected files", action_mgr->n_files_to_process);
+       item = xfce_gtk_image_menu_item_new_from_icon_name (action_entry->menu_item_label_text, tooltip_text, action_entry->accel_path,
+                                                           action_entry->callback, G_OBJECT (action_mgr), action_entry->menu_item_icon_name, menu);
+       gtk_widget_set_sensitive (item, show_item && action_mgr->parent_folder != NULL && thunar_file_is_writable (action_mgr->parent_folder));
+@@ -1787,20 +1782,9 @@ thunar_action_manager_append_menu_item (ThunarActionManager      *action_mgr,
+ 
+ 
+     case THUNAR_ACTION_MANAGER_ACTION_DELETE:
+-      g_object_get (G_OBJECT (action_mgr->preferences), "misc-show-delete-action", &show_delete_item, NULL);
+-      if (thunar_action_manager_show_trash (action_mgr) && !show_delete_item)
+-        return NULL;
+-
+-      show_item = action_mgr->files_are_selected;
+-      if (!show_item && !force)
+-        return NULL;
+-
+-      tooltip_text = ngettext ("Permanently delete the selected file",
+-                               "Permanently delete the selected files", action_mgr->n_files_to_process);
+-      item = xfce_gtk_image_menu_item_new_from_icon_name (action_entry->menu_item_label_text, tooltip_text, action_entry->accel_path,
+-                                                          action_entry->callback, G_OBJECT (action_mgr), action_entry->menu_item_icon_name, menu);
+-      gtk_widget_set_sensitive (item, show_item && action_mgr->parent_folder != NULL && thunar_file_is_writable (action_mgr->parent_folder));
+-      return item;
++      /* The native former Trash item is now the single permanent-delete entry.
++       * Delete and Shift+Delete accelerators still dispatch through the helper. */
++      return NULL;
+ 
+     case THUNAR_ACTION_MANAGER_ACTION_EMPTY_TRASH:
+       if (action_mgr->single_directory_to_process == TRUE)
+diff --git debian/thunar/thunar-application.c vault/thunar/thunar-application.c
+index ef7529865fed872eb99ba9ae6e4e23f1282a1bb0..9a84b4918aef8ebf46bcffebfbf26a25c4d988fa 100644
+--- debian/thunar/thunar-application.c
++++ vault/thunar/thunar-application.c
+@@ -2423,11 +2423,70 @@ thunar_application_move_files (ThunarApplication     *application,
+ 
+ 
+ 
++/* CORE_VAULT_SHRED_V1: argv-only dispatch; the helper owns confirmation and
++ * file-system checks. Never fall back to the ordinary trash/unlink jobs.
++ * Permanent deletion cannot be undone, so return TRUE to suppress the
++ * operation log's ordinary delete/undo assumptions even after spawning. */
++static gboolean
++core_vault_shred_files (gpointer parent,
++                       GList   *file_list)
++{
++  GPtrArray *argv;
++  GList     *lp;
++  GError    *error = NULL;
++  gchar     *path;
++
++  if (file_list == NULL)
++    return TRUE;
++
++  argv = g_ptr_array_new_with_free_func (g_free);
++  g_ptr_array_add (argv, g_strdup ("/usr/local/bin/core-vault-shred"));
++  g_ptr_array_add (argv, g_strdup ("--"));
++
++  for (lp = file_list; lp != NULL; lp = lp->next)
++    {
++      if (!G_IS_FILE (lp->data) || !g_file_is_native (lp->data))
++        {
++          g_set_error_literal (&error, G_IO_ERROR, G_IO_ERROR_NOT_SUPPORTED,
++                               _("Permanent deletion is available only for local files. Trash and remote locations are not supported."));
++          goto failed;
++        }
++      path = g_file_get_path (lp->data);
++      if (path == NULL || path[0] != '/')
++        {
++          g_free (path);
++          g_set_error_literal (&error, G_IO_ERROR, G_IO_ERROR_INVALID_ARGUMENT,
++                               _("A local absolute path is required for permanent deletion."));
++          goto failed;
++        }
++      g_ptr_array_add (argv, path);
++    }
++  g_ptr_array_add (argv, NULL);
++
++  /* GLib reaps this child. No shell, PATH search, flags, or URI arguments. */
++  if (!g_spawn_async (NULL, (gchar **) argv->pdata, NULL, 0,
++                      NULL, NULL, NULL, &error))
++    goto failed;
++  g_ptr_array_unref (argv);
++  return TRUE;
++
++failed:
++  thunar_dialogs_show_error (parent, error,
++                            _("Unable to start permanent deletion"));
++  g_clear_error (&error);
++  g_ptr_array_unref (argv);
++  return TRUE;
++}
++
++
+ static ThunarJob *
+ unlink_stub (GList *source_path_list,
+              GList *target_path_list)
+ {
+-  return thunar_io_jobs_unlink_files (source_path_list);
++  /* Disabled: native deletion must never invoke an ordinary unlink job. */
++  (void) source_path_list;
++  (void) target_path_list;
++  return NULL;
+ }
+ 
+ 
+@@ -2457,160 +2516,27 @@ thunar_application_unlink_files (ThunarApplication           *application,
+                                  gboolean                     warn,
+                                  const ThunarOperationLogMode log_mode)
+ {
+-  GtkWidget *dialog;
+-  GtkWidget *message_area;
+-  GtkWindow *window;
+-  GdkScreen *screen;
+-  GList     *path_list = NULL;
+-  GList     *lp;
+-  GList     *children;
+-  gchar     *message;
+-  guint      n_path_list = 0;
+-  gint       response;
+-  gboolean   operation_canceled = FALSE;
++  GList *paths = NULL;
++  GList *lp;
+ 
+   _thunar_return_val_if_fail (parent == NULL || GDK_IS_SCREEN (parent) || GTK_IS_WIDGET (parent), TRUE);
+   _thunar_return_val_if_fail (THUNAR_IS_APPLICATION (application), TRUE);
++  (void) permanently;
++  (void) warn;
++  (void) log_mode;
+ 
+-  /* determine the paths for the files */
+-  for (lp = g_list_last (file_list); lp != NULL; lp = lp->prev, ++n_path_list)
+-    {
+-      /* prepend the path to the path list */
+-      path_list = thunar_g_list_prepend_deep (path_list, thunar_file_get_file (lp->data));
+-
+-      /* permanently delete if at least one of the file is not a local
+-       * file (e.g. resides in the trash) or cannot be trashed */
+-      if (!thunar_file_is_local (lp->data) || !thunar_file_can_be_trashed (lp->data))
+-        permanently = TRUE;
+-    }
+-
+-  /* nothing to do if we don't have any paths */
+-  if (G_UNLIKELY (n_path_list == 0))
+-    return FALSE;
+-
+-  /* ask the user to confirm if deleting permanently */
+-  if (G_UNLIKELY (permanently))
+-    {
+-      /* parse the parent pointer */
+-      screen = thunar_util_parse_parent (parent, &window);
+-
+-      /* generate the question to confirm the delete operation */
+-      if (G_LIKELY (n_path_list == 1))
+-        {
+-          if (g_strcmp0 (thunar_file_get_display_name (file_list->data), thunar_file_get_basename (file_list->data)) != 0)
+-            message = g_strdup_printf (_("Are you sure that you want to\npermanently delete \"%s\" (%s)?"),
+-                                       thunar_file_get_display_name (THUNAR_FILE (file_list->data)),
+-                                       thunar_file_get_basename (THUNAR_FILE (file_list->data)));
+-          else
+-            message = g_strdup_printf (_("Are you sure that you want to\npermanently delete \"%s\"?"),
+-                                       thunar_file_get_display_name (THUNAR_FILE (file_list->data)));
+-        }
+-      else
+-        {
+-          message = g_strdup_printf (ngettext ("Are you sure that you want to permanently\ndelete the selected file?",
+-                                               "Are you sure that you want to permanently\ndelete the %u selected files?",
+-                                               n_path_list),
+-                                     n_path_list);
+-        }
+-
+-      /* ask the user to confirm the delete operation */
+-      dialog = gtk_message_dialog_new (window,
+-                                       GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+-                                       GTK_MESSAGE_QUESTION,
+-                                       GTK_BUTTONS_NONE,
+-                                       "%s", message);
+-      if (G_UNLIKELY (window == NULL && screen != NULL))
+-        gtk_window_set_screen (GTK_WINDOW (dialog), screen);
+-      gtk_window_set_title (GTK_WINDOW (dialog), _("Attention"));
+-      gtk_dialog_add_buttons (GTK_DIALOG (dialog),
+-                              _("_Cancel"), GTK_RESPONSE_CANCEL,
+-                                _("_Delete"), GTK_RESPONSE_YES,
+-                              NULL);
+-      gtk_dialog_set_default_response (GTK_DIALOG (dialog), GTK_RESPONSE_YES);
+-      gtk_message_dialog_format_secondary_text (GTK_MESSAGE_DIALOG (dialog),
+-                                                _("If you delete a file, it is permanently lost."));
+-
+-      /* additionally wrap long single-word filenames at character boundaries */
+-      message_area = gtk_message_dialog_get_message_area (GTK_MESSAGE_DIALOG (dialog));
+-      children = gtk_container_get_children (GTK_CONTAINER (message_area));
+-      if (children != NULL && GTK_IS_LABEL (children->data))
+-        {
+-          gtk_label_set_line_wrap_mode (GTK_LABEL (children->data), PANGO_WRAP_WORD_CHAR);
+-          thunar_gtk_label_disable_hyphens (GTK_LABEL (children->data));
+-        }
+-      g_list_free (children);
+-
+-      response = gtk_dialog_run (GTK_DIALOG (dialog));
+-      gtk_widget_destroy (dialog);
+-      g_free (message);
+-
+-      /* perform the delete operation */
+-      if (G_LIKELY (response == GTK_RESPONSE_YES))
+-        {
+-          /* launch the "Delete" operation */
+-          thunar_application_launch (application, parent, "edit-delete",
+-                                     _("Deleting files..."), unlink_stub,
+-                                     path_list, path_list, TRUE, FALSE, log_mode, NULL);
+-        }
+-      else
+-        operation_canceled = TRUE;
+-    }
+-  else if (G_LIKELY (!permanently) && warn)
++  for (lp = file_list; lp != NULL; lp = lp->next)
+     {
+-      /* parse the parent pointer */
+-      screen = thunar_util_parse_parent (parent, &window);
+-
+-      /* generate the question to confirm the move to trash operation */
+-      if (G_LIKELY (n_path_list == 1))
++      if (!THUNAR_IS_FILE (lp->data))
+         {
+-          if (g_strcmp0 (thunar_file_get_display_name (file_list->data), thunar_file_get_basename (file_list->data)) != 0)
+-            message = g_strdup_printf (_("Are you sure that you want to\nmove \"%s\" (%s) to trash ?"),
+-                                       thunar_file_get_display_name (THUNAR_FILE (file_list->data)),
+-                                       thunar_file_get_basename (THUNAR_FILE (file_list->data)));
+-          else
+-            message = g_strdup_printf (_("Are you sure that you want to\nmove \"%s\" to trash ?"),
+-                                       thunar_file_get_display_name (THUNAR_FILE (file_list->data)));
++          thunar_g_list_free_full (paths);
++          return TRUE;
+         }
+-      else
+-        {
+-          message = g_strdup_printf (ngettext ("Are you sure that you want to\nmove the selected file to trash?",
+-                                               "Are you sure that you want to\nmove the %u selected files to trash?",
+-                                               n_path_list),
+-                                     n_path_list);
+-        }
+-
+-      /* ask the user to confirm the move to trash operation */
+-      dialog = gtk_message_dialog_new (window,
+-                                       GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+-                                       GTK_MESSAGE_QUESTION,
+-                                       GTK_BUTTONS_NONE,
+-                                       "%s", message);
+-      if (G_UNLIKELY (window == NULL && screen != NULL))
+-        gtk_window_set_screen (GTK_WINDOW (dialog), screen);
+-      gtk_window_set_title (GTK_WINDOW (dialog), _("Attention"));
+-      gtk_dialog_add_buttons (GTK_DIALOG (dialog),
+-                              _("_Cancel"), GTK_RESPONSE_CANCEL,
+-                                _("Move to Trash"), GTK_RESPONSE_YES, NULL);
+-      gtk_dialog_set_default_response (GTK_DIALOG (dialog), GTK_RESPONSE_YES);
+-      response = gtk_dialog_run (GTK_DIALOG (dialog));
+-      gtk_widget_destroy (dialog);
+-      g_free (message);
+-
+-      if (G_LIKELY (response == GTK_RESPONSE_YES))
+-        thunar_application_trash (application, parent, path_list, log_mode);
+-      else
+-        operation_canceled = TRUE;
++      paths = g_list_append (paths, g_object_ref (thunar_file_get_file (lp->data)));
+     }
+-  else
+-    {
+-      /* launch the "Move to Trash" operation */
+-      thunar_application_trash (application, parent, path_list, log_mode);
+-    }
+-
+-  /* release the path list */
+-  thunar_g_list_free_full (path_list);
+-
+-  return operation_canceled;
++  core_vault_shred_files (parent, paths);
++  thunar_g_list_free_full (paths);
++  return TRUE;
+ }
+ 
+ 
+@@ -2619,7 +2545,9 @@ static ThunarJob *
+ trash_stub (GList *source_file_list,
+             GList *target_file_list)
+ {
+-  return thunar_io_jobs_trash_files (source_file_list);
++  (void) source_file_list;
++  (void) target_file_list;
++  return NULL;
+ }
+ 
+ 
+@@ -2640,11 +2568,8 @@ thunar_application_trash (ThunarApplication     *application,
+ {
+   _thunar_return_if_fail (parent == NULL || GDK_IS_SCREEN (parent) || GTK_IS_WIDGET (parent));
+   _thunar_return_if_fail (THUNAR_IS_APPLICATION (application));
+-  _thunar_return_if_fail (file_list != NULL);
+-
+-  thunar_application_launch (application, parent, "user-trash-full",
+-                             _("Moving files into the trash..."), trash_stub,
+-                             file_list, NULL, TRUE, FALSE, log_mode, NULL);
++  (void) log_mode;
++  core_vault_shred_files (parent, file_list);
+ }
+ 
+ 
+@@ -2753,58 +2678,11 @@ thunar_application_empty_trash (ThunarApplication *application,
+                                 gpointer           parent,
+                                 const gchar       *startup_id)
+ {
+-  GtkWidget *dialog;
+-  GtkWindow *window;
+-  GdkScreen *screen;
+-  GList      file_list;
+-  gint       response;
+-
+   _thunar_return_if_fail (THUNAR_IS_APPLICATION (application));
+   _thunar_return_if_fail (parent == NULL || GDK_IS_SCREEN (parent) || GTK_IS_WIDGET (parent));
+-
+-  /* parse the parent pointer */
+-  screen = thunar_util_parse_parent (parent, &window);
+-
+-  /* ask the user to confirm the operation */
+-  dialog = gtk_message_dialog_new (window,
+-                                   GTK_DIALOG_MODAL
+-                                   | GTK_DIALOG_DESTROY_WITH_PARENT,
+-                                   GTK_MESSAGE_QUESTION,
+-                                   GTK_BUTTONS_NONE,
+-                                   _("Remove all files and folders from the Trash?"));
+-  if (G_UNLIKELY (window == NULL && screen != NULL))
+-    gtk_window_set_screen (GTK_WINDOW (dialog), screen);
+-  gtk_window_set_startup_id (GTK_WINDOW (dialog), startup_id);
+-  gtk_window_set_title (GTK_WINDOW (dialog), _("Empty Trash"));
+-  gtk_dialog_add_buttons (GTK_DIALOG (dialog),
+-                          _("_Cancel"), GTK_RESPONSE_CANCEL,
+-                            _("_Empty Trash"), GTK_RESPONSE_YES,
+-                          NULL);
+-  gtk_dialog_set_default_response (GTK_DIALOG (dialog), GTK_RESPONSE_YES);
+-  gtk_message_dialog_format_secondary_text (GTK_MESSAGE_DIALOG (dialog),
+-                                            _("If you choose to empty the Trash, all items in it will be permanently lost. "
+-                                              "Please note that you can also delete them separately."));
+-  response = gtk_dialog_run (GTK_DIALOG (dialog));
+-  gtk_widget_destroy (dialog);
+-
+-  /* check if the user confirmed */
+-  if (G_LIKELY (response == GTK_RESPONSE_YES))
+-    {
+-      /* fake a path list with only the trash root (the root
+-       * folder itself will never be unlinked, so this is safe)
+-       */
+-      file_list.data = thunar_g_file_new_for_trash ();
+-      file_list.next = NULL;
+-      file_list.prev = NULL;
+-
+-      /* launch the operation */
+-      thunar_application_launch (application, parent, "user-trash",
+-                                 _("Emptying the Trash..."),
+-                                 unlink_stub, &file_list, NULL, TRUE, FALSE, THUNAR_OPERATION_LOG_OPERATIONS, NULL);
+-
+-      /* cleanup */
+-      g_object_unref (file_list.data);
+-    }
++  (void) startup_id;
++  thunar_dialogs_show_error (parent, NULL,
++                            _("Trash is unavailable in Bitcoin Core Vault. Select local files and choose Permanently Delete."));
+ }
+ 
+ 
