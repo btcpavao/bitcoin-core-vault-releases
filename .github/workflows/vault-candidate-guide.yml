@@ -1,0 +1,38 @@
+name: Update the Vault candidate guide link
+on:
+  push:
+    branches: ['docs/refresh-vault-candidate-guide']
+permissions:
+  contents: write
+jobs:
+  correct-link:
+    if: github.actor == 'btcpavao' && github.repository == 'btcpavao/bitcoin-core-vault-releases'
+    runs-on: ubuntu-24.04
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag=rebuild-candidate-9f466c5df912
+          api="repos/$GITHUB_REPOSITORY/releases/tags/$tag"
+          gh api "$api" > before.json
+          python3 - <<'PY'
+          import json,pathlib,re
+          release=json.loads(pathlib.Path('before.json').read_text())
+          assert release['id']==441604248 and release['prerelease'] and not release['draft']
+          assert release['tag_name']=='rebuild-candidate-9f466c5df912'
+          body='[Build and verify](https://github.com/btcpavao/bitcoin-core-vault-releases/blob/main/docs/REBUILD.md).'
+          edited,count=re.subn(r'^\[Build and verify\].*$',body,release['body'],flags=re.MULTILINE)
+          assert count==1
+          pathlib.Path('notes.md').write_text(edited)
+          PY
+          gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --notes-file notes.md
+          gh api "$api" > after.json
+          python3 - <<'PY'
+          import json,pathlib
+          old=json.loads(pathlib.Path('before.json').read_text())
+          new=json.loads(pathlib.Path('after.json').read_text())
+          for key in ('id','tag_name','target_commitish','created_at','published_at','prerelease','draft','assets'):
+              assert old[key]==new[key],key
+          assert new['body']==pathlib.Path('notes.md').read_text()
+          PY
