@@ -26,14 +26,6 @@ for suite in trixie trixie-updates trixie-security; do
     printf 'deb [check-valid-until=no signed-by=%s] %s %s main\n' "$key" "$mirror" "$suite"
     printf 'deb-src [check-valid-until=no signed-by=%s] %s %s main\n' "$key" "$mirror" "$suite"
 done > /etc/apt/sources.list
-if [[ $kind == thunar ]]; then
-    # Older entries supply the precise private-prefix package versions in the archived manifest.
-    for pair in 'debian trixie' 'debian-security trixie-security'; do
-        read -r group suite <<<"$pair"
-        mirror="https://snapshot.debian.org/archive/$group/20261004T120000Z"
-        printf 'deb [check-valid-until=no signed-by=%s] %s %s main\n' "$key" "$mirror" "$suite" >> /etc/apt/sources.list
-    done
-fi
 apt-get -o Acquire::Retries=4 update
 apt-get install -y --no-install-recommends build-essential dpkg-dev fakeroot ca-certificates xz-utils python3 file
 if [[ $kind == calamares ]]; then
@@ -74,6 +66,18 @@ else
     cp -a "$doc" package/usr/share/doc/thunar/
     # Preserve the published source records. The adjacent report describes this new build.
     sed -i 's/^Version: 4.20.2-1+deb13u1$/Version: 4.20.2-1+deb13u1+corevault1/' package/DEBIAN/control
+    python3 - <<'SIZE'
+from pathlib import Path
+import re
+root = Path('package')
+size = sum(p.stat().st_size for p in root.rglob('*')
+           if 'DEBIAN' not in p.relative_to(root).parts and p.is_file() and not p.is_symlink())
+control = root / 'DEBIAN/control'
+text, count = re.subn(r'^Installed-Size: [0-9]+$', f'Installed-Size: {(size + 1023) // 1024}',
+                      control.read_text(), flags=re.MULTILINE)
+assert count == 1
+control.write_text(text)
+SIZE
     (
         cd package
         find . -type f ! -path './DEBIAN/*' -printf '%P\0' | sort -z | xargs -0 md5sum > DEBIAN/md5sums
@@ -89,4 +93,5 @@ for tree in expected rebuilt; do
     cp "$tree/usr/bin/$kind" "/evidence/$tree-$kind.elf"
 done
 python3 /src/tools/rebuild/packages/report.py "$kind" "$original"
+python3 /src/tools/rebuild/packages/compare-trees.py expected rebuilt /evidence/package-payload.json
 (cd /evidence && sha256sum "$kind-rebuilt.deb" "rebuilt-$kind.elf" > SHA256SUMS)
