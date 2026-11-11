@@ -1,0 +1,81 @@
+name: Recompile Vault native packages
+on:
+  push:
+    branches: ['build/check-vault-packages']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compile:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [calamares, thunar]
+        instance: [first, second]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Compile archived native source in an isolated builder
+        env:
+          PACKAGE: ${{ matrix.package }}
+        run: |
+          set -euo pipefail
+          source tools/rebuild/inputs.env
+          mkdir "$RUNNER_TEMP/evidence"
+          docker run --rm --platform linux/amd64 --hostname native-builder \
+            --mount "type=bind,source=$GITHUB_WORKSPACE,target=/src,readonly" \
+            --mount "type=bind,source=$RUNNER_TEMP/evidence,target=/evidence" \
+            "$BUILDER_IMAGE" bash /src/tools/rebuild/packages/build.sh "$PACKAGE"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: native-${{ matrix.package }}-${{ matrix.instance }}-${{ github.sha }}
+          path: ${{ runner.temp }}/evidence/
+          if-no-files-found: error
+          retention-days: 7
+  compare:
+    needs: compile
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: native-*-${{ github.sha }}
+          path: results
+      - name: Compare full packages and installed executable bytes across builders
+        env:
+          REVISION: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          for package in calamares thunar; do
+            first="results/native-$package-first-$REVISION"
+            second="results/native-$package-second-$REVISION"
+            (cd "$first"; sha256sum -c SHA256SUMS)
+            (cd "$second"; sha256sum -c SHA256SUMS)
+            cmp "$first/$package-rebuilt.deb" "$second/$package-rebuilt.deb"
+            cmp "$first/rebuilt-$package.elf" "$second/rebuilt-$package.elf"
+            cat "$first/SHA256SUMS" >> "$GITHUB_STEP_SUMMARY"
+            cat "$first/historical-match.json" >> "$GITHUB_STEP_SUMMARY"
+          done
+  historical:
+    needs: compare
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: native-*-first-${{ github.sha }}
+          path: results
+      - name: Check the two published native executables against fresh builds
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          results = sorted(Path('results').glob('*/historical-match.json'))
+          assert len(results) == 2
+          reports = [json.loads(p.read_text()) for p in results]
+          for report in reports:
+              print(json.dumps(report, indent=2))
+          if not all(r['comparison']['installed_elf']['match'] for r in reports):
+              raise SystemExit('At least one installed ELF differs from the published package. See comparison fields and build IDs in the artifacts.')
+          PY
