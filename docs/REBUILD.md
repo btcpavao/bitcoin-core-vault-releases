@@ -2,7 +2,7 @@
 
 [Native-source candidate, exact revision, download and expected result](rebuilds/71242344618b.md) · [Earlier assembly candidate](rebuilds/9f466c5df912.md)
 
-A checksum is a fingerprint of a file. One different byte changes its SHA-256 fingerprint. To check the path from source to download, build the precise published source revision on another computer and compare your ISO with the signed release. Reading the changes in the source is a separate step. Someone can publish a perfectly repeatable image containing unsafe code.
+A checksum is a fingerprint of a file. One different byte changes its SHA-256 fingerprint. To check the path from source to download, build the precise published source revision on another computer and compare your ISO with the download for that same revision. Reading the changes in the source is a separate step. Someone can publish a perfectly repeatable image containing unsafe code.
 
 ## Choose what you want to check
 
@@ -12,7 +12,7 @@ The earlier assembly candidate uses recorded historical Calamares and Thunar pac
 
 
 1. On a separate 64-bit Intel or AMD Linux machine or disposable Linux VM, install Git and Docker Engine. Use a machine without wallets, passphrases or signing keys. Docker needs to mount filesystems inside the build container. Allow several gigabytes for downloads and approximately 40 GiB of working space. Run `git --version` and `docker run --rm hello-world`. If your disposable Linux VM requires `sudo docker`, use `--sudo-docker` before the output directory in step 4. Your source and output stay under your own account.
-2. Obtain the **full 40-character Git commit** from the release's signed build record, or from the exact candidate commit on GitHub. Keep its value and the release tag. During candidate testing, the commit identifies what you built without authenticating the author. The command below selects the native-source candidate. For a later release, substitute its full commit. The final command prints the commit so you can compare it with your record.
+2. Obtain the **full 40-character Git commit** from the release's signed build record, or from the exact candidate commit on GitHub. Keep this guide open in your browser while you check out the recorded commit. Keep the commit and the release tag. During candidate testing, the commit identifies what you built without authenticating the author. The command below selects the native-source candidate. For a later release, substitute its full commit. The final command prints the commit so you can compare it with your record.
 
    ```bash
    git clone https://github.com/btcpavao/bitcoin-core-vault-releases.git vault-source
@@ -48,9 +48,23 @@ The earlier assembly candidate uses recorded historical Calamares and Thunar pac
 
    Keep `bitcoin-core-vault-amd64.iso`, the build-input record, package lists, archive metadata and build log. A second person can run the same commands with the same commit on their own computer. The GitHub workflow also builds on two separate hosted runners and compares both entire files. A copy made by the same hosting provider is useful for repeatability. A separately operated builder provides additional independent evidence.
 
-   For the unsigned native-source candidate, use the [recorded checksum and byte comparison](rebuilds/71242344618b.md). After checking it, continue at step 6. For an edition with a maintainer signature, use step 5.
+   For the unsigned native-source candidate, [download the published ISO](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/download/native-rebuild-candidate-71242344618b/bitcoin-core-vault-native-rebuild-candidate-71242344618b-amd64.iso) into the directory **next to** `vault-source`, using its published filename. In Bash, from inside `vault-source`, run the commands below. They use the ISO you just built in `../vault-result`. Both files must report `OK`, and `cmp` must succeed. The expected hash comes from the [candidate record](rebuilds/71242344618b.md).
 
-5. For an actual release, obtain its ISO, `SHA256SUMS`, `SHA256SUMS.asc` and `btcpavao-pgp.asc` from the same GitHub release. Put only those files in a new directory named `release` next to `vault-source`. For v0.5.0 the published fingerprint is `787A 2AAF B0D1 19CA 0522 B2A5 B9C9 9AF8 5788 96D0`. Confirm the complete fingerprint for the release you are checking with Pavao through a separate channel you already trust. In the release directory, use an empty temporary GPG keyring so the verification can only use the key you just checked.
+   ```bash
+   (
+     set -eu
+     rebuilt=../vault-result/bitcoin-core-vault-amd64.iso
+     published=../bitcoin-core-vault-native-rebuild-candidate-71242344618b-amd64.iso
+     expected=2b8f8fd5225b4b2ccee1d8ccc6847c647cb6f5d2481fa2d9ef94820a13b09ddc
+     printf '%s  %s\n' "$expected" "$rebuilt" "$expected" "$published" | sha256sum --check
+     cmp -- "$rebuilt" "$published"
+     echo 'Your rebuilt Vault ISO matches the published candidate byte for byte.'
+   )
+   ```
+
+   After checking the unsigned candidate, continue at step 6. For an edition with a maintainer signature, use step 5.
+
+5. For a signed release with a matching reproducible build record, obtain its ISO, `SHA256SUMS`, `SHA256SUMS.asc` and `btcpavao-pgp.asc` from the same GitHub release. Put only those files in a new directory named `release` next to `vault-source`. For v0.5.0 the published fingerprint is `787A 2AAF B0D1 19CA 0522 B2A5 B9C9 9AF8 5788 96D0`. Confirm the complete fingerprint for the release you are checking with Pavao through a separate channel you already trust. In the release directory, use an empty temporary GPG keyring so the verification can only use the key you just checked.
 
    ```bash
    cd ../release

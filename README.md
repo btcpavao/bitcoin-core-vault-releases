@@ -10,18 +10,23 @@ Run Vault as a Live RAM session or install its operating system on an internal
 disk. In both modes, the Vault account's home and private working data stay in
 RAM. Export the files you want to keep before ending the session.
 
-**Current release: Bitcoin Core Vault v0.4.0**, including Bitcoin Core
-32.1 and encrypted-backup module 0.7.3. A single valid Bitcoin Core SQLite
+**[Download the signed stable release, Bitcoin Core Vault v0.5.0](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/tag/v0.5.0).**
+It includes Bitcoin Core 32.1 and an updated Vault Guide with a worked example
+covering wallet creation, backup and PSBT signing.
+
+**[Rebuild the unsigned native-source candidate](docs/REBUILD.md).** Two clean
+GitHub-hosted builds compiled Calamares, Thunar and Vault Backup and produced
+identical ISO files. The [candidate record](docs/rebuilds/71242344618b.md) identifies the exact
+source, download, expected SHA-256 and UEFI tests.
+
+A single valid Bitcoin Core SQLite
 `wallet.dat` is encrypted directly using standard AES-256 CFB+MDC OpenPGP,
 without TAR. With two separate passphrases, decryption is
 `wallet.dat.gpg.gpg` → `inner.gpg` → `wallet.dat`. TAR is used only for
 multiple files or folders. The built-in recovery tool also reads previous
 GPG/TAR and AES-256 OCB backup files.
 
-**[Download the v0.4.0 ISO and checksums](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/tag/v0.4.0)**.
-See the [exact-image release notes](docs/RELEASE-v0.4.0.md). This project is
-independently developed and has not been independently security audited;
-building from source has not been shown to be byte-for-byte reproducible.
+The project is independently developed. An independent security audit has yet to be published.
 
 ## Screenshots
 
@@ -156,12 +161,12 @@ The [earlier assembly candidate](docs/rebuilds/9f466c5df912.md) used the histori
 
 ## Release verification and status
 
-The [v0.4.0 release](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/tag/v0.4.0)
-provides `bitcoin-core-vault-v0.4.0-core32.1-amd64.iso` and `SHA256SUMS`.
-The image has exactly **769,654,784 bytes** and SHA-256:
+The [signed v0.5.0 release](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/tag/v0.5.0)
+provides `bitcoin-core-vault-32.1-practical-guide-20261110-amd64.iso` and `SHA256SUMS`.
+The image has exactly **725,942,272 bytes** and this SHA-256 digest.
 
 ```text
-7320f3e3cb1c906d5cfbe701c2e9fb1cce95e0488283ac82ef6415d9498ac864
+0e1353dd63635363dd9c00a8bf26c6caf8cfe1841c1aa8340e82e70a56d5db5f
 ```
 
 Download `SHA256SUMS.asc` and `btcpavao-pgp.asc` alongside `SHA256SUMS`
@@ -177,6 +182,7 @@ The public key is also published at [btcpavao.com/pgp.txt](https://btcpavao.com/
 After confirming the fingerprint, run from the download directory:
 
 ```bash
+test -f 'bitcoin-core-vault-32.1-practical-guide-20261110-amd64.iso' &&
 gpg --import btcpavao-pgp.asc &&
 gpg --verify SHA256SUMS.asc SHA256SUMS &&
 sha256sum --ignore-missing --check SHA256SUMS
@@ -187,7 +193,11 @@ report `OK`. `--ignore-missing` permits downloading the ISO without the optional
 source and evidence bundles. The signature authenticates the checksum list;
 it does not establish independent security review or reproducibility.
 
-`ACCEPTANCE.json` records the exact-image test scope: BIOS Live operation,
+The [v0.5.0 release notes](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/tag/v0.5.0) document the ThinkPad T530 user test, the UEFI installation and boot, the updated Guide checks and the limits of testing for that image.
+
+### Historical v0.4.0 tests
+
+The v0.4.0 `ACCEPTANCE.json` records the exact-image test scope: BIOS Live operation,
 UEFI Live boot and installation, installed operation, native backup and recovery,
 synthetic recovered-wallet signing, Finish controls, restart checks and test-marker
 scans on virtual disks. The QA evidence bundle includes release-specific adapters
@@ -208,8 +218,9 @@ The public release repository contains a standalone snapshot of tracked
 Vault sources, build scripts, patches, notices and reviewed package inputs.
 The separate private development repository and its historical Git commit
 tree are not exposed. The ISO belongs to GitHub Release assets, not Git.
-Matching source recipes and component provenance accompany the release;
-independent byte-for-byte reproduction has not been proven.
+The stable v0.5.0 release includes its source snapshot and component provenance.
+The [native candidate build record](docs/rebuilds/71242344618b.md) documents
+byte-for-byte matching builds for that candidate.
 
 Original Vault integration is licensed under the scoped [MIT license](LICENSE).
 Upstream programs, patches, libraries and artwork retain their own licenses.
