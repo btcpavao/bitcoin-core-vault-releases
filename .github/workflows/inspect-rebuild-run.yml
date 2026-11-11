@@ -1,0 +1,59 @@
+name: Inspect previously built Vault artifacts
+on:
+  push:
+    branches: ['build/diagnose-vault-*']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Read selected run number
+        id: input
+        run: |
+          id=${GITHUB_REF_NAME##*-}
+          [[ $id =~ ^[0-9]+$ ]]
+          echo "run=$id" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          run-id: ${{ steps.input.outputs.run }}
+          github-token: ${{ github.token }}
+          pattern: vault-*
+          path: previous
+      - name: Compare root filesystem, outer boot files and metadata
+        run: |
+          set -euo pipefail
+          sudo apt-get -qq update
+          sudo apt-get -qy install --no-install-recommends xorriso squashfs-tools initramfs-tools-core
+          mkdir differences
+          for side in first second; do
+            image=(previous/vault-"$side"-*/bitcoin-core-vault-amd64.iso)
+            [[ ${#image[@]} == 1 && -f ${image[0]} ]]
+            (cd "$(dirname "${image[0]}")" && sha256sum --check SHA256SUMS && cat build-inputs.txt)
+            xorriso -indev "${image[0]}" -report_el_torito plain -pvd_info > "differences/$side-boot.txt"
+            xorriso -indev "${image[0]}" -find / -type f -exec report_lba -- > "differences/$side-sectors.txt"
+            xorriso -osirrox on -indev "${image[0]}" -extract / "$RUNNER_TEMP/$side-iso"
+            sudo unsquashfs -no-progress -d "$RUNNER_TEMP/$side-root" "$RUNNER_TEMP/$side-iso/live/filesystem.squashfs"
+          done
+          for part in root iso; do
+            sudo python3 tools/rebuild/diagnose.py "$RUNNER_TEMP/first-$part" "$RUNNER_TEMP/second-$part" > "differences/$part.jsonl"
+            head -50 "differences/$part.jsonl"
+          done
+          for side in first second; do
+            initrds=("$RUNNER_TEMP/$side-iso"/live/initrd.img*)
+            sudo unmkinitramfs "${initrds[0]}" "$RUNNER_TEMP/$side-initrd"
+          done
+          sudo python3 tools/rebuild/diagnose.py "$RUNNER_TEMP/first-initrd" "$RUNNER_TEMP/second-initrd" > differences/initrd.jsonl
+          head -30 differences/initrd.jsonl
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: vault-difference-report
+          path: differences/
+          if-no-files-found: ignore
+          retention-days: 30
