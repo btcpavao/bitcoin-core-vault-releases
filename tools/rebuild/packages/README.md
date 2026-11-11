@@ -40,3 +40,18 @@ diff tools/rebuild/packages/evidence/938a22ba-sources.SHA256SUMS ../vault-native
 An empty `diff` output and a zero exit status mean both source archives match the recorded bytes. Calamares contains `source/debian/changelog` for the new revision and the full patched source tree. Thunar includes the complete corresponding-source directory with its pinned dependency manifest, Debian originals and prepatched source archive.
 
 The two builders for each versioned package produced byte-identical Debian archives and byte-identical installed main executables. Both historical main executables have different full hashes. The separate checks show the exact differences, including the 20-byte build ID in Thunar and the changed library search path in Calamares. [Versioned package comparison](evidence/938a22ba-results.json)
+
+## Inspect every project change from Debian's source
+
+You can read the changes directly in a browser. The [Calamares patch](evidence/debian-source/calamares.patch) covers the installer. The [Thunar patch](evidence/debian-source/thunar.patch) covers the file manager. Lines starting with `-` come from Debian, and lines starting with `+` show what Vault builds. The [file inventory](evidence/debian-source/files.json) includes full before-and-after SHA-256 values for every changed file.
+
+To generate these comparisons yourself, use a Debian 13 computer with Python 3, Git, curl, GnuPG, the Debian archive keyring, dpkg-dev, tar, xz and bzip2. Start with the two source bundles produced by the preceding command. From the project root, run:
+
+```sh
+python3 tools/rebuild/packages/review-debian-sources.py ../vault-native-sources ../debian-source-review
+diff -r tools/rebuild/packages/evidence/debian-source ../debian-source-review
+```
+
+The program checks the signature on Debian's frozen archive index with the Debian archive keyring. It follows the signed hashes to the source index and all six original files, applies the official Debian packaging patches, and compares the resulting trees with the source actually compiled for Vault. The comparison covers regular-file contents, executable bits and symbolic-link targets. It skips dpkg's internal `.pc` patch history. The installer has twelve changed or added C++/header files and one changed changelog. Thunar has two changed C files. An empty `diff` with exit status 0 confirms that your three reports match these published results.
+
+When using an LLM as a reading aid, ask it to open one patch, group the changes by function, and quote the file and function for each claim. You can then inspect those lines yourself.

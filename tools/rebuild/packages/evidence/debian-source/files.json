@@ -1,0 +1,173 @@
+{
+  "calamares": {
+    "changed_paths": {
+      "debian/changelog": {
+        "debian": {
+          "executable": false,
+          "sha256": "bcc02d201734a0a37bf5a432c36507e2efcb546ecba3d7b3aff4d56aa52ec089"
+        },
+        "vault": {
+          "executable": false,
+          "sha256": "07ac897066c04119673de693a325e3cc91ea157e912bb9e3f320e2f0066993f4"
+        }
+      },
+      "src/calamares/CalamaresWindow.cpp": {
+        "debian": {
+          "executable": false,
+          "sha256": "16429634344923e9ddf1bab7c231aa008f5652e77dcd7e5a98cf2a82a1961004"
+        },
+        "vault": {
+          "executable": false,
+          "sha256": "93e3f211e675c8319224832088064449acacc91e237424f51faff4a1511c9dd6"
+        }
+      },
+      "src/libcalamaresui/viewpages/ExecutionViewStep.cpp": {
+        "debian": {
+          "executable": false,
+          "sha256": "3883e3c6298f5a956857f92e175e308faaae225f998f49b24440c71d25c841a0"
+        },
+        "vault": {
+          "executable": false,
+          "sha256": "98a6f9125dcb439021ee4ba862c6028bf3be1792f11fac47226f9ab53dd2bc9a"
+        }
+      },
+      "src/modules/finished/FinishedPage.cpp": {
+        "debian": {
+          "executable": false,
+          "sha256": "8eab0fd5c6a204bf02287bf1cad655d2889a93369cd2db4f2afb9cbe9c0ab8fc"
+        },
+        "vault": {
+          "executable": false,
+          "sha256": "4513a03f1f9f44e442e2dcf8d6627241c63b7304fccdc434e7087595a57a2759"
+        }
+      },
+      "src/modules/keyboard/Config.cpp": {
+        "debian": {
+          "executable": false,
+          "sha256": "810f8807cb4b34020895fadaa70dd3ee45f4be3ca8c2d9b2a907b0e13b599e4b"
+        },
+        "vault": {
+          "executable": false,
+          "sha256": "6d71bb1f25c39f4cca37370b219f79d708ee9649736345115517620cec4c47a2"
+        }
+      },
+      "src/modules/keyboard/KeyboardPage.cpp": {
+        "debian": {
+          "executable": false,
+          "sha256": "9f7d50dd76620d83564e57884a54ce512eb5363a8823756e260718607a55c46c"
+        },
+        "vault": {
+          "executable": false,
+          "sha256": "90f466ad30c1407d26f9ca46cbdffa0432ff4acb91d881efccdfefa17c0529b1"
+        }
+      },
+      "src/modules/partition/PartitionViewStep.cpp": {
+        "debian": {
+          "executable": false,
+          "sha256": "630f834a1c5ce2f045ace1743945504e642e756e4c86e7029560f4dc2ff315db"
+        },
+        "vault": {
+          "executable": false,
+          "sha256": "f77af580b2e02d6415459b57d1a249896edc99c3cdbd8fb0d1010d7a172caf85"
+        }
+      },
+      "src/modules/partition/core/CoreOfflineGuard.h": {
+        "debian": null,
+        "vault": {
+          "executable": false,
+          "sha256": "8f794c083809b2f66bf437b18c9ac46f1c59e09df2e6c6adf71f1b0d4c6a8ea9"
+        }
+      },
+      "src/modules/partition/core/PartitionCoreModule.cpp": {
+        "debian": {
+          "executable": false,
+          "sha256": "b3c9c78baab417cbdfd6e431219e06bbe9f5496864b5c4eda611a3bedfbe59c0"
+        },
+        "vault": {
+          "executable": false,
+          "sha256": "ff26f6f7efffae475d14310085b010ae639895db6051005b4af497c09ad71bff"
+        }
+      },
+      "src/modules/partition/gui/ChoicePage.cpp": {
+        "debian": {
+          "executable": false,
+          "sha256": "03345ca17592ebae02613c470e0b83f87eae307a6b21b3978cef26ef6e180c65"
+        },
+        "vault": {
+          "executable": false,
+          "sha256": "c29c0f2001f4eb1694798a27d5a2e91f7c0621da45d2b4d58106a3eaadb159a6"
+        }
+      },
+      "src/modules/summary/Config.cpp": {
+        "debian": {
+          "executable": false,
+          "sha256": "20f0d547a2134227a6ae54f43338cace5a2b6accd0fb72a77a4a65c6abc4e4f4"
+        },
+        "vault": {
+          "executable": false,
+          "sha256": "f489d12e0e47cc73429e8e5c2820f08a2c8a037b8d4ce4a0f0d988c7e4027f9f"
+        }
+      },
+      "src/modules/summary/SummaryPage.cpp": {
+        "debian": {
+          "executable": false,
+          "sha256": "32356d2f9a73c6f2546598f2db122d074ddadcd44f967ec34c346fee5ea9c2be"
+        },
+        "vault": {
+          "executable": false,
+          "sha256": "1d5765c232d32ffaf2c17088745a5cf23868ff9622086ebefd60a86d4da63c78"
+        }
+      },
+      "src/modules/summary/SummaryViewStep.cpp": {
+        "debian": {
+          "executable": false,
+          "sha256": "3b05bbfde09b7ce25dc2a3557c8652b4b82afc159765dea592db4677dfc34817"
+        },
+        "vault": {
+          "executable": false,
+          "sha256": "8e416949b414eb269518afa2d39c93f68747fd115686aa5cdfef014cf9c4b897"
+        }
+      }
+    },
+    "debian_paths": 1465,
+    "debian_version": "3.3.14-1",
+    "upstream_files": {
+      "calamares_3.3.14-1.debian.tar.xz": "83e70d9e72062c43e7293288b81d163e03db84dcebdf630f30b0ac7f2b729752",
+      "calamares_3.3.14-1.dsc": "6dcf28679e2e8bb1010627e5d52b448f3273023fab39f99b4ea12ea8ba5fcaa7",
+      "calamares_3.3.14.orig.tar.gz": "fa158d679bb9384beaf4a2f821be6da63500b13631ad14acec9bb446565dad4a"
+    },
+    "vault_paths": 1466
+  },
+  "thunar": {
+    "changed_paths": {
+      "thunar/thunar-action-manager.c": {
+        "debian": {
+          "executable": false,
+          "sha256": "904e437d348807d34557fbda74c1a8637fdc46494b129341d2a4fc14a8f5a0a5"
+        },
+        "vault": {
+          "executable": false,
+          "sha256": "ac9c1eb4e133616ed4318ed287ecc7ce35be5cf68bbb558b321076f685a330d0"
+        }
+      },
+      "thunar/thunar-application.c": {
+        "debian": {
+          "executable": false,
+          "sha256": "da922f635d6a7ce2e44bcca54b3d0cbb16bb0d25857f2576ccaabe6f5404fc41"
+        },
+        "vault": {
+          "executable": false,
+          "sha256": "0ef9c45d834c11e01b627bfbd498c0be3f5b4eaf46db22357ef15d03dad386e7"
+        }
+      }
+    },
+    "debian_paths": 737,
+    "debian_version": "4.20.2-1+deb13u1",
+    "upstream_files": {
+      "thunar_4.20.2-1+deb13u1.debian.tar.xz": "dbca892cd73420dd2446c3194af52181053978fa053ef4fcd63e80457164cd63",
+      "thunar_4.20.2-1+deb13u1.dsc": "703377152a65fae04f7f52c21aa5df070a988d67022645dca289771f6a564071",
+      "thunar_4.20.2.orig.tar.bz2": "71376f6d7ba4998943c412f374db16ec9b709610acd4d27ecb1eef3aca82af05"
+    },
+    "vault_paths": 737
+  }
+}
