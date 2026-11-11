@@ -151,7 +151,6 @@ Test recovery on the actual target operating system before relying on it.
 ## Rebuild and compare the ISO
 
 [Build in a clean environment, inspect the changes and compare the full ISO](docs/REBUILD.md).
-[Hrvatske upute za neovisnu gradnju](docs/REBUILD.hr.md).
 [November 11 candidate, matching SHA-256 and complete build evidence](docs/rebuilds/9f466c5df912.md).
 The signed v0.5.0 release has its own verification record.
 
