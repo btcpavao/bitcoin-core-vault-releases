@@ -1,7 +1,17 @@
 name: Recompile Vault native packages
 on:
   push:
-    branches: ['build/check-vault-packages']
+    branches: ['main', 'build/reproducible-vault', 'build/check-vault-packages']
+    tags: ['v*']
+    paths:
+      - '.github/workflows/vault-native-packages.yml'
+      - 'tools/rebuild/inputs.env'
+      - 'tools/rebuild/InRelease.sha256'
+      - 'tools/rebuild/packages/*.sh'
+      - 'tools/rebuild/packages/*.py'
+      - 'tools/core-vault/thunar/**'
+      - 'config/packages.chroot/calamares*.deb'
+      - 'config/packages.chroot/thunar*.deb'
   workflow_dispatch:
 permissions:
   contents: read
