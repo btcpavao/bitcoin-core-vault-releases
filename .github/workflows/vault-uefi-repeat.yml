@@ -47,13 +47,13 @@ jobs:
             # KVM's device node may be recreated after the last guest exits.
             # Keep access group-scoped across all three fresh VM processes.
             getent group kvm
-            echo 'KERNEL=="kvm", GROUP="kvm", MODE="0660"' | sudo tee /etc/udev/rules.d/99-vault-ci-kvm.rules
+            echo 'KERNEL=="kvm", GROUP:="kvm", MODE:="0660"' | sudo tee /etc/udev/rules.d/99-vault-ci-kvm.rules
             sudo udevadm control --reload-rules
             sudo udevadm trigger --name-match=kvm
             sudo udevadm settle
             sudo chgrp kvm /dev/kvm
             sudo chmod 0660 /dev/kvm
-            runner=(sudo -u "$(id -un)" -g kvm env OMP_THREAD_LIMIT=1 OMP_NUM_THREADS=1)
+            runner=(sudo runuser -u "$(id -un)" -g kvm -- env OMP_THREAD_LIMIT=1 OMP_NUM_THREADS=1)
             "${runner[@]}" test -w /dev/kvm
             accel=kvm
           fi
