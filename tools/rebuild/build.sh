@@ -16,14 +16,14 @@ cleanup() {
     rm -rf -- "$stage"
 }
 trap cleanup EXIT
-git archive --format=tar "$revision" > "$stage/source.tar"
+git -c tar.umask=0022 archive --format=tar "$revision" > "$stage/source.tar"
 # Only committed files enter /work. The container sees no writable host directory.
 container=$(docker create --platform linux/amd64 --hostname vault-builder \
     --cap-add SYS_ADMIN --security-opt seccomp=unconfined --security-opt apparmor=unconfined \
     --security-opt systempaths=unconfined --env "VAULT_REVISION=$revision" \
     --mount "type=bind,source=$stage/source.tar,target=/source.tar,readonly" \
     "$BUILDER_IMAGE" /bin/bash -ec \
-    'mkdir /work; cd /work; tar --no-same-owner -xf /source.tar; exec bash tools/rebuild/inside.sh')
+    'mkdir /work; cd /work; tar --no-same-owner --no-same-permissions -xf /source.tar; exec bash tools/rebuild/inside.sh')
 docker start --attach "$container"
 [[ $(docker inspect --format '{{.State.ExitCode}}' "$container") == 0 ]]
 mkdir -- "$1"
