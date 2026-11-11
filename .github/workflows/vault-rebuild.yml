@@ -1,0 +1,59 @@
+name: Rebuild and compare Vault ISOs
+on:
+  push:
+    branches: ['build/reproducible-vault']
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vault-rebuild-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        builder: [first, second]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Build in a fresh container
+        run: bash tools/rebuild/build.sh "$RUNNER_TEMP/vault-result"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: vault-${{ matrix.builder }}-${{ github.sha }}
+          path: ${{ runner.temp }}/vault-result/
+          compression-level: 0
+          retention-days: 3
+          if-no-files-found: error
+
+  compare:
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: vault-*-${{ github.sha }}
+          path: results
+      - name: Check both full images
+        env:
+          REVISION: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          a="results/vault-first-$REVISION"
+          b="results/vault-second-$REVISION"
+          for dir in "$a" "$b"; do
+            (cd "$dir" && sha256sum --check SHA256SUMS)
+            grep -Fx "source_commit=$REVISION" "$dir/build-inputs.txt"
+            cat "$dir/SHA256SUMS"
+          done
+          cmp "$a/bitcoin-core-vault-amd64.iso" "$b/bitcoin-core-vault-amd64.iso"
+          printf 'Both complete ISO files match for commit %s\n' "$REVISION" >> "$GITHUB_STEP_SUMMARY"
+          cat "$a/SHA256SUMS" >> "$GITHUB_STEP_SUMMARY"
