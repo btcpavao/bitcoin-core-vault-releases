@@ -17,7 +17,6 @@ for suite in trixie trixie-updates trixie-security; do
     if [[ $suite == trixie-security ]]; then base=$security; fi
     index="/evidence/archives/$suite.InRelease"
     curl --fail --silent --show-error --location --retry 4 -o "$index" "$base/dists/$suite/InRelease"
-    gpgv --keyring "$keyring" "$index"
 done
 (cd /evidence/archives && sha256sum --check /work/tools/rebuild/InRelease.sha256)
 # The snapshot is frozen in time. Its archive signatures and package hashes stay mandatory.
@@ -28,6 +27,13 @@ deb [check-valid-until=no signed-by=$keyring] $debian trixie-updates main
 deb [check-valid-until=no signed-by=$keyring] $security trixie-security main
 SOURCES
 apt-get -o Acquire::Retries=4 update
+# apt has already authenticated all three InRelease files with its bundled verifier.
+# Bind the package solver's local files to the exact metadata fetched above.
+for suite in trixie trixie-updates trixie-security; do
+    indexes=(/var/lib/apt/lists/*_dists_"${suite}"_InRelease)
+    [[ ${#indexes[@]} == 1 ]]
+    cmp -- "/evidence/archives/$suite.InRelease" "${indexes[0]}"
+done
 apt-get -o Acquire::Retries=4 install -y --no-install-recommends \
     sudo live-build debootstrap debian-archive-keyring \
     apt-utils ca-certificates wget rsync xorriso squashfs-tools isolinux syslinux-common \
@@ -35,6 +41,9 @@ apt-get -o Acquire::Retries=4 install -y --no-install-recommends \
     python3 python3-pil python3-yaml python3-pyside6.qtcore python3-pyside6.qtgui \
     python3-pyside6.qtwidgets fonts-dejavu-core xvfb xauth gpg gpgv libusb-1.0-0 \
     libgl1 libxcb-cursor0 libxkbcommon-x11-0 libfuse2t64
+for index in /evidence/archives/*.InRelease; do
+    gpgv --keyring "$keyring" "$index"
+done
 dpkg-query -W -f='${binary:Package}\t${Version}\n' | LC_ALL=C sort > /evidence/builder-packages.tsv
 # debootstrap uses the frozen mirror, and apt selects the same main, updates and security
 # archives throughout the image build. Keep live-build's normal end-user APT mirrors.
