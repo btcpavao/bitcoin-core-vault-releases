@@ -5,13 +5,21 @@ VERSION='3.3.14-1+corevault5'
 INPUTS = (
     'tools/rebuild/inputs.env', 'tools/rebuild/InRelease.sha256',
     'tools/rebuild/packages/build.sh', 'tools/rebuild/packages/compiler-entry.sh',
-    'tools/rebuild/compile-package.sh',
+    'tools/rebuild/compile-package.sh', 'tools/core-vault/prepare-installer.sh',
+)
+# These patch records and assets feed the native Qt geometry and styling test.
+PATCH_INPUTS = ('base_patch.py', 'patch_calamares_source.py', 'CoreOfflineGuard.h',
+                'package_state.py', 'visual_polish.py')
+BRANDING = ('stylesheet.qss', 'checkmark.svg', 'checkmark.png', 'bitcoin.png', 'debian.png'
 )
 
 
 def digest(root):
     result = hashlib.sha256()
-    for name in INPUTS:
+    paths = list(INPUTS)
+    paths.extend('tools/core-vault/calamares/' + name for name in PATCH_INPUTS)
+    paths.extend('config/includes.chroot/etc/calamares/branding/core-offline/' + name for name in BRANDING)
+    for name in paths:
         result.update(name.encode() + b'\0')
         result.update((root / name).read_bytes())
     return result.hexdigest()

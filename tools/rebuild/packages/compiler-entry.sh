@@ -15,4 +15,7 @@ curl --fail --silent --show-error --location --retry 4 \
 printf '%s  %s\n' 2d9f7e3b9b9af07ad366a5c2cd8ed8d6f532340ecd308134cada01d8321fd99a "$snapshot" | sha256sum --check
 tar -xzOf "$snapshot" "bitcoin-core-vault-v0.5.0-source/config/packages.chroot/$file" > "/historical/$file"
 export VAULT_HISTORICAL_PACKAGES=/historical
-exec bash /src/tools/rebuild/packages/build.sh "$1"
+bash /src/tools/rebuild/packages/build.sh "$1"
+if [[ $1 == calamares ]]; then
+    python3 /src/tools/core-vault/calamares/visual_polish.py --self-test
+fi
