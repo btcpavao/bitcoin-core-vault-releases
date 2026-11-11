@@ -37,7 +37,9 @@ python3 tools/core-vault/check-bleachbit.py
 
 python3 tools/core-vault/check-installer.py --prebuild
 
-sudo lb clean
+as_root=()
+if (( EUID != 0 )); then as_root=(sudo); fi
+"${as_root[@]}" lb clean
 
 STAMP=$(date +%Y%m%d-%H%M%S)
 
@@ -58,9 +60,9 @@ for F in binary bootstrap chroot common source; do
 
 done
 
-lb config
+lb config "$@"
 
-sudo lb build 2>&1 \
+"${as_root[@]}" lb build 2>&1 \
   | tee vault-build.log
 
 python3 \

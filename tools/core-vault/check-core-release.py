@@ -33,9 +33,11 @@ def main():
         assert hashlib.sha256(read('usr/local/bin/'+name)).hexdigest() == digest, name
     home = read('usr/local/bin/core-vault-home').decode()
     assert 'WATCH_ONLY_TOOL' not in home and 'wallet_probe' not in home
-    guide = read('usr/local/bin/core-vault-guide').decode()
+    guide = read('usr/lib/core-vault/guide_content.py').decode()
+    launcher = read('usr/local/bin/core-vault-guide').decode()
+    assert 'guide_content' in launcher, 'The guide launcher must load the reviewed chapters.'
     assert 'File → Export watch-only wallet' in guide and 'File → Restore Wallet' in guide
-    assert 'watch-only.json' not in guide
+    assert 'watch-only.json' not in guide + launcher
     print('VAULT CORE 32.1 IDENTITY AND NATIVE WATCH-ONLY CHECK PASSED')
 
 
