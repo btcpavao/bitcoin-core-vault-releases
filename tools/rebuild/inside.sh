@@ -79,6 +79,13 @@ bash tools/core-vault/build-live-iso.sh \
     --parent-mirror-chroot-security "$security" --debootstrap-options '--include=ca-certificates' \
     --apt-options '--yes -o Acquire::Retries=4 -o Acquire::Check-Valid-Until=false' \
     --updates true --backports false --security true --apt-indices false
+# SquashFS skips only APT's machine-generated binary lookup caches. Check
+# the exact packed filesystem rather than the build-time package-manager state.
+unsquashfs -ls -no-wildcards binary/live/filesystem.squashfs var/cache/apt > /tmp/apt-cache-list
+if grep -Eq '/(pkgcache|srcpkgcache)\.bin$' /tmp/apt-cache-list; then
+    echo 'A build-machine APT binary cache entered the ISO.' >&2
+    exit 1
+fi
 mv live-image-amd64.hybrid.iso /evidence/bitcoin-core-vault-amd64.iso
 cp /work/vault-build.log /evidence/build.log
 cp /work/live-image-amd64.packages /evidence/image-packages.tsv
