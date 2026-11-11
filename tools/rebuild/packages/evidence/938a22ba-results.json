@@ -1,0 +1,126 @@
+{
+  "compiler_commit": "938a22bafc25843f44dfeeabf4dcdb8625cbf61d",
+  "components": {
+    "calamares": {
+      "git_blob": "ab74021647b5eb73c04fde81bec615ae852cfe18",
+      "historical_comparison": {
+        "comparison": {
+          "installed_elf": {
+            "expected": "6857eba088eca99fa2ddcb3ec3006fa114d2960708243c32b8a2179f0cf1f7e3",
+            "match": false,
+            "rebuilt": "73eb490b9cee0614bd47d73699fb17d4e0bd9cfbf9549871e5e78f7461202183"
+          },
+          "whole_deb": {
+            "expected": "2aee74ce7ac20ae2fefe40b3a2c4c196ed79170b97d36b9d4d56976c7a650227",
+            "match": false,
+            "rebuilt": "565ce762648d6a4df92fa133371c6a310ef85c0cbe54ae533884920a48eba1bf"
+          }
+        },
+        "component": "calamares",
+        "full_installed_elf_byte_comparison": {
+          "all_bytes_outside_gnu_build_id_match": false,
+          "differing_bytes": 12103,
+          "expected_gnu_build_id": "594206048896ed1cc9f2085821f832e9c9995689",
+          "expected_length": 1923512,
+          "gnu_build_id_length": 20,
+          "gnu_build_id_offset": 896,
+          "rebuilt_gnu_build_id": "d42937ab4a3bc48f3f20255cb7cf27a541e514d0",
+          "rebuilt_length": 1923696
+        },
+        "selected_elf_sections": {
+          ".data": {
+            "expected": "1027db78eabb36b164bd2566747e4bc0b13c96b9112cc626b5b966a3fe922339",
+            "match": true,
+            "rebuilt": "1027db78eabb36b164bd2566747e4bc0b13c96b9112cc626b5b966a3fe922339"
+          },
+          ".note.gnu.build-id": {
+            "expected": "f93ff84089af93108228fe583c8a44f5f9f6f80bdc11fdcf7f62488a7f7bfc0e",
+            "match": false,
+            "rebuilt": "abb6484de23bf2a059790e93d48e81682dd69b205a9c7320d055eb3af151a282"
+          },
+          ".rodata": {
+            "expected": "9a6f388a5a51a4b6d66b2ac52379cd8d1ef3469eae6390bcaca9ad741287ef29",
+            "match": false,
+            "rebuilt": "e6a177041e2658088c1923a769f0b885ecb6b421379f4deffc745998de2d20f7"
+          },
+          ".text": {
+            "expected": "aed806154e051a2051b166bd0295c9b2366b18a51c356b4985de72afbb8b27a3",
+            "match": true,
+            "rebuilt": "aed806154e051a2051b166bd0295c9b2366b18a51c356b4985de72afbb8b27a3"
+          }
+        }
+      },
+      "historical_native_checks": {
+        "DT_NEEDED_entries_match": true,
+        "historical_main_runpath": "/root/node-display/calamares-build/calamares-3.3.14/obj-x86_64-linux-gnu:",
+        "identical_elf_text_sections": 40,
+        "rebuilt_main_runpath": null,
+        "total_installed_elf_files": 40
+      },
+      "payload_paths_excluding_root": {
+        "differing_paths": 42,
+        "historical_paths": 570,
+        "rebuilt_paths": 570
+      },
+      "version": "3.3.14-1+corevault5"
+    },
+    "thunar": {
+      "git_blob": "1e8acfac450e197a1df3dd580f0192d2b80740aa",
+      "historical_comparison": {
+        "comparison": {
+          "installed_elf": {
+            "expected": "ae317acc943003bf3736f5e4206f536d67bc0a74184327be1dd3e1db703b4378",
+            "match": false,
+            "rebuilt": "b447268cb1bd0e7ef09cb190c790555a59e85a8f5dc13f19f8d40fae65056ad6"
+          },
+          "whole_deb": {
+            "expected": "1cf16b20f4b72e9bf0c4cee76630e51d72bf3026057269df193d724a29f7cbf5",
+            "match": false,
+            "rebuilt": "4cd1b5fc0d38c94fbc4c357fa923a69d097893d3a9831bbbb5570f5c05e77ebd"
+          }
+        },
+        "component": "thunar",
+        "full_installed_elf_byte_comparison": {
+          "all_bytes_outside_gnu_build_id_match": true,
+          "differing_bytes": 20,
+          "expected_gnu_build_id": "f51b572ac22b992e4622310fe04a4393732b92d2",
+          "expected_length": 1002336,
+          "gnu_build_id_length": 20,
+          "gnu_build_id_offset": 896,
+          "rebuilt_gnu_build_id": "bcfa8965d31b4f2bf5bb4229ded66fe48ca6f8de",
+          "rebuilt_length": 1002336
+        },
+        "selected_elf_sections": {
+          ".data": {
+            "expected": "aaa16a0074bd660f04e0bdb35e38aeb021526d6def441605ee917089468d8641",
+            "match": true,
+            "rebuilt": "aaa16a0074bd660f04e0bdb35e38aeb021526d6def441605ee917089468d8641"
+          },
+          ".note.gnu.build-id": {
+            "expected": "0d4dbf2e31fade804510e9183a8f2b0bb85502ccc6443e66a91391c128101297",
+            "match": false,
+            "rebuilt": "85b2ca713dd1f3746e80d6cb5676089ddb27156bb83b7f6e6188b2db661a4053"
+          },
+          ".rodata": {
+            "expected": "be8bc631191c2225ac43a55e36876f60949524a742c8422aba317b281d1e0259",
+            "match": true,
+            "rebuilt": "be8bc631191c2225ac43a55e36876f60949524a742c8422aba317b281d1e0259"
+          },
+          ".text": {
+            "expected": "2e88ddefd1cbaa8f1d5234dfe3f3e9ceb6e924398201f347989725fc8a1ba918",
+            "match": true,
+            "rebuilt": "2e88ddefd1cbaa8f1d5234dfe3f3e9ceb6e924398201f347989725fc8a1ba918"
+          }
+        }
+      },
+      "payload_paths_excluding_root": {
+        "differing_paths": 2,
+        "historical_paths": 57,
+        "rebuilt_paths": 58
+      },
+      "version": "4.20.2-1+deb13u1+corevault2"
+    }
+  },
+  "pair_comparison": "https://github.com/btcpavao/bitcoin-core-vault-releases/actions/runs/43012149337/job/130499388944",
+  "producer": "https://github.com/btcpavao/bitcoin-core-vault-releases/actions/runs/43012149337"
+}

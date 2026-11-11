@@ -38,3 +38,5 @@ diff tools/rebuild/packages/evidence/938a22ba-sources.SHA256SUMS ../vault-native
 ```
 
 An empty `diff` output and a zero exit status mean both source archives match the recorded bytes. Calamares contains `source/debian/changelog` for the new revision and the full patched source tree. Thunar includes the complete corresponding-source directory with its pinned dependency manifest, Debian originals and prepatched source archive.
+
+The two builders for each versioned package produced byte-identical Debian archives and byte-identical installed main executables. Both historical main executables have different full hashes. The separate checks show the exact differences, including the 20-byte build ID in Thunar and the changed library search path in Calamares. [Versioned package comparison](evidence/938a22ba-results.json)
