@@ -45,14 +45,30 @@ for index in /evidence/archives/*.InRelease; do
     gpgv --keyring "$keyring" "$index"
 done
 dpkg-query -W -f='${binary:Package}\t${Version}\n' | LC_ALL=C sort > /evidence/builder-packages.tsv
-# debootstrap uses the frozen mirror, and apt selects the same main, updates and security
-# archives throughout the image build. Keep live-build's normal end-user APT mirrors.
+# live-build rewrites sources.list for the installed system and then fetches
+# current archive indexes even when configured to discard them. Omit that final
+# lookup only. All package fetching and index checks at install time remain active.
+echo 'ec430b43463d06183c22cf982969b9f2bbbfbe85eea8da1295faa9b1843b9415  /usr/lib/live/build/chroot_archives' | sha256sum --check
+python3 - <<'PYCODE'
+from pathlib import Path
+path = Path('/usr/lib/live/build/chroot_archives')
+script = path.read_text()
+before = '\t\t# Updating indices\n\t\tApt chroot update\n'
+after = '\t\tif [ "${LB_APT_INDICES}" != false ]; then Apt chroot update; fi\n'
+if script.count(before) != 1:
+    raise SystemExit("Unrecognized live-build archive update block")
+path.write_text(script.replace(before, after))
+PYCODE
+backup=core-vault-backup_0.7.3_all.deb
+bash tools/core-vault/backup-src/build-package.sh
+cmp -- "tools/core-vault/backup-src/$backup" "config/packages.chroot/$backup"
+sha256sum "tools/core-vault/backup-src/$backup" > /evidence/vault-backup-package.sha256
 bash tools/core-vault/build-live-iso.sh \
     --mirror-bootstrap "$debian" --mirror-chroot "$debian" --mirror-chroot-security "$security" \
     --parent-mirror-bootstrap "$debian" --parent-mirror-chroot "$debian" \
     --parent-mirror-chroot-security "$security" --debootstrap-options '--include=ca-certificates' \
     --apt-options '--yes -o Acquire::Retries=4 -o Acquire::Check-Valid-Until=false' \
-    --updates true --backports false --security true
+    --updates true --backports false --security true --apt-indices false
 mv live-image-amd64.hybrid.iso /evidence/bitcoin-core-vault-amd64.iso
 cp /work/vault-build.log /evidence/build.log
 cp /work/live-image-amd64.packages /evidence/image-packages.tsv

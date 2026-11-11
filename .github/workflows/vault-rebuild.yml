@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: vault-rebuild-${{ github.ref }}
+  group: vault-rebuild-${{ github.sha }}
   cancel-in-progress: true
 
 jobs:
@@ -57,3 +57,26 @@ jobs:
           cmp "$a/bitcoin-core-vault-amd64.iso" "$b/bitcoin-core-vault-amd64.iso"
           printf 'Both complete ISO files match for commit %s\n' "$REVISION" >> "$GITHUB_STEP_SUMMARY"
           cat "$a/SHA256SUMS" >> "$GITHUB_STEP_SUMMARY"
+      - name: Identify differences for an unsuccessful comparison
+        if: failure()
+        env:
+          REVISION: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          sudo apt-get -qq update
+          sudo apt-get -qy install --no-install-recommends xorriso squashfs-tools
+          for side in first second; do
+            image="results/vault-$side-$REVISION/bitcoin-core-vault-amd64.iso"
+            xorriso -osirrox on -indev "$image" -extract / "$RUNNER_TEMP/$side-iso"
+            sudo unsquashfs -no-progress -user-xattrs -d "$RUNNER_TEMP/$side-root" \
+              "$RUNNER_TEMP/$side-iso/live/filesystem.squashfs"
+          done
+          sudo diff -qr --no-dereference "$RUNNER_TEMP/first-iso" "$RUNNER_TEMP/second-iso" > iso-differences.txt || [[ $? == 1 ]]
+          sudo diff -qr --no-dereference "$RUNNER_TEMP/first-root" "$RUNNER_TEMP/second-root" > file-differences.txt || [[ $? == 1 ]]
+          head -100 iso-differences.txt file-differences.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: failure()
+        with:
+          name: vault-differences-${{ github.sha }}
+          path: '*-differences.txt'
+          if-no-files-found: ignore

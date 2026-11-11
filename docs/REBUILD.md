@@ -25,7 +25,13 @@ Vault v0.5.0 is an existing signed release built from a locally modified earlier
    git ls-tree -r --long HEAD config/packages.chroot
    ```
 
-   Git displays some files as binary. The source records and review instructions for Calamares, Thunar and Vault Backup are in the repository and the release. Check the installer and Home launchers, network configuration, scripts under `tools/`, the files added under `config/`, and any changed package against its corresponding source. Bitcoin Core's upstream signing attestations and the exact executable hashes are under `provenance/32.1/`. A whole-ISO match includes the committed package bytes. Recompiling those packages and upstream Core from source is an additional check.
+   Git displays some files as binary. The source records and review instructions for Calamares, Thunar and Vault Backup are in the repository and the release. Check the installer and Home launchers, network configuration, scripts under `tools/`, the files added under `config/`, and any changed package against its corresponding source. Bitcoin Core's upstream signing attestations and the exact executable hashes are under `provenance/32.1/`. The builder also recreates Vault Backup from its source and checks the entire resulting Debian package against the committed copy. For the patched Thunar package, inspect its embedded source with the commands below. The v0.5.0 GitHub release carries the matching Calamares source bundle named `bitcoin-core-vault-v0.4.0-calamares-source.tar.xz`. Recompiling Calamares, Thunar and upstream Core is a separate check from assembling the ISO using their recorded binaries.
+
+   ```bash
+   dpkg-deb -x config/packages.chroot/thunar_*_amd64.deb ../thunar-review
+   ls ../thunar-review/usr/share/doc/thunar/core-vault-source
+   ls tools/core-vault/backup-src/src tools/core-vault/calamares tools/core-vault/thunar
+   ```
 
 4. From the checked-out directory, start the build and leave its terminal open. Choose a new output directory each time. The command reads committed files, downloads the named and verified inputs, runs the image checks and produces a file without writing to a USB drive.
 
@@ -37,7 +43,7 @@ Vault v0.5.0 is an existing signed release built from a locally modified earlier
 
    Keep `bitcoin-core-vault-amd64.iso`, the build-input record, package lists, archive metadata and build log. A second person can run the same commands with the same commit on their own computer. The GitHub workflow also builds on two separate hosted runners and compares both entire files. A copy made by the same hosting provider is useful for repeatability. A separately operated builder provides additional independent evidence.
 
-5. For an actual release, obtain its ISO, `SHA256SUMS`, `SHA256SUMS.asc` and `btcpavao-pgp.asc` from the same GitHub release. Put only those files in a new directory named `release` next to `vault-source`. Check the complete PGP fingerprint with Pavao through a separate channel you already trust. In the release directory, use an empty temporary GPG keyring so the verification can only use the key you just checked.
+5. For an actual release, obtain its ISO, `SHA256SUMS`, `SHA256SUMS.asc` and `btcpavao-pgp.asc` from the same GitHub release. Put only those files in a new directory named `release` next to `vault-source`. For v0.5.0 the published fingerprint is `787A 2AAF B0D1 19CA 0522 B2A5 B9C9 9AF8 5788 96D0`. Confirm the complete fingerprint for the release you are checking with Pavao through a separate channel you already trust. In the release directory, use an empty temporary GPG keyring so the verification can only use the key you just checked.
 
    ```bash
    cd ../release
