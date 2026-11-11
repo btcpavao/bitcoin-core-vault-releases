@@ -1,0 +1,161 @@
+name: Stage a verified Vault native-source candidate
+on:
+  push:
+    branches: ['build/stage-native-vault-*']
+permissions: {}
+jobs:
+  stage:
+    if: github.repository == 'btcpavao/bitcoin-core-vault-releases' && github.actor == 'btcpavao'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Validate source and proof of the selected run
+        id: input
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          run=${GITHUB_REF_NAME##*-}
+          [[ $run =~ ^[0-9]+$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run" > "$RUNNER_TEMP/run.json"
+          jq -e --arg repo "$GITHUB_REPOSITORY" '
+            .status == "completed" and .head_sha == "71242344618ba499278ea2abe49d7343a7f9a1c4" and
+            .path == ".github/workflows/vault-rebuild.yml" and
+            .head_repository.full_name == $repo and
+            .head_branch == "build/native-source-vault"' "$RUNNER_TEMP/run.json"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run/jobs?per_page=100" > "$RUNNER_TEMP/jobs.json"
+          jq -e '[.jobs[] | select(.conclusion == "success") | .name] | sort == ["build (first)","build (second)","compare"]' "$RUNNER_TEMP/jobs.json"
+          [[ $run == 43015346532 ]]
+          qa=43019527796
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$qa" |
+            jq -e --arg repo "$GITHUB_REPOSITORY" '.status == "completed" and .conclusion == "failure" and .head_repository.full_name == $repo and .head_branch == "test/vault-uefi-43015346532" and .head_sha == "5596ac08d075c3059ecbfb66c18d9e0354c09297" and .path == ".github/workflows/vault-uefi-repeat.yml"'
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$qa/jobs" |
+            jq -e '[.jobs[] | select(.conclusion == "failure") | .name] == ["install"]'
+          revision=$(jq -r .head_sha "$RUNNER_TEMP/run.json")
+          [[ $revision =~ ^[0-9a-f]{40}$ ]]
+          echo "revision=$revision" >> "$GITHUB_OUTPUT"
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ steps.input.outputs.revision }}
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          run-id: ${{ steps.input.outputs.run }}
+          github-token: ${{ github.token }}
+          pattern: vault-*-${{ steps.input.outputs.revision }}
+          path: ${{ runner.temp }}/rebuild
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          run-id: 43019527796
+          github-token: ${{ github.token }}
+          name: vault-native-uefi-71242344618b
+          path: ${{ runner.temp }}/accepted
+      - name: Compare complete ISOs again and prepare release assets
+        env:
+          REVISION: ${{ steps.input.outputs.revision }}
+          RUN: ${{ steps.input.outputs.run }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          output="$RUNNER_TEMP/candidate"
+          mkdir "$output"
+          first="$RUNNER_TEMP/rebuild/vault-first-$REVISION"
+          second="$RUNNER_TEMP/rebuild/vault-second-$REVISION"
+          [[ $(git rev-parse HEAD) == "$REVISION" ]]
+          for dir in "$first" "$second"; do
+            grep -Fx "source_commit=$REVISION" "$dir/build-inputs.txt"
+            (cd "$dir" && sha256sum --check SHA256SUMS)
+          done
+          cmp "$first/bitcoin-core-vault-amd64.iso" "$second/bitcoin-core-vault-amd64.iso"
+          cmp "$first/build-inputs.txt" "$second/build-inputs.txt"
+          cmp "$first/image-packages.tsv" "$second/image-packages.tsv"
+          cmp "$first/builder-packages.tsv" "$second/builder-packages.tsv"
+          tag="native-rebuild-candidate-${REVISION:0:12}"
+          cp "$first/bitcoin-core-vault-amd64.iso" "$output/bitcoin-core-vault-$tag-amd64.iso"
+          printf '%s\n' "$REVISION" > "$output/SOURCE-COMMIT.txt"
+          proof="$RUNNER_TEMP/accepted/vm-result.json"
+          sha=$(sha256sum "$first/bitcoin-core-vault-amd64.iso" | cut -d' ' -f1)
+          jq -e --arg sha "$sha" '.status == "failed" and .normal_live_home_boot == "passed" and .firmware == "uefi" and .iso_sha256 == $sha and .installation == "pending" and .stages.live.guest_probe.psbt_signing.status == "passed"' "$proof" > /dev/null
+          cp "$proof" "$output/uefi-live-checks-and-pending-install.json"
+          for kind in calamares thunar; do
+            a="$first/native/$kind"
+            b="$second/native/$kind"
+            (cd "$a" && sha256sum --check SHA256SUMS)
+            (cd "$b" && sha256sum --check SHA256SUMS)
+            cmp "$a/$kind-rebuilt.deb" "$b/$kind-rebuilt.deb"
+            cmp "$a/rebuilt-$kind.elf" "$b/rebuilt-$kind.elf"
+            package=(config/packages.chroot/${kind}_*.deb)
+            [[ ${#package[@]} == 1 ]]
+            cmp "$a/$kind-rebuilt.deb" "${package[0]}"
+            name=$(basename "${package[0]}")
+            cp "$a/$kind-rebuilt.deb" "$output/${name//+/-}"
+            cp "$a/compiler-environment.tsv" "$output/$kind-compiler-packages.tsv"
+            cp "$a/package-payload.json" "$output/$kind-payload-comparison.json"
+          done
+          (cd tools/rebuild/packages/sources && sha256sum --check SHA256SUMS)
+          for archive in tools/rebuild/packages/sources/*-source.tar.xz; do
+            name=$(basename "$archive")
+            cp "$archive" "$output/${name//+/-}"
+          done
+          cp "$first"/{build-inputs.txt,builder-packages.tsv,image-packages.tsv,vault-backup-package.sha256} "$output/"
+          for side in first second; do
+            gzip -n -c "$RUNNER_TEMP/rebuild/vault-$side-$REVISION/build.log" > "$output/build-$side.log.gz"
+          done
+          git -c tar.umask=0022 archive --format=tar --prefix="bitcoin-core-vault-$tag-source/" "$REVISION" |
+            gzip -n > "$output/bitcoin-core-vault-$tag-source.tar.gz"
+          jq -n --arg commit "$REVISION" --arg run "https://github.com/$GITHUB_REPOSITORY/actions/runs/$RUN" \
+            --arg sha "$(sha256sum "$first/bitcoin-core-vault-amd64.iso" | cut -d' ' -f1)" \
+            --argjson bytes "$(stat -c %s "$first/bitcoin-core-vault-amd64.iso")" \
+            '{source_commit:$commit,workflow:$run,uefi_live:"passed",uefi_install_at_publication:"pending",uefi_workflow:"https://github.com/btcpavao/bitcoin-core-vault-releases/actions/runs/43019527796",sha256:$sha,bytes:$bytes,full_iso_cmp:"match",builders:"two separate GitHub-hosted runners",release_status:"unsigned test candidate"}' > "$output/BUILD-PROOF.json"
+          (cd "$output" && sha256sum -- * > SHA256SUMS && sha256sum --check SHA256SUMS)
+      - name: Create a new candidate prerelease without modifying stable
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REVISION: ${{ steps.input.outputs.revision }}
+          RUN: ${{ steps.input.outputs.run }}
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/candidate"
+          tag="native-rebuild-candidate-${REVISION:0:12}"
+          # Existing public releases are never overwritten. A failed draft can
+          # be inspected without making a partial download available.
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Review the existing release/draft for $tag." >&2; exit 1
+          fi
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" > "$RUNNER_TEMP/tag.json" 2>/dev/null; then
+            jq -e --arg sha "$REVISION" '.object.type == "commit" and .object.sha == $sha' "$RUNNER_TEMP/tag.json"
+          else
+            gh api -X POST "repos/$GITHUB_REPOSITORY/git/refs" -f "ref=refs/tags/$tag" -f "sha=$REVISION"
+          fi
+          cat > "$RUNNER_TEMP/notes.md" <<NOTES
+          Unsigned test candidate for independent rebuilding. Two clean GitHub-hosted runners each compiled Calamares, Thunar and Vault Backup, assembled an entire ISO, and compared the result byte for byte. A UEFI virtual machine booted this exact ISO, created synthetic wallets, backed them up with one and two layers of GPG encryption, recovered them and checked their PSBT signatures. The installer and installed-system boot checks are pending. Stable v0.5.0 remains separately available.
+
+          ISO SHA-256: $(jq -r .sha256 BUILD-PROOF.json)
+          Source commit: $REVISION
+          [Builds and whole-image comparison](https://github.com/$GITHUB_REPOSITORY/actions/runs/$RUN) · [UEFI live-system checks and pending installer gate](https://github.com/$GITHUB_REPOSITORY/actions/runs/43019527796). The first VM test in the build run timed out during host-side screen recognition. The repeat passed live-system checks, then its host lost KVM device access before the installer guest could start.
+
+          [Native build instructions](https://github.com/$GITHUB_REPOSITORY/blob/$REVISION/docs/NATIVE-REBUILD.md) · [Full verification guide](https://github.com/$GITHUB_REPOSITORY/blob/$REVISION/docs/REBUILD.md).
+
+          Download the complete Git source snapshot, the corresponding C++ source archives, the rebuilt packages, package inventories, the UEFI test JSON and both build logs below. Debian, Bitcoin Core and KeePassXC have separately recorded upstream inputs. An independently matching ISO establishes the correspondence with these inputs.
+          NOTES
+          gh release create "$tag" --repo "$GITHUB_REPOSITORY" --verify-tag --draft --prerelease \
+            --title "Vault native-source candidate ${REVISION:0:12} (unsigned)" --notes-file "$RUNNER_TEMP/notes.md" ./*
+          gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" |
+            jq -e --arg tag "$tag" '[.[] | select(.tag_name == $tag)] | select(length == 1) | .[0]' > "$RUNNER_TEMP/draft.json"
+          python3 - "$RUNNER_TEMP/draft.json" <<'PY'
+          import hashlib,json,pathlib,sys
+          draft=json.loads(pathlib.Path(sys.argv[1]).read_text())
+          assert draft['draft'] and draft['prerelease']
+          assets={a['name']:a for a in draft['assets']}
+          paths=list(pathlib.Path('.').iterdir())
+          assert len(paths)==len(assets)
+          for path in paths:
+              asset=assets[path.name]
+              assert asset['size']==path.stat().st_size
+              with path.open('rb') as stream:
+                  assert asset['digest']=='sha256:'+hashlib.file_digest(stream,'sha256').hexdigest()
+          PY
+          gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease --latest=false
