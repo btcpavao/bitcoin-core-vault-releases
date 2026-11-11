@@ -41,13 +41,24 @@ jobs:
           tar -xzf harness.tar.gz bitcoin-core-vault-v0.4.0-qa/qa-adapted/tools/core-vault
           harness="$PWD/bitcoin-core-vault-v0.4.0-qa/qa-adapted/tools/core-vault/ci-vm-acceptance.py"
           export OMP_THREAD_LIMIT=1 OMP_NUM_THREADS=1
-          if [[ -c /dev/kvm ]]; then
-            sudo setfacl -m "u:$(id -un):rw" /dev/kvm
-          fi
+          runner=(env)
           accel=tcg
-          if [[ -c /dev/kvm && -r /dev/kvm && -w /dev/kvm ]]; then accel=kvm; fi
+          if [[ -c /dev/kvm ]]; then
+            # KVM's device node may be recreated after the last guest exits.
+            # Keep access group-scoped across all three fresh VM processes.
+            getent group kvm
+            echo 'KERNEL=="kvm", GROUP="kvm", MODE="0660"' | sudo tee /etc/udev/rules.d/99-vault-ci-kvm.rules
+            sudo udevadm control --reload-rules
+            sudo udevadm trigger --name-match=kvm
+            sudo udevadm settle
+            sudo chgrp kvm /dev/kvm
+            sudo chmod 0660 /dev/kvm
+            runner=(sudo -u "$(id -un)" -g kvm env OMP_THREAD_LIMIT=1 OMP_NUM_THREADS=1)
+            "${runner[@]}" test -w /dev/kvm
+            accel=kvm
+          fi
           echo "UEFI acceptance accelerator: $accel"
-          /usr/bin/python3 "$harness" --iso "$iso" --sha256 "$sha" \
+          "${runner[@]}" /usr/bin/python3 "$harness" --iso "$iso" --sha256 "$sha" \
             --firmware uefi --accel "$accel" --install --output "$RUNNER_TEMP/uefi"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
