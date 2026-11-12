@@ -108,6 +108,8 @@ jobs:
           echo '6c0fb72d6a29a8cbf7fbeef3a6677e208df3d064bd470c793e27c1b2d2e6071e  harness.tar.gz' | sha256sum --check
           tar -xzf harness.tar.gz bitcoin-core-vault-v0.4.0-qa/qa-adapted/tools/core-vault
           harness="$PWD/bitcoin-core-vault-v0.4.0-qa/qa-adapted/tools/core-vault/ci-vm-acceptance.py"
+          grep -Fx "source_commit=$GITHUB_SHA" build-inputs.txt
+          python3 "$GITHUB_WORKSPACE/tools/rebuild/prepare-vm-probe.py" "$(dirname "$harness")" "$GITHUB_SHA"
           export OMP_THREAD_LIMIT=1 OMP_NUM_THREADS=1
           runner=(env)
           accel=tcg
