@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+from math import ceil
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
@@ -62,13 +63,14 @@ def text_asset(text, font, colour):
     )
 
     draw = ImageDraw.Draw(dummy)
-    box = draw.textbbox((0, 0), text, font=font)
+    layout = {"font": font, "align": "center", "spacing": 8}
+    box = draw.textbbox((0, 0), text, **layout)
 
     image = Image.new(
         "RGBA",
         (
-            box[2] - box[0] + 6,
-            box[3] - box[1] + 6,
+            ceil(box[2] - box[0]) + 6,
+            ceil(box[3] - box[1]) + 6,
         ),
         (0, 0, 0, 0),
     )
@@ -81,8 +83,8 @@ def text_asset(text, font, colour):
             3 - box[1],
         ),
         text,
-        font=font,
         fill=colour,
+        **layout,
     )
 
     return image
@@ -105,13 +107,14 @@ title = text_asset(
 )
 
 line1 = text_asset(
-    "Dedicated offline Bitcoin Core workspace",
+    "Create and restore wallets. Sign transactions offline.",
     BODY_FONT,
     WHITE,
 )
 
 line2 = text_asset(
-    "Create, encrypt, back up and recover wallets without networking.",
+    "This stateless session keeps wallet data in RAM until shutdown.\n"
+    "Save an encrypted backup to USB for your next session.",
     BODY_FONT,
     WHITE,
 )
