@@ -53,9 +53,14 @@ class RouteTests(unittest.TestCase):
                 with self.subTest(folder=folder), patch.dict(sys.modules, modules), \
                      patch.object(backup, 'harden'), patch.object(backup.os, 'geteuid', return_value=1000), \
                      patch.object(backup, 'dialog') as dialog, patch.object(backup, 'message'), \
-                     patch.object(backup, 'Progress'):
+                     patch.object(backup, 'Progress'), patch('subprocess.Popen') as launch:
                     runpy.run_path(str(SRC.parents[3] /
                         'config/includes.chroot/usr/local/bin/core-vault-wallet-backup'))
+                if folder == workspace:
+                    self.assertEqual(launch.call_count, 1)
+                    self.assertEqual(launch.call_args.args, (['/usr/bin/thunar', str(workspace)],))
+                else:
+                    launch.assert_not_called()
                 dialog.assert_not_called()
                 self.assertEqual(request.call_args.args[1], workspace / 'wallet.dat.gpg')
                 self.assertEqual(export_wallet.call_args.args,
