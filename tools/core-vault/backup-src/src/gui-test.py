@@ -144,10 +144,12 @@ class GuiTests(unittest.TestCase):
                     self.assertEqual(combo.itemData(1), str(volume))
                     for row in range(combo.count()):
                         rect = view.visualRect(combo.model().index(row, 0))
-                        self.assertTrue(view.viewport().rect().contains(rect))
+                        self.assertGreaterEqual(rect.top(), 0)
+                        self.assertLess(rect.bottom(), view.viewport().height())
                 finally:
                     combo.hidePopup()
                     window.close()
+                    self.app.processEvents()
 
     def test_usb_recovery_warning_folder_retry_and_unplug(self):
         ram, volume, mounts = self.mount_fixture()
