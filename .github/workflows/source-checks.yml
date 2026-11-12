@@ -33,7 +33,7 @@ jobs:
           apt-get install -y --no-install-recommends \
             bash ca-certificates git dpkg sudo util-linux \
             python3 python3-yaml python3-pyside6.qtgui \
-            python3-pyside6.qtwidgets tar gpg
+            python3-pyside6.qtwidgets tar gpg xvfb xauth x11-xserver-utils libxss1
           test "$(dpkg --print-architecture)" = amd64
           . /etc/os-release
           test "$VERSION_ID" = 13
@@ -56,6 +56,7 @@ jobs:
           python3 tools/core-vault/check-live.py
           python3 tools/core-vault/check-media.py
           python3 tools/core-vault/check-home-suite.py
+          python3 tools/core-vault/test-session-display-handoff.py
           python3 tools/core-vault/check-files-recovery.py
           python3 tools/core-vault/check-places-v2.py
           python3 tools/core-vault/check-core-file-dialogs.py

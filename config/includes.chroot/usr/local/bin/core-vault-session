@@ -14,6 +14,12 @@ case " $(cat /proc/cmdline) " in
     *" core-vault.install=1 "*) exec /usr/local/bin/core-vault-installer-session ;;
 esac
 
+# Apply the desktop idle policy and wake X before any startup dialog or launcher.
+/usr/bin/xset -dpms 2>/dev/null || true
+/usr/bin/xset s off 2>/dev/null || true
+/usr/bin/xset s noblank 2>/dev/null || true
+/usr/share/core-signer/lightdm-display-setup.sh
+
 # The account home is mounted before LightDM, so application libraries that use
 # getpwuid() instead of HOME also resolve to RAM. Never use a disk home fallback.
 export HOME=/home/vault
@@ -62,11 +68,6 @@ chmod 0700 "$PRIVATE" || exit 1
 /usr/local/bin/core-vault-numlock >"$XDG_RUNTIME_DIR/core-vault-numlock.log" 2>&1 || {
     printf '%s\n' 'Num Lock setup unavailable; see core-vault-numlock.log.' >&2
 }
-
-xset -dpms 2>/dev/null || true
-xset s off 2>/dev/null || true
-xset s noblank 2>/dev/null || true
-xsetroot -solid black
 
 mkdir -p "$HOME/.config/udiskie" || exit 1
 cat > "$HOME/.config/udiskie/config.yml" <<'UDISKIE'
