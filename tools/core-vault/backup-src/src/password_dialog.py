@@ -3,9 +3,10 @@
 from pathlib import Path
 import os
 from PySide6.QtCore import Qt, QTimer, Signal
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDialog, QFileDialog,
-    QFrame, QHBoxLayout, QLabel, QLineEdit, QPushButton, QScrollArea, QVBoxLayout, QWidget)
+    QFrame, QHBoxLayout, QLabel, QLineEdit, QListView, QPushButton, QScrollArea,
+    QStyle, QStyleOptionComboBox, QVBoxLayout, QWidget)
 from destinations import backup_output_path, destination_directory, mounted_usb_volumes, recovery_destination
 from layered_backend import MAX_LAYERS
 
@@ -17,8 +18,18 @@ QLabel#heading { font-size:22px; font-weight:600; }
 QLabel#note, QLabel#status { color:#c5c5c5; }
 QLineEdit, QComboBox { color:white; background:#202020; border:1px solid #626262;
  border-radius:5px; padding:9px; min-height:22px; selection-background-color:#2468a2; }
-QLineEdit:focus, QComboBox:focus { border:2px solid #589ddd; padding:8px; }
-QComboBox QAbstractItemView { color:#f2f2f2; background:#202020; selection-background-color:#2468a2; }
+QLineEdit:focus { border:2px solid #589ddd; padding:8px; }
+QComboBox { combobox-popup:0; padding:9px 34px 9px 11px; }
+QComboBox:hover { border-color:#a0a0a0; }
+QComboBox:focus, QComboBox:on { border:2px solid #589ddd; padding:8px 33px 8px 10px; }
+QComboBox::drop-down { subcontrol-origin:border; width:34px; border:0; background:transparent; }
+QComboBox::down-arrow { image:none; width:0px; height:0px; }
+QComboBoxPrivateContainer { background:#202020; border:0; padding:0; }
+QComboBox QAbstractItemView { color:#f2f2f2; background:#202020; border:1px solid #626262;
+ padding:3px; outline:0; selection-color:white; selection-background-color:#2468a2; }
+QComboBox QAbstractItemView::item { min-height:30px; padding:0 8px; color:#f2f2f2; background:#202020; }
+QComboBox QAbstractItemView::item:hover { background:#383838; }
+QComboBox QAbstractItemView::item:selected { color:white; background:#2468a2; }
 QCheckBox { color:#f2f2f2; spacing:8px; padding:5px 0; }
 QCheckBox::indicator { width:18px; height:18px; }
 QPushButton { color:#eee; background:#242424; border:1px solid #626262;
@@ -57,6 +68,30 @@ class SecretEdit(QLineEdit):
 
 class DestinationList(QComboBox):
     opening = Signal()
+
+    def __init__(self):
+        super().__init__()
+        self.setView(QListView())
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        option = QStyleOptionComboBox()
+        self.initStyleOption(option)
+        arrow = self.style().subControlRect(QStyle.ComplexControl.CC_ComboBox, option,
+                                            QStyle.SubControl.SC_ComboBoxArrow, self)
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.translate(arrow.center())
+        if self.view().isVisible():
+            painter.scale(1, -1)
+        painter.setPen(QPen(QColor('#e8e8e8'), 2, Qt.PenStyle.SolidLine,
+                            Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
+        chevron = QPainterPath()
+        chevron.moveTo(-5, -2)
+        chevron.lineTo(0, 3)
+        chevron.lineTo(5, -2)
+        painter.drawPath(chevron)
+        painter.end()
 
     def showPopup(self):
         self.opening.emit()
@@ -310,9 +345,11 @@ class PassphraseDialog(QDialog):
 
     def refresh_locations(self):
         self.locations.clear()
-        self.locations.addItem('Private Workspace (RAM)', str(self.workspace))
+        self.locations.addItem('Private Workspace', str(self.workspace))
+        self.locations.setItemData(0, 'Temporary storage in RAM', Qt.ItemDataRole.ToolTipRole)
         for volume in mounted_usb_volumes():
             self.locations.addItem(f'USB: {volume.name} ({volume})', str(volume))
+            self.locations.setItemData(self.locations.count() - 1, str(volume), Qt.ItemDataRole.ToolTipRole)
         if hasattr(self, 'status'):
             self.update_destination()
         else:
@@ -324,6 +361,7 @@ class PassphraseDialog(QDialog):
         index = next((i for i in range(self.locations.count())
                       if path.is_relative_to(Path(self.locations.itemData(i)))), -1)
         self.locations.setCurrentIndex(index)
+        self.locations.setToolTip(self.locations.currentData(Qt.ItemDataRole.ToolTipRole) or '')
         self.media_note.setText('Recovered files will stay on this USB drive without the backup’s GPG protection.'
                                 if self.recovery else 'The encrypted backup will be saved on this USB drive.')
         external_recovery = (self.recovery and self.checked_destination is not None and

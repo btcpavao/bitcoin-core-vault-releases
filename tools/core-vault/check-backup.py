@@ -2,8 +2,8 @@
 """Read-only source/package gate for Encrypted Backup. Does not open a wallet."""
 from pathlib import Path
 import argparse, ast, hashlib, io, runpy, subprocess, tarfile
-VERSION='0.7.4'
-PACKAGE_SHA='d7c900fd17005985a3b422360624b927c8170c64053966de026055ee279c17cd'
+VERSION='0.7.5'
+PACKAGE_SHA='eb2a99bc365d54a5b978bb1f8af4055ae5880217e6ae43ef5e3e7c1ec7456cfc'
 
 def require(ok, text):
     if not ok: raise RuntimeError(text)

@@ -4,7 +4,7 @@ set -eu
 for p in core-vault-backup gpg tar zenity python3-pexpect python3-pyside6.qtwidgets; do
     test "$(dpkg-query -W -f='${Status}' "$p")" = 'install ok installed'
 done
-test "$(dpkg-query -W -f='${Version}' core-vault-backup)" = '0.7.4'
+test "$(dpkg-query -W -f='${Version}' core-vault-backup)" = '0.7.5'
 test -f /etc/core-vault-backup.require-private-workspace
 # Reject stale files even when the old upstream package was removed from recipes.
 test ! -e /usr/bin/veracrypt

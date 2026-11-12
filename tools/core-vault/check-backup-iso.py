@@ -7,7 +7,7 @@ def check(squash):
     def get(path):
         return subprocess.check_output(['unsquashfs','-cat',str(squash),path],stderr=subprocess.PIPE,timeout=90)
     record=json.loads(get('etc/core-vault/backup-build.json'))
-    if record.get('schema')!=3 or record.get('packages',{}).get('core-vault-backup')!='0.7.4':
+    if record.get('schema')!=3 or record.get('packages',{}).get('core-vault-backup')!='0.7.5':
         raise RuntimeError('Unexpected backup module build record')
     required={'usr/bin/core-vault-backup','usr/lib/core-vault-backup/backup.py',
               'usr/lib/core-vault-backup/destinations.py',

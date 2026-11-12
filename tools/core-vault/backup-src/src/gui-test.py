@@ -110,6 +110,7 @@ class GuiTests(unittest.TestCase):
         window = PassphraseDialog(validate, destination=ram/'test.gpg')
         self.addCleanup(window.deleteLater)
         self.assertEqual(window.locations.count(), 1)
+        self.assertEqual(window.locations.currentText(), 'Private Workspace')
         self.assertEqual(window.locations.currentData(), str(ram))
         mounts.update(attached)
         window.locations.opening.emit()
@@ -121,6 +122,32 @@ class GuiTests(unittest.TestCase):
         window.locations.activated.emit(0)
         self.assertTrue(window.media_note.isHidden())
         self.assertEqual(window.normalized_destination(), ram/'test.tar.gpg.gpg')
+
+    def test_open_destination_lists_have_dark_edges_and_visible_rows(self):
+        ram, volume, _ = self.mount_fixture()
+        for window in (PassphraseDialog(validate, destination=ram/'test.gpg'),
+                       RecoveryDialog(validate, ram)):
+            with self.subTest(dialog=window.windowTitle()):
+                self.addCleanup(window.deleteLater)
+                window.show()
+                combo = window.locations
+                try:
+                    combo.showPopup()
+                    self.app.processEvents()
+                    view = combo.view()
+                    self.assertTrue(view.isVisible())
+                    # Capture the top-level popup, not just the styled list. Fusion's
+                    # menu container used to draw white margins outside the list.
+                    image = view.window().grab().toImage()
+                    for y in (2, image.height() - 3):
+                        self.assertLess(image.pixelColor(image.width() // 2, y).lightness(), 150)
+                    self.assertEqual(combo.itemData(1), str(volume))
+                    for row in range(combo.count()):
+                        rect = view.visualRect(combo.model().index(row, 0))
+                        self.assertTrue(view.viewport().rect().contains(rect))
+                finally:
+                    combo.hidePopup()
+                    window.close()
 
     def test_usb_recovery_warning_folder_retry_and_unplug(self):
         ram, volume, mounts = self.mount_fixture()

@@ -9,7 +9,7 @@ install -d "$stage/DEBIAN" "$stage/usr/bin" "$stage/usr/lib/core-vault-backup" \
   "$stage/usr/share/applications" "$stage/usr/share/doc/core-vault-backup"
 cat > "$stage/DEBIAN/control" <<'EOF'
 Package: core-vault-backup
-Version: 0.7.4
+Version: 0.7.5
 Architecture: all
 Maintainer: Core Vault Local Build <local-build@localhost>
 Section: utils
@@ -53,4 +53,4 @@ EOF
 printf 'No configuration files or user data are removed by this package.\n' > "$stage/usr/share/doc/core-vault-backup/LOCAL-PACKAGE"
 export SOURCE_DATE_EPOCH=1790841600
 find "$stage" -print0 | xargs -0 touch -h -d "@$SOURCE_DATE_EPOCH"
-dpkg-deb --threads-max=1 --root-owner-group --build "$stage" ./core-vault-backup_0.7.4_all.deb
+dpkg-deb --threads-max=1 --root-owner-group --build "$stage" ./core-vault-backup_0.7.5_all.deb
