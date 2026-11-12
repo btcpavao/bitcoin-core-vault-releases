@@ -295,126 +295,121 @@ Continuation validation and the current build blocker are recorded in
 confinement and exported-archive restore have also been exercised. The final ISO
 still requires rebuilding and BIOS/UEFI/forensic acceptance.
 
-## Implementacijski inventar i status (2026-10-04)
+## Historical implementation inventory and acceptance snapshot (2026-10-04)
 
-Ovaj odjeljak bilježi stanje razvoja. Konačni sigurnosni prihvat još nije završen.
-Projekt je izmijenjen na `/home/pavao/core-signer-os`. Ranije nepovezane radne
-izmjene nisu uključene u ovaj inventar. Za svaku izmijenjenu runtime datoteku iz
-`config/includes.chroot` održava se odgovarajuća kopija na istoj relativnoj
-putanji u `tools/core-vault/runtime-template`.
+This section preserves an earlier development snapshot. It is **not** final acceptance of a released image. The candidate work was performed in /home/pavao/core-signer-os. Unrelated in-progress changes were excluded from the snapshot. Modified runtime files under config/includes.chroot had matching copies at the same relative paths under tools/core-vault/runtime-template.
 
-| Značajna datoteka | Svrha promjene |
+The implementation touched the protected tmpfs mount and account home bind; no-swap, no-resume, log and dump policies; LightDM dependencies; Core confinement and wallet inventory; consistent encrypted backups; the verified Finish and emergency-exit paths; and associated Calamares integration, UI, file-manager integration and tests. For an exact file-level change history, inspect the corresponding Git commit and the source files listed below.
+
+### Recorded packages and unchanged Core
+
+The staged Calamares package was calamares_3.3.14-1+corevault3_amd64.deb. The staged backup package was core-vault-backup_0.5.1_all.deb. The official Bitcoin Core 31.1 executable was not modified; the recorded bitcoin-qt SHA-256 was:
+
+fcd4c1a3193e0cb4eec9d980c835d822ad726627b0c01281b13f5c3c1f593fcb
+
+These package and Core versions are **historical** and must not be read as the current release inventory.
+
+### Candidate test outcomes and limitations
+
+| Test or observation | Recorded result |
 | --- | --- |
-| `config/hooks/live/0940-core-vault-backup.hook.chroot` | Usklađivanje i provjera novog backup paketa. |
-| `config/hooks/live/0948-core-vault-private-session.hook.chroot` | Maske, jedinice, GTK/KeePassXC zadane postavke, volatile LightDM auth i zabrane dumpova/loggera. |
-| `config/hooks/live/0950-core-vault-installer-check.hook.chroot` | Provjera paketa i manifest svih novih privatnih runtime datoteka. |
-| `config/includes.chroot/etc/initramfs-tools/conf.d/core-vault-noresume` | Isključuje resume u initramfsu. |
-| `config/includes.chroot/etc/security/limits.d/core-vault.conf` | Core dump limit 0 za Vault račun. |
-| `config/includes.chroot/etc/sudoers.d/91-core-vault-poweroff` | Sudo dopušta samo dva točna argumenta uskog Finish pomoćnika. |
-| `config/includes.chroot/etc/sysctl.d/80-core-vault-memory.conf` | Kernel dump putanja /dev/null i zabrana suid dumpova. |
-| `config/includes.chroot/etc/systemd/logind.conf.d/core-vault.conf` | Isključeni sleep/lid/idle/power događaji koji bi zaobišli Finish. |
-| `config/includes.chroot/etc/systemd/system.conf.d/core-vault.conf` | Core dump limit 0 za sistemske servise. |
-| `config/includes.chroot/etc/systemd/system/core-vault-end-session@.service` | Root teardown uz sigurnosno gašenje pri padu ili isteku vremena. |
-| `config/includes.chroot/etc/systemd/system/core-vault-prepare.service` | Priprema nakon live-config/no-swap, prije HOME-a i LightDM-a. |
-| `config/includes.chroot/etc/systemd/system/core-vault-workspace-check.service` | Uvjet spremne RAM sesije prije prijave. |
-| `config/includes.chroot/etc/systemd/system/home-vault.mount` | Bind RAM HOME-a preko stvarnog passwd HOME-a prije LightDM-a. |
-| `config/includes.chroot/etc/systemd/system/lightdm.service.d/35-core-vault-safety.conf` | LightDM ovisi o provjerenom RAM HOME-u. |
-| `config/includes.chroot/etc/systemd/system/run-core\x2dvault.mount` | Vlastiti tmpfs noswap,nodev,nosuid,noexec; 0700 UID/GID 1000, najviše 50% RAM-a. |
-| `config/includes.chroot/usr/lib/core-vault-installer/target.py` | Instalirani HOME fallback 000/root, noswap scratch/log/print mountovi, maske i noresume. |
-| `config/includes.chroot/usr/lib/core-vault/export.py` | Core backup u RAM-u, postojeće 7zip šifriranje, provjera sadržaja i odredišta te potvrda izvoza. |
-| `config/includes.chroot/usr/lib/core-vault/runtime.py` | Provjera RAM mountova, inventar walleta, službeni snimak otvorene baze, usporedba SQLite zapisa i RAM potvrde izvoza. |
-| `config/includes.chroot/usr/local/bin/core-vault-bitcoin` | Provjereni RAM datadir/walletdir i dinamičke postavke, lokalni RPC i odbijanje root računa. |
-| `config/includes.chroot/usr/local/bin/core-vault-file-places` | RAM HOME i Private Workspace favoriti bez dupliranih sistemskih volumena. |
-| `config/includes.chroot/usr/local/bin/core-vault-finish` | Provjera svakog walleta i arhive, uredno zatvaranje Corea, provjera zadnjeg zapisa te izričita hitna opcija. |
-| `config/includes.chroot/usr/local/bin/core-vault-guide` | Jednostavne upute za RAM sesiju, backup, gubitak podataka i Finish. |
-| `config/includes.chroot/usr/local/bin/core-vault-home` | Wallet Backup kartica, opis privatne sesije i Finish preko postojećih power kontrola. |
-| `config/includes.chroot/usr/local/bin/core-vault-install-check` | Provjera novog instalacijskog i RAM sigurnosnog profila. |
-| `config/includes.chroot/usr/local/bin/core-vault-keepassxc` | Provjera sesije i pokretanje KeePassXC-a s RAM postavkama. |
-| `config/includes.chroot/usr/local/bin/core-vault-security-check` | Napredna dijagnostika RAM-a, swapa, dumpova, journala i aktivnih Core putanja. |
-| `config/includes.chroot/usr/local/bin/core-vault-session` | HOME, XDG i privremene putanje za cijelu privatnu radnu sesiju; bez diskovnog fallbacka. |
-| `config/includes.chroot/usr/local/bin/core-vault-shred` | Odbijanje Core wallet putanja; Shred ostaje pomoćni alat za vanjske datoteke. |
-| `config/includes.chroot/usr/local/bin/core-vault-storage-check` | Zaustavlja pokretanje ako privatna pohrana nije valjana RAM sesija. |
-| `config/includes.chroot/usr/local/bin/core-vault-wallet-backup` | Novi GUI ulaz za provjereni šifrirani wallet export na vanjski medij. |
-| `config/includes.chroot/usr/local/libexec/core-vault-destroy` | Zatvaranje sesijskih procesa, zaustavljanje dvaju fiksnih mountova i gašenje; ograničeni timeouti. |
-| `config/includes.chroot/usr/local/libexec/core-vault-prepare` | Priprema praznog RAM HOME-a iz statičkog /etc/skel predloška. |
-| `config/includes.chroot/usr/local/sbin/core-vault-end-session` | Uska privilegirana naredba s isključivo poweroff/reboot argumentom. |
-| `config/includes.chroot/usr/local/sbin/core-vault-installer` | Usklađivanje s novom provjerenom verzijom Calamaresa. |
-| `config/includes.chroot/usr/share/core-vault/shred-policy.json` | Ažurirani hash manifest postojećeg Shred/Places/Guide runtimea. |
-| `tools/core-vault/backup-src/build-package.sh` | Verzija backup paketa 0.5.1 i njegovo slaganje. |
-| `tools/core-vault/backup-src/src/backup.py` | Upozorenja za odredišta, prednost vanjskim medijima, konzistentni wallet snapshot i potvrda pojedinačnog izvoza za Finish. |
-| `tools/core-vault/build-live-iso.sh` | Zadržan postojeći live-build; nova preflight i završna ISO provjera privatne sesije. |
-| `tools/core-vault/calamares/base_patch.py` | Usklađen završni tekst instalacije s volatilnom privatnom sesijom. |
-| `tools/core-vault/calamares/package_state.py` | Provjera Calamares paketa corevault3. |
-| `tools/core-vault/calamares/tests/test_installer.py` | Provjere novog instalacijskog profila i volatilnih putanja. |
-| `tools/core-vault/check-backup-iso.py` | Usklađena provjera novog broja kartica, Finish putanje ili novih verzija paketa. |
-| `tools/core-vault/check-backup.py` | Usklađena provjera novog broja kartica, Finish putanje ili novih verzija paketa. |
-| `tools/core-vault/check-bleachbit.py` | Provjera odsutnosti uklonjene aplikacije, paketa i pomoćnika; GNU shred ostaje dostupan. |
-| `tools/core-vault/check-installer.py` | Usklađena provjera novog broja kartica, Finish putanje ili novih verzija paketa. |
-| `tools/core-vault/check-power-core.py` | Usklađena provjera novog broja kartica, Finish putanje ili novih verzija paketa. |
-| `tools/core-vault/check-power-theme.py` | Usklađena provjera novog broja kartica, Finish putanje ili novih verzija paketa. |
-| `tools/core-vault/check-private-session.py` | Usklađenost runtime predložaka, izvora i doslovnog sadržaja ISO-a. |
-| `tools/core-vault/check-shred.py` | Provjera Thunar permanent-delete integracije i stvarnog GNU shred sadržaja u Live i instalacijskom payloadu. |
-| `tools/core-vault/check-ui-polish-v4.py` | Usklađena provjera novog broja kartica, Finish putanje ili novih verzija paketa. |
-| `tools/core-vault/docs/RAM-PRIVATE-SESSION.md` | Arhitektura, prijetnje, putanje, oporavak, provjere i stvarni status prihvata. |
-| `tools/core-vault/prepare-installer.sh` | Staging nove Calamares verzije. |
-| `tools/core-vault/test-core-wallet-export.py` | Stvarni Core create/encrypt/backup/restore i regtest PSBT testovi u izolaciji. |
-| `tools/core-vault/test-installed-private-session.py` | Pripremljen test stvarne instalacije, vanjskog USB-a, crasha i testnih markera. |
-| `tools/core-vault/test-private-session.py` | 10 sigurnosnih i regresijskih testova, stvarni 7zip i simulirani neodazivajući Core. |
-| `tools/core-vault/scan-vm-private-markers.py` | Offline skeniranje cijele ugašene virtualne slike diska, uključujući obrisane blokove; odbija aktivnu sliku i stvarne uređaje. |
-| `tools/core-vault/vm-private-session.py` | QMP upravlja isključivo vlastitim zasebnim testnim VM-om i slikom diska. |
+| Private-session regression tests | PASS 10/10 for the then-current suite, including disk-home and swap rejection, altered hashes, symlinks, export receipts, encrypted 7z backups, wrong password, tampering, and Finish with an unresponsive Core |
+| Core wallet create/encrypt/backup/restore | PASS with official Core in an isolated read-only bubblewrap fixture; destination media classification was simulated |
+| Disposable Regtest funding and PSBT signing | PASS, including backup/recovery and digest verification after shutdown |
+| Installer source tests | PASS 47/47 |
+| Home layout at 800x600, 1024x768, 1280x800 and 1920x1080 | PASS; 12 home tiles |
+| Shred synthetic-engine tests | PASS 24/24; Shred was not treated as the wallet security boundary |
+| 7z and Qt backup dialog tests | PASS in earlier round-trip tests |
+| Systemd unit dependency graph | PASS |
+| Source and staged package preflight | PASS |
+| First image-content checks | PASS after correcting test expectations for a literal systemd path and BleachBit symlink |
+| First BIOS Live boot and installation to a disposable 24 GiB qcow2 | PASS |
+| First candidate boot without ISO | PASS for RAM home, no swap, disabled sleep/hibernate, disabled dumps, volatile journal, temporary paths, and Core networkactive=false with no connections |
+| First candidate Finish without wallets | PASS only after a clipboard fix applied in volatile VM RAM; shutdown used the restricted root helper |
+| First candidate crash and raw-image marker scan | PASS for specified synthetic markers in 25,769,803,776 scanned bytes, not a complete final wallet or power-loss acceptance |
+| Subsequent candidate boot | PASS: three markers absent, wallet directory empty, no RAM export receipt |
+| Final ISO with the completed real-wallet fixes | PENDING rebuild and acceptance |
+| Final BIOS/UEFI, KeePassXC, GUI Finish, crash/power-loss and offline disk scan | PENDING |
 
-Staged paketi: `calamares_3.3.14-1+corevault3_amd64.deb` i
-`core-vault-backup_0.5.1_all.deb` u `config/packages.chroot`.
-Službeni Core 31.1 binary nije mijenjan; SHA-256 bitcoin-qt:
-`fcd4c1a3193e0cb4eec9d980c835d822ad726627b0c01281b13f5c3c1f593fcb`.
+The first candidate was 752,877,568 bytes with SHA-256:
 
-| Stvarno izvedena provjera | Rezultat i granica |
-| --- | --- |
-| Privatna sesija: 10 testova | PASS: disk HOME/swap odbijanje, hash promjena, symlink, potvrde izvoza, 7zip enkripcija, pogrešna lozinka, tamper, normalni i hitni Finish pri neodazivajućem Coreu. |
-| Stvarni Core create/encrypt/backup/restore | PASS u izoliranom read-only bubblewrap okruženju; odredište je testni RAM i klasifikacija medija je simulirana. |
-| Regtest financiranje i PSBT potpisivanje | PASS; Core prihvaća sintetički potpisanu transakciju, backup i restore prolaze, hash ostaje valjan nakon zatvaranja. |
-| Instalacijski source testovi | PASS: 47 testova. |
-| Home Qt geometrija | PASS na 800x600, 1024x768, 1280x800 i 1920x1080; 12 kartica. |
-| Shred sintetički engine testovi | PASS: 24 testa; pomoćni alat, ne wallet sigurnosni model. |
-| Backup stvarni 7zip i Qt dijalozi | PASS prethodno izvedenih roundtrip, password i dark-dialog provjera. |
-| systemd unit graph | PASS, exit 0; uključuje završni OnFailure i ograničene timeoutove. |
-| Preflight izvori i staged paketi | PASS. |
-| Prvi ISO sadržaj | PASS nakon ispravaka testnog čitanja doslovnog systemd naziva i BleachBit symlinka. |
-| Prvi BIOS Live boot i instalacija | PASS: RAM priprema/HOME/no-swap/Core-dump kernel policy potvrđeni; Calamares je uspješno instalirao na zasebni 24 GiB qcow2. |
-| Prvi kandidat: boot bez ISO-a i dijagnostika | PASS: stvarni HOME/tmpfs, prazan swap, sleep/hibernate maske, dumpovi, volatile journal, TMPDIR i aktivne Core putanje; RPC networkactive=false, connections=0. |
-| Prvi kandidat: GUI Finish bez walleta | PASS nakon clipboard popravka izvedenog samo u RAM-u VM-a; uski root helper ugasio je vlastiti VM. Core je prethodno zatvoren službenim CLI-em. |
-| Prvi kandidat: crash i offline marker scan | PASS: marker u Private Workspace/cache/tmp i memoriji namjerno abortiranog procesa nije pronađen ni u jednom od 25769803776 skeniranih bajtova cijelog virtualnog diska. To nije wallet/UEFI/power-loss prihvat konačnog ISO-a. |
-| Prvi kandidat: sljedeći boot | PASS: sva tri testna marker fajla nestala, walletdir prazan, bez RAM potvrde izvoza; security-check ponovno prolazi. |
-| Konačni ISO s popravcima stvarnog wallet workflowa | PENDING: potreban ponovni postojeći live-build. |
-| Konačni BIOS/UEFI workflow, KeePassXC, GUI Finish i crash/power-loss | PENDING; pripremljen zaseban VM/USB testni postupak. |
-| Offline raw-disk marker scan nakon Finish/power-loss/reboota | PENDING; dosadašnji izvori i application testovi ga ne dokazuju. |
+1449745bada4402a099f8490c40ef0247c87091e2da940114e83db9385f3601f
 
-Prvi kandidat ISO ima 752877568 bajtova i SHA-256
-`1449745bada4402a099f8490c40ef0247c87091e2da940114e83db9385f3601f`.
-To nije konačni ISO: nakon stvarnih Core testova popravljeni su čitanje otvorene
-SQLite baze preko službenog RAM backupa, parsiranje string RPC odgovora,
-spremanje RAM potvrde izvoza, hitni Finish pri neodazivajućem Coreu i korištenje
-stvarnog `QClipboard.Mode` enuma. GUI test za posljednji popravak izvršen je
-iz izmijenjenog koda samo u RAM-u testnog VM-a, bez izmjene instaliranih datoteka.
-Offline rezultat je `PASS_NO_SUPPLIED_MARKERS`, bez pogodaka. SHA-256 te sirove
-24 GiB testne slike nakon Finish-a:
-`8fdc3d68d7ea42e03bcd295cef5933a66467a758f827c2ad2e1074a1b39336f2`.
-Ovaj rezultat pokriva samo navedeni jedinstveni marker i konkretni test.
+This was not the final ISO. Further corrections addressed the official RAM snapshot of an open SQLite wallet, RPC string parsing, RAM export receipts, emergency Finish with an unresponsive Core, and QClipboard.Mode handling. The final clipboard test for that change ran with the corrected code in the VM's RAM-only overlay; it did not change the installed files.
 
-Dokazi su u `/home/pavao/vault-test-results/ram-session-20261004`, uključujući
-`private-tests-final.log`, `core-application-test.log`,
-`regtest-application-test.log`, `installer-source-tests.log`,
-`candidate-ram-marker-scan.log`,
-`native-qt-prebuild.log`, package build rezultat i zasebne QMP manifest/snimke.
-Izvorne datoteke prije zahvata sačuvane su u `sources-before.tar.gz`.
+One raw 24 GiB candidate image was scanned after Finish for a known marker and returned PASS_NO_SUPPLIED_MARKERS. Its SHA-256 was:
 
-Za sljedeću izgradnju koristi se postojeći postupak:
+8fdc3d68d7ea42e03bcd295cef5933a66467a758f827c2ad2e1074a1b39336f2
 
-```bash
-cd /home/pavao/core-signer-os
-bash tools/core-vault/build-live-iso.sh
-```
+The test proves only the absence of the stated marker in that specific image. It is not evidence of secure overwriting of all RAM or disk data.
 
-Remote Desktop Commander blokira sudo; administratorsku izgradnju treba pokrenuti
-lokalno. Taj blok nije zaobiđen. Izgrađeni kandidat nije proglašen forenzički
-prihvaćenim niti konačnim izdanjem.
+Evidence was recorded under /home/pavao/vault-test-results/ram-session-20261004, including private-tests-final.log, core-application-test.log, regtest-application-test.log, installer-source-tests.log, candidate-ram-marker-scan.log, native-qt-prebuild.log and separate QMP manifests. Pre-change sources were retained locally as sources-before.tar.gz.
+
+Rebuilding this candidate required the existing local build command:
+
+    cd /home/pavao/core-signer-os
+    bash tools/core-vault/build-live-iso.sh
+
+The remote session did not bypass the sudo restriction. The candidate image was not declared forensically accepted or a final release.
+
+### Affected source file inventory
+
+The paths below identify the source and tests changed in that historical development snapshot. The actual code and history, rather than this list alone, define the modifications:
+
+- config/hooks/live/0940-core-vault-backup.hook.chroot
+- config/hooks/live/0948-core-vault-private-session.hook.chroot
+- config/hooks/live/0950-core-vault-installer-check.hook.chroot
+- config/includes.chroot/etc/initramfs-tools/conf.d/core-vault-noresume
+- config/includes.chroot/etc/security/limits.d/core-vault.conf
+- config/includes.chroot/etc/sudoers.d/91-core-vault-poweroff
+- config/includes.chroot/etc/sysctl.d/80-core-vault-memory.conf
+- config/includes.chroot/etc/systemd/logind.conf.d/core-vault.conf
+- config/includes.chroot/etc/systemd/system.conf.d/core-vault.conf
+- config/includes.chroot/etc/systemd/system/core-vault-end-session@.service
+- config/includes.chroot/etc/systemd/system/core-vault-prepare.service
+- config/includes.chroot/etc/systemd/system/core-vault-workspace-check.service
+- config/includes.chroot/etc/systemd/system/home-vault.mount
+- config/includes.chroot/etc/systemd/system/lightdm.service.d/35-core-vault-safety.conf
+- config/includes.chroot/etc/systemd/system/run-core\x2dvault.mount
+- config/includes.chroot/usr/lib/core-vault-installer/target.py
+- config/includes.chroot/usr/lib/core-vault/export.py
+- config/includes.chroot/usr/lib/core-vault/runtime.py
+- config/includes.chroot/usr/local/bin/core-vault-bitcoin
+- config/includes.chroot/usr/local/bin/core-vault-file-places
+- config/includes.chroot/usr/local/bin/core-vault-finish
+- config/includes.chroot/usr/local/bin/core-vault-guide
+- config/includes.chroot/usr/local/bin/core-vault-home
+- config/includes.chroot/usr/local/bin/core-vault-install-check
+- config/includes.chroot/usr/local/bin/core-vault-keepassxc
+- config/includes.chroot/usr/local/bin/core-vault-security-check
+- config/includes.chroot/usr/local/bin/core-vault-session
+- config/includes.chroot/usr/local/bin/core-vault-shred
+- config/includes.chroot/usr/local/bin/core-vault-storage-check
+- config/includes.chroot/usr/local/bin/core-vault-wallet-backup
+- config/includes.chroot/usr/local/libexec/core-vault-destroy
+- config/includes.chroot/usr/local/libexec/core-vault-prepare
+- config/includes.chroot/usr/local/sbin/core-vault-end-session
+- config/includes.chroot/usr/local/sbin/core-vault-installer
+- config/includes.chroot/usr/share/core-vault/shred-policy.json
+- tools/core-vault/backup-src/build-package.sh
+- tools/core-vault/backup-src/src/backup.py
+- tools/core-vault/build-live-iso.sh
+- tools/core-vault/calamares/base_patch.py
+- tools/core-vault/calamares/package_state.py
+- tools/core-vault/calamares/tests/test_installer.py
+- tools/core-vault/check-backup-iso.py
+- tools/core-vault/check-backup.py
+- tools/core-vault/check-bleachbit.py
+- tools/core-vault/check-installer.py
+- tools/core-vault/check-power-core.py
+- tools/core-vault/check-power-theme.py
+- tools/core-vault/check-private-session.py
+- tools/core-vault/check-shred.py
+- tools/core-vault/check-ui-polish-v4.py
+- tools/core-vault/docs/RAM-PRIVATE-SESSION.md
+- tools/core-vault/prepare-installer.sh
+- tools/core-vault/test-core-wallet-export.py
+- tools/core-vault/test-installed-private-session.py
+- tools/core-vault/test-private-session.py
+- tools/core-vault/scan-vm-private-markers.py
+- tools/core-vault/vm-private-session.py
