@@ -180,7 +180,7 @@ TOOLS = [
         'title': 'Decrypt Backup',
         'description': 'Recover encrypted files in RAM',
         'help': ('Open a GPG backup and enter its passphrases in any order. '
-                 'Recovered files stay in Private Workspace. Create backups from '
+                 'Choose Private Workspace or a writable USB drive. Create backups from '
                  'Wallet Backup or Files → Create Encrypted Backup.'),
         'icons': ('document-decrypt', 'package-x-generic'), 'fallback': QStyle.SP_DriveHDIcon,
         'command': ['/usr/bin/core-vault-backup', 'decrypt'],

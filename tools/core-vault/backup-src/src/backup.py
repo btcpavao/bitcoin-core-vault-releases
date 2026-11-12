@@ -15,6 +15,9 @@ import sys
 import tempfile
 import time
 
+from destinations import (backup_output_path, destination_directory, mounted_usb_volumes,
+                          recovery_destination, require_same_directory)
+
 TITLE = 'Bitcoin Core Vault — Encrypted Backup'
 class Cancelled(Exception): pass
 class BackupError(Exception): pass
@@ -75,7 +78,10 @@ def selected_paths(items):
     if not items: raise BackupError('No files were selected.')
     paths = [Path(os.path.abspath(item)) for item in items]
     from gpg_backend import _path
-    paths = [_path(p) for p in paths]
+    try:
+        paths = [_path(backup_output_path(p)) for p in paths]
+    except ValueError as exc:
+        raise BackupError(str(exc)) from None
     if len({p.name for p in paths}) != len(paths):
         raise BackupError('Please select items with distinct top-level names.')
     from layered_backend import MAX_BYTES, MAX_ENTRIES
@@ -252,7 +258,12 @@ def publish_new(src, dst):
         if code not in (errno.ENOSYS, errno.EINVAL, errno.EOPNOTSUPP):
             raise OSError(code, os.strerror(code))
     # Also atomic/no-overwrite, but unavailable on some removable filesystems.
-    os.link(src, dst)
+    try:
+        os.link(src, dst)
+    except OSError as exc:
+        if exc.errno in (errno.EPERM, errno.EOPNOTSUPP, errno.ENOSYS, errno.EISDIR):
+            raise BackupError('This drive cannot safely publish a new backup without overwriting. Please use another filesystem.') from None
+        raise
     os.unlink(src)
 
 
@@ -260,7 +271,10 @@ def publish_new(src, dst):
 
 
 def backup_destination(destination):
-    path = Path(os.path.abspath(destination))
+    try:
+        path = backup_output_path(Path(os.path.abspath(destination)))
+    except ValueError as exc:
+        raise BackupError(str(exc)) from None
     return path if path.suffix.lower() == '.gpg' else Path(str(path) + '.gpg')
 
 def copy_ciphertext(source, output, progress=None):
@@ -293,11 +307,15 @@ def create_backup(items, destination, passwords, *, progress=None, policy=None):
             raise BackupError('Please save the backup outside the selected folder.')
     ram_root = policy.ROOT / 'export'
     try:
-        with tempfile.TemporaryDirectory(prefix='gpg-create-', dir=ram_root) as tmp:
+        with destination_directory(dest.parent) as fd, tempfile.TemporaryDirectory(
+                prefix='gpg-create-', dir=ram_root) as tmp:
             ciphertext = Path(tmp) / 'new.gpg'
             create_layers(paths, ciphertext, passwords, ram_root=ram_root, progress=progress)
-            # Destination staging contains only fully verified ciphertext.
-            with tempfile.TemporaryDirectory(prefix='.vault-backup-', dir=dest.parent) as target:
+            # A pinned directory keeps unplugging a USB drive from redirecting a
+            # write to the empty mountpoint on the system disk.
+            parent = Path(f'/proc/self/fd/{fd}')
+            require_same_directory(dest.parent, fd)
+            with tempfile.TemporaryDirectory(prefix='.vault-backup-', dir=parent) as target:
                 work = Path(target) / 'new.gpg'
                 with ciphertext.open('rb') as source, work.open('xb') as output:
                     copy_ciphertext(source, output, progress)
@@ -307,18 +325,16 @@ def create_backup(items, destination, passwords, *, progress=None, policy=None):
                     raise BackupError('The encrypted copy failed verification. No backup was published.')
                 if progress:
                     progress.check()
+                require_same_directory(dest.parent, fd)
                 try:
-                    publish_new(work, dest)
+                    publish_new(work, parent / dest.name)
                 except FileExistsError:
                     raise BackupError('That backup already exists; it was left untouched.') from None
-                try:
-                    fd = os.open(dest.parent, os.O_DIRECTORY | os.O_NOFOLLOW)
-                    try:
-                        os.fsync(fd)
-                    finally:
-                        os.close(fd)
-                except OSError:
-                    pass
+                os.fsync(fd)
+    except ValueError as exc:
+        raise BackupError(str(exc)) from None
+    except OSError as exc:
+        raise BackupError('The backup could not be saved on the selected drive. Please check that it is connected, writable and has enough space.') from exc
     except (GPGError, LayerError) as exc:
         raise BackupError(str(exc)) from None
     return dest
@@ -432,7 +448,7 @@ def decrypt_ui(items):
                 ram_root=policy.ROOT / 'export', workspace=workspace, progress=progress, ordinary=ordinary)
         except MorePassphrases as exc:
             previous, error = passwords, str(exc)
-            suggested = destination.name
+            suggested = destination
             continue
         except (LayerError, GPGError) as exc:
             raise BackupError(str(exc)) from None
@@ -440,9 +456,12 @@ def decrypt_ui(items):
             passwords = None
             progress.close()
         break
-    message('Files recovered into Private Workspace:\n' + str(result) +
-            '\n\nThese plaintext files stay in RAM until you explicitly export them. '
-            'For a wallet, please restore wallet.dat in Bitcoin Core and check its addresses.',
+    if result.parent == workspace:
+        details = 'These plaintext files stay in RAM until you export them.'
+    else:
+        details = 'The recovered files are on the selected removable drive without backup encryption.'
+    message('Files recovered to:\n' + str(result) + '\n\n' + details +
+            ' For a wallet, please restore wallet.dat in Bitcoin Core and check its addresses.',
             operation='recovery')
 
 

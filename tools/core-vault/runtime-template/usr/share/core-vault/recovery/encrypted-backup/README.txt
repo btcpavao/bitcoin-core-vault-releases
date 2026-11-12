@@ -86,8 +86,8 @@ Open Decrypt Backup on Home, double-click a .gpg file in Files, or choose Decryp
 
 
 - Enter the available backup passphrases, in any order. Use + Add Passphrase for additional secrets.
-- Choose a new recovery folder name. Click Decrypt Backup.
-- Vault authenticates each layer and restores the original filenames and folder structure into Private Workspace.
+- Choose Private Workspace or a writable USB drive, name a new folder and click Decrypt Backup.
+- Vault authenticates each layer and restores the original filenames and folder structure into the chosen folder.
 
 If a secret is missing or wrong, add or correct it and retry. Damage and unsupported encryption can also cause a failure. Partial recovered data are discarded on failure or cancellation. Existing files are never overwritten.
 
@@ -95,7 +95,7 @@ If a secret is missing or wrong, add or correct it and retry. Damage and unsuppo
 For an ordinary GPG file made outside Vault, select Recover one ordinary GPG layer only. This deliberately stops after one authenticated layer and saves recovered-file; it does not guess whether your original data are themselves encrypted. Rename or handle that file explicitly. Vault backups always use a standard TAR package as their final payload; an original GPG file inside the package is preserved unchanged.
 
 
-Recovered plaintext stays in verified RAM. It disappears when the session ends unless you explicitly export it. A recovered file alone is not a verified current-wallet export.
+Recovery defaults to Private Workspace in RAM. Selecting a USB drive saves the recovered files there without the outer GPG protection. They remain on the drive after shutdown. A recovered file alone is not a verified current-wallet export.
 
 
 

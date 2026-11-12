@@ -110,19 +110,21 @@ for the implemented storage boundaries and failure behavior.
 Choose **Wallet Backup** on Home for a consistent Bitcoin Core snapshot, or
 **Files → Create Encrypted Backup** for selected files and folders. Generate
 independent random passphrases with KeePassXC, confirm each layer and choose a
-new .gpg destination in Private Workspace, another writable folder or external
-media. No external drive is required to create a backup. Files saved only in RAM
+new .gpg destination. Select the mounted USB drive to save the encrypted file
+directly on it, or keep the default in Private Workspace. No external drive is required to create a backup. Files saved only in RAM
 are lost when the session ends; copy what you need to retain before shutdown or
 restart. One layer is enough for a basic encrypted backup;
 the interface supports up to 16. Whole-backup readback is checked before publication.
 
 Open the backup through **Decrypt Backup** or Files, and enter its passphrases
 in any order. Original names and folder structure are restored into a new folder
-in RAM-only Private Workspace. Core's **Restore Wallet** opens the recovered
+in Private Workspace by default. To recover directly to USB, select the mounted
+drive and choose a new folder name. The recovered files stay on the USB after
+shutdown without the outer GPG protection. Core's **Restore Wallet** opens the recovered
 wallet.dat. If internally encrypted, the wallet still needs its separate Core
 passphrase for signing. Verify addresses and signing using disposable test data.
 
-Originals and existing backups are never overwritten or deleted. Only ciphertext
+Originals and existing backups are never overwritten or deleted. During backup creation, only ciphertext
 is staged on the destination disk. When needed, TAR archives, decrypted layers and snapshots
 stay in verified private RAM. Resource limits are 16 layers, 10,000 entries and
 256 MiB per package, further reduced when available RAM is limited.

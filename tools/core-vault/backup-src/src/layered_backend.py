@@ -412,28 +412,76 @@ def create_layers(items, destination, secrets, *, ram_root, progress=None):
     return destination
 
 
+def _copy_recovered_tree(source, target, budget):
+    """Copy only previously authenticated regular files and verify actual USB bytes."""
+    target.mkdir(mode=0o700)
+    for directory, folders, files in os.walk(source):
+        budget.check()
+        folder = target / Path(directory).relative_to(source)
+        for name in folders:
+            (folder / name).mkdir(mode=0o700)
+        for name in files:
+            original = Path(directory) / name
+            saved = folder / name
+            expected = hashlib.sha256()
+            with original.open('rb') as src, saved.open('xb') as out:
+                while block := src.read(1024 * 1024):
+                    budget.check()
+                    expected.update(block)
+                    out.write(block)
+                out.flush()
+                os.fsync(out.fileno())
+            if digest(saved, budget) != expected.digest():
+                raise LayerError('The recovered copy failed read-back on the selected drive.')
+        if {p.name for p in folder.iterdir()} != set(folders + files):
+            raise LayerError('This drive cannot preserve all recovered filenames.')
+
+
 def recover_files(source, destination, secrets, *, ram_root, workspace, progress=None, ordinary=False):
+    from destinations import backup_output_path, destination_directory, require_same_directory
+    from backup import publish_new
     root = check_ram(ram_root)
     workspace = check_ram(workspace)
-    destination = _path(destination)
-    if destination.parent != workspace or os.path.lexists(destination):
-        raise LayerError('Please choose a new recovery folder directly in Private Workspace.')
     if root.stat().st_dev != workspace.stat().st_dev:
-        raise LayerError('Recovery must remain on the verified private RAM filesystem.')
+        raise LayerError('Private Workspace must use the verified private RAM filesystem.')
     budget = Budget(progress)
-    with tempfile.TemporaryDirectory(prefix='.recover-', dir=workspace) as temporary:
-        result = Path(temporary) / 'files'
-        with recover_payload(source, secrets, ram_root=root, progress=budget, ordinary=ordinary) as payload:
-            if ordinary:
-                result.mkdir(mode=0o700)
-                shutil.copyfile(payload, result / 'recovered-file')
-            elif is_direct_wallet(payload):
-                result.mkdir(mode=0o700)
-                shutil.copyfile(payload, result / 'wallet.dat')
-                (result / 'wallet.dat').chmod(0o600)
-            else:
-                unpack(payload, result, limit=size_limit(root), budget=budget)
-        budget.check()
-        from backup import publish_new
-        publish_new(result, destination)
+    try:
+        destination = backup_output_path(destination)
+        external = destination.parent != workspace
+        with destination_directory(destination.parent, removable=external) as fd:
+            parent = Path(f'/proc/self/fd/{fd}')
+            final = parent / destination.name
+            if not destination.name or os.path.lexists(final):
+                raise LayerError('That recovery folder exists. Please choose a new name.')
+            # Prepare and authenticate the entire result in private RAM. Binding
+            # the session home separately from ram_root can give it its own mount.
+            with tempfile.TemporaryDirectory(prefix='.recover-', dir=workspace) as tmp:
+                result = Path(tmp) / 'files'
+                with recover_payload(source, secrets, ram_root=root, progress=budget, ordinary=ordinary) as payload:
+                    if ordinary or is_direct_wallet(payload):
+                        result.mkdir(mode=0o700)
+                        output = result / ('recovered-file' if ordinary else 'wallet.dat')
+                        shutil.copyfile(payload, output)
+                        output.chmod(0o600)
+                    else:
+                        unpack(payload, result, limit=size_limit(root), budget=budget)
+                budget.check()
+                require_same_directory(destination.parent, fd)
+                if external:
+                    budget.update('Saving and verifying the recovered files on the selected drive…')
+                    with tempfile.TemporaryDirectory(prefix='.vault-recovery-', dir=parent) as staging:
+                        copy = Path(staging) / 'files'
+                        _copy_recovered_tree(result, copy, budget)
+                        budget.check()
+                        require_same_directory(destination.parent, fd)
+                        publish_new(copy, final)
+                    os.fsync(fd)
+                else:
+                    publish_new(result, final)
+    except ValueError as exc:
+        raise LayerError(str(exc)) from None
+    except FileExistsError:
+        raise LayerError('A recovery name is already in use or collides on this drive. Existing files were preserved.') from None
+    except OSError as exc:
+        raise LayerError('The recovery could not be saved. Please check that the destination is connected, writable and has enough space.') from exc
     return destination

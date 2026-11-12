@@ -2,10 +2,11 @@
 """Shared Qt passphrase controls. Secrets never leave the current process."""
 from pathlib import Path
 import os
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QFont
-from PySide6.QtWidgets import (QApplication, QCheckBox, QDialog, QFileDialog,
+from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDialog, QFileDialog,
     QFrame, QHBoxLayout, QLabel, QLineEdit, QPushButton, QScrollArea, QVBoxLayout, QWidget)
+from destinations import backup_output_path, destination_directory, mounted_usb_volumes, recovery_destination
 from layered_backend import MAX_LAYERS
 
 STYLE = """
@@ -14,9 +15,10 @@ QScrollArea { border:0; }
 QLabel { color:#f2f2f2; background:transparent; }
 QLabel#heading { font-size:22px; font-weight:600; }
 QLabel#note, QLabel#status { color:#c5c5c5; }
-QLineEdit { color:white; background:#202020; border:1px solid #626262;
+QLineEdit, QComboBox { color:white; background:#202020; border:1px solid #626262;
  border-radius:5px; padding:9px; min-height:22px; selection-background-color:#2468a2; }
-QLineEdit:focus { border:2px solid #589ddd; padding:8px; }
+QLineEdit:focus, QComboBox:focus { border:2px solid #589ddd; padding:8px; }
+QComboBox QAbstractItemView { color:#f2f2f2; background:#202020; selection-background-color:#2468a2; }
 QCheckBox { color:#f2f2f2; spacing:8px; padding:5px 0; }
 QCheckBox::indicator { width:18px; height:18px; }
 QPushButton { color:#eee; background:#242424; border:1px solid #626262;
@@ -51,6 +53,14 @@ class SecretEdit(QLineEdit):
                 self.on_return()
             return
         super().keyPressEvent(event)
+
+
+class DestinationList(QComboBox):
+    opening = Signal()
+
+    def showPopup(self):
+        self.opening.emit()
+        super().showPopup()
 
 
 class SecretRow(QWidget):
@@ -108,12 +118,15 @@ class PassphraseDialog(QDialog):
                  recovery=False, workspace=None, previous=(), error='', secrets_only=False):
         super().__init__(parent)
         self.validator, self.recovery = validator, recovery
-        self.workspace = Path(workspace) if workspace is not None else None
+        self.workspace = (Path(workspace) if workspace is not None else
+                          Path(destination).parent if destination is not None else None)
         self.payload_suffix = ('.dat' if len(items) == 1 and
             Path(items[0]).name == 'wallet.dat' and Path(items[0]).is_file()
             else '.tar')
         self.secrets_only = secrets_only
         self.value = self.destination_value = None
+        self.checked_destination = None
+        self.destination_error = ''
         self.rows = []
         self.setWindowTitle('Decrypt Encrypted Backup' if recovery else 'Create Encrypted Backup')
         self.setStyleSheet(STYLE)
@@ -132,7 +145,7 @@ class PassphraseDialog(QDialog):
                              (' …' if len(items) > 4 else ''), 'note')
             selected.setToolTip('\n'.join(map(str, items)))
             outer.addWidget(selected)
-        outer.addWidget(label(('Enter the available backup passphrases in any order. Files stay in Private Workspace.'
+        outer.addWidget(label(('Enter the available backup passphrases in any order.'
             if recovery else 'Generate a separate random passphrase for each layer with KeePassXC. Keep each secret separately from the backup.'), 'note'))
         if error:
             outer.addWidget(label(error, 'status'))
@@ -157,21 +170,40 @@ class PassphraseDialog(QDialog):
             self.ordinary.setToolTip('For files made outside Vault. Saves one authenticated payload as recovered-file without guessing nested layers or extracting archives.')
             outer.addWidget(self.ordinary)
         self.destination = None
+        self.locations = None
         if not secrets_only:
-            self.destination = QLineEdit(str(destination or 'recovered-backup'))
-            self.destination.setAccessibleName('Recovery folder name' if recovery else 'Save backup as')
-            caption = label('Recovery folder in Private Workspace' if recovery else 'Save backup as')
+            suggested = Path(destination or 'recovered-backup')
+            if recovery and not suggested.is_absolute():
+                suggested = self.workspace / suggested
+            self.destination = QLineEdit(str(suggested))
+            self.destination.setAccessibleName('New recovery folder' if recovery else 'Save backup as')
+            location_row = QHBoxLayout()
+            location_caption = label('Recover to' if recovery else 'Save to')
+            self.locations = DestinationList()
+            self.locations.setPlaceholderText('Other folder')
+            self.locations.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+            self.locations.setMinimumContentsLength(16)
+            self.locations.setAccessibleName('Recovery location' if recovery else 'Backup location')
+            location_caption.setBuddy(self.locations)
+            location_row.addWidget(location_caption)
+            location_row.addWidget(self.locations, 1)
+            outer.addLayout(location_row)
+            self.locations.opening.connect(self.refresh_locations)
+            self.locations.activated.connect(self.select_location)
+            self.media_note = label('', 'note')
+            outer.addWidget(self.media_note)
+            self.refresh_locations()
+            caption = label('New recovery folder' if recovery else 'Save backup as')
             caption.setBuddy(self.destination)
             outer.addWidget(caption)
             row = QHBoxLayout()
             row.addWidget(self.destination, 1)
-            if not recovery:
-                self.choose_destination = QPushButton('Choose…')
-                self.choose_destination.setAutoDefault(False)
-                self.choose_destination.clicked.connect(self.choose_location)
-                row.addWidget(self.choose_destination)
+            self.choose_destination = QPushButton('Choose…')
+            self.choose_destination.setAutoDefault(False)
+            self.choose_destination.clicked.connect(self.choose_location)
+            row.addWidget(self.choose_destination)
             outer.addLayout(row)
-            self.destination.textChanged.connect(self.update_validation)
+            self.destination.textChanged.connect(self.update_destination)
         self.status = label('', 'status')
         outer.addWidget(self.status)
         buttons = QHBoxLayout()
@@ -191,7 +223,7 @@ class PassphraseDialog(QDialog):
             row = self.add_row()
             row.password.setText(value)
         self.rows[0].password.setFocus(Qt.FocusReason.OtherFocusReason)
-        self.update_validation()
+        self.update_destination()
 
     def add_row(self, focus=False):
         if len(self.rows) >= MAX_LAYERS:
@@ -256,33 +288,87 @@ class PassphraseDialog(QDialog):
         text = self.destination.text()
         if not text or any(ord(c) < 32 or ord(c) == 127 for c in text):
             raise ValueError('Please choose a valid destination name.')
+        path = Path(text)
         if self.recovery:
-            if text in ('.', '..') or '/' in text or '\\' in text:
-                raise ValueError('Please choose a folder name without path separators.')
-            path = self.workspace / text
+            if not path.is_absolute():
+                if text in ('.', '..') or '/' in text or '\\' in text:
+                    raise ValueError('Please use a folder name or an absolute recovery path.')
+                path = self.workspace / text
+            path = recovery_destination(path, self.workspace)
         else:
-            path = Path(text)
             if not path.is_absolute():
                 raise ValueError('Please choose an absolute backup location.')
-            path = self.backup_name(text)
-        if not path.parent.is_dir() or any(p.is_symlink() for p in (path, *path.parents)):
-            raise ValueError('Please choose an existing destination without symbolic links.')
+            path = backup_output_path(self.backup_name(text))
+            try:
+                with destination_directory(path.parent):
+                    pass
+            except OSError:
+                raise ValueError('Please select an existing, writable destination folder.') from None
         if os.path.lexists(path):
             raise ValueError('That destination exists. Please choose a new name.')
         return path
 
+    def refresh_locations(self):
+        self.locations.clear()
+        self.locations.addItem('Private Workspace (RAM)', str(self.workspace))
+        for volume in mounted_usb_volumes():
+            self.locations.addItem(f'USB: {volume.name} ({volume})', str(volume))
+        if hasattr(self, 'status'):
+            self.update_destination()
+        else:
+            self.sync_location(Path(self.destination.text()))
+
+    def sync_location(self, path):
+        if not path.is_absolute():
+            path = self.workspace / path if self.recovery else path
+        index = next((i for i in range(self.locations.count())
+                      if path.is_relative_to(Path(self.locations.itemData(i)))), -1)
+        self.locations.setCurrentIndex(index)
+        self.media_note.setText('Recovered files will stay on this USB drive without the backup’s GPG protection.'
+                                if self.recovery else 'The encrypted backup will be saved on this USB drive.')
+        external_recovery = (self.recovery and self.checked_destination is not None and
+                             self.checked_destination.parent != self.workspace)
+        self.media_note.setVisible(index > 0 or external_recovery)
+
+    def select_location(self, index):
+        parent = self.locations.itemData(index)
+        if parent:
+            name = Path(self.destination.text()).name or ('recovered-backup' if self.recovery else 'backup')
+            self.destination.setText(str(Path(parent) / name))
+
     def choose_location(self):
-        selected, _ = QFileDialog.getSaveFileName(self, 'Save encrypted backup', self.destination.text(),
-            'GPG backup (*.gpg)', options=QFileDialog.Option.DontConfirmOverwrite)
+        current = Path(self.destination.text())
+        if self.recovery:
+            folder = QFileDialog.getExistingDirectory(self, 'Choose the parent for the new recovery folder',
+                                                       str(current.parent if current.is_absolute() else self.workspace))
+            selected = str(Path(folder) / (current.name or 'recovered-backup')) if folder else ''
+        else:
+            selected, _ = QFileDialog.getSaveFileName(self, 'Save encrypted backup', str(current),
+                'GPG backup (*.gpg)', options=QFileDialog.Option.DontConfirmOverwrite)
         if selected:
+            self.refresh_locations()
             self.destination.setText(selected)
+
+    def update_destination(self, *_):
+        # Probing the selected drive can invoke findmnt/lsblk. Recheck on path
+        # changes and on submit, without probing for every passphrase keystroke.
+        self.destination_error = ''
+        try:
+            self.checked_destination = self.normalized_destination()
+        except ValueError as exc:
+            self.checked_destination = None
+            self.destination_error = str(exc)
+        if self.locations is not None:
+            self.sync_location(self.checked_destination or Path(self.destination.text()))
+        self.update_validation()
 
     def update_validation(self, *_):
         if not hasattr(self, 'status'):
             return
         error, values = '', [row.password.text() for row in self.rows]
         try:
-            self.normalized_destination()
+            if self.destination_error:
+                raise ValueError(self.destination_error)
             for row in self.rows:
                 self.validator(row.password.text())
                 if row.confirm and row.password.text() != row.confirm.text():
@@ -297,11 +383,11 @@ class PassphraseDialog(QDialog):
                                     if self.recovery else 'Ready to create and verify every encryption layer.'))
 
     def accept(self):
-        self.update_validation()
+        self.update_destination()
         if not self.create_button.isEnabled():
             return
         self.value = [row.password.text() for row in self.rows]
-        self.destination_value = self.normalized_destination()
+        self.destination_value = self.checked_destination
         self.clear_fields()
         super().accept()
 

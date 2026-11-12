@@ -4,12 +4,16 @@ import os
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 from pathlib import Path
 import tempfile
+import sys
+from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeyEvent
 from password_dialog import ensure_app, PassphraseDialog
 from recovery_dialog import RecoveryDialog
 from backup import validate_password, BackupError
+import destinations
 
 def validate(value):
     try:
@@ -81,6 +85,68 @@ class GuiTests(unittest.TestCase):
         (self.root/'exists.tar.gpg').write_bytes(b'existing')
         self.window.destination.setText(str(self.root/'exists.gpg'))
         self.assertFalse(self.window.create_button.isEnabled())
+
+    def mount_fixture(self):
+        ram = self.root / 'private'
+        volume = self.root / 'media' / 'Training USB'
+        ram.mkdir()
+        volume.mkdir(parents=True)
+        fd = os.open(volume, os.O_DIRECTORY)
+        try:
+            mount_id = destinations._mount_id(fd)
+        finally:
+            os.close(fd)
+        mounts = {mount_id: (volume, '8:16', ['rw'])}
+        self.enterContext(patch.object(destinations, 'MEDIA_ROOTS', (volume.parent,)))
+        self.enterContext(patch.object(destinations, '_mounts', return_value=mounts))
+        external = SimpleNamespace(media_for=lambda _: (True, str(volume)))
+        self.enterContext(patch.dict(sys.modules, {'export': external}))
+        return ram, volume, mounts
+
+    def test_backup_location_picker_refreshes_and_preserves_layered_name(self):
+        ram, volume, mounts = self.mount_fixture()
+        attached = mounts.copy()
+        mounts.clear()
+        window = PassphraseDialog(validate, destination=ram/'test.gpg')
+        self.addCleanup(window.deleteLater)
+        self.assertEqual(window.locations.count(), 1)
+        self.assertEqual(window.locations.currentData(), str(ram))
+        mounts.update(attached)
+        window.locations.opening.emit()
+        self.assertIn(str(volume), window.locations.itemText(1))
+        window.locations.activated.emit(1)
+        window.add_row()
+        self.assertEqual(window.normalized_destination(), volume/'test.tar.gpg.gpg')
+        self.assertFalse(window.media_note.isHidden())
+        window.locations.activated.emit(0)
+        self.assertTrue(window.media_note.isHidden())
+        self.assertEqual(window.normalized_destination(), ram/'test.tar.gpg.gpg')
+
+    def test_usb_recovery_warning_folder_retry_and_unplug(self):
+        ram, volume, mounts = self.mount_fixture()
+        subdir = volume/'wallet exports'
+        subdir.mkdir()
+        window = RecoveryDialog(validate, ram, previous=['synthetic recovery'])
+        self.addCleanup(window.deleteLater)
+        self.assertEqual(window.normalized_destination(), ram/'recovered-backup')
+        self.assertTrue(window.media_note.isHidden())
+        window.locations.activated.emit(1)
+        self.assertIn('GPG protection', window.media_note.text())
+        self.assertFalse(window.media_note.isHidden())
+        with patch('password_dialog.QFileDialog.getExistingDirectory', return_value=str(subdir)):
+            window.choose_destination.click()
+        window.accept()
+        selected = subdir/'recovered-backup'
+        self.assertEqual(window.destination_value, selected)
+        retry = RecoveryDialog(validate, ram, selected, previous=['synthetic recovery'])
+        self.addCleanup(retry.deleteLater)
+        self.assertEqual(retry.locations.currentData(), str(volume))
+        self.assertEqual(retry.normalized_destination(), selected)
+        mounts.clear()
+        retry.accept()
+        self.assertFalse(retry.create_button.isEnabled())
+        self.assertIsNone(retry.value)
+        self.assertEqual(retry.destination.text(), str(selected))
 
     def test_small_layout_keeps_actions_visible(self):
         self.fill(10)
