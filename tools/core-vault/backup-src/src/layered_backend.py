@@ -16,6 +16,7 @@ import stat
 import tarfile
 import tempfile
 import time
+from destinations import check_media_input
 from gpg_backend import (GPGError, encrypt_file, decrypt_file, _password, _path,
                          _private_directory, _identity)
 
@@ -106,7 +107,13 @@ def open_source(path):
             child = os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=parent)
             os.close(parent)
             parent = child
-        return os.open(path.name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC, dir_fd=parent)
+        fd = os.open(path.name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC, dir_fd=parent)
+        try:
+            check_media_input(path, fd)
+        except BaseException:
+            os.close(fd)
+            raise
+        return fd
     finally:
         os.close(parent)
 
@@ -435,11 +442,17 @@ def _copy_recovered_tree(source, target, budget):
                 raise LayerError('The recovered copy failed read-back on the selected drive.')
         if {p.name for p in folder.iterdir()} != set(folders + files):
             raise LayerError('This drive cannot preserve all recovered filenames.')
+        # Commit each directory's entries, including the ones in nested folders.
+        directory_fd = os.open(folder, os.O_DIRECTORY | os.O_RDONLY | os.O_NOFOLLOW)
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
 
 
 def recover_files(source, destination, secrets, *, ram_root, workspace, progress=None, ordinary=False):
     from destinations import backup_output_path, destination_directory, require_same_directory
-    from backup import publish_new
+    from backup import confirm_publication, publish_new
     root = check_ram(ram_root)
     workspace = check_ram(workspace)
     if root.stat().st_dev != workspace.stat().st_dev:
@@ -475,7 +488,7 @@ def recover_files(source, destination, secrets, *, ram_root, workspace, progress
                         budget.check()
                         require_same_directory(destination.parent, fd)
                         publish_new(copy, final)
-                    os.fsync(fd)
+                    confirm_publication(fd, destination)
                 else:
                     publish_new(result, final)
     except ValueError as exc:

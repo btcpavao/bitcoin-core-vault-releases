@@ -15,7 +15,7 @@ import sys
 import tempfile
 import time
 
-from destinations import (backup_output_path, destination_directory, mounted_usb_volumes,
+from destinations import (backup_output_path, check_media_input, destination_directory, mounted_usb_volumes,
                           recovery_destination, require_same_directory)
 
 TITLE = 'Bitcoin Core Vault — Encrypted Backup'
@@ -80,6 +80,8 @@ def selected_paths(items):
     from gpg_backend import _path
     try:
         paths = [_path(backup_output_path(p)) for p in paths]
+        for path in paths:
+            check_media_input(path)
     except ValueError as exc:
         raise BackupError(str(exc)) from None
     if len({p.name for p in paths}) != len(paths):
@@ -270,6 +272,15 @@ def publish_new(src, dst):
 
 
 
+def confirm_publication(fd, destination):
+    try:
+        os.fsync(fd)
+        require_same_directory(destination.parent, fd)
+    except (OSError, ValueError) as exc:
+        raise BackupError('The output was published at ' + str(destination) +
+                          ', but its final save could not be confirmed. Reconnect the original drive and verify this output before relying on it.') from exc
+
+
 def backup_destination(destination):
     try:
         path = backup_output_path(Path(os.path.abspath(destination)))
@@ -330,7 +341,7 @@ def create_backup(items, destination, passwords, *, progress=None, policy=None):
                     publish_new(work, parent / dest.name)
                 except FileExistsError:
                     raise BackupError('That backup already exists; it was left untouched.') from None
-                os.fsync(fd)
+                confirm_publication(fd, dest)
     except ValueError as exc:
         raise BackupError(str(exc)) from None
     except OSError as exc:

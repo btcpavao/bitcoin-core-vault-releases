@@ -14,6 +14,8 @@ def backup_output_path(value):
     if (not path.is_absolute() or '..' in path.parts or
             any(ord(c) < 32 or ord(c) == 127 for c in str(path))):
         raise ValueError('Please select a full path without parent references or control characters.')
+    # Linux treats two leading slashes as the same root as one.
+    path = Path('/') / Path(*path.parts[1:])
     runtime = Path(os.environ.get('XDG_RUNTIME_DIR', ''))
     alias = runtime / 'core-vault-core-file-dialogs' / 'USB Media'
     if runtime.is_absolute() and path.is_relative_to(alias):
@@ -67,11 +69,13 @@ def _media_root(path):
     return next((root for root in MEDIA_ROOTS if path.is_relative_to(root)), None)
 
 
-def _checked_media(parent, fd, root, removable):
+def _checked_media(parent, fd, root, removable, *, writing=True):
     rows = _mounts()
     info = rows.get(_mount_id(fd))
     if info is None or info[0].parent != root or not parent.is_relative_to(info[0]):
         raise ValueError('Please select a folder on a currently mounted drive.')
+    if not writing:
+        return  # Read-only USB inputs remain supported.
     target, device, options = info
     if 'rw' not in options or os.fstatvfs(fd).f_flag & os.ST_RDONLY:
         raise ValueError('The selected drive is read-only. Please select a writable drive.')
@@ -85,6 +89,21 @@ def _checked_media(parent, fd, root, removable):
         external, location = media_for(target / '.vault-destination')
         if not external or Path(location) != target:
             raise ValueError('Please select a mounted USB or removable drive for recovered files.')
+
+
+def check_media_input(path, fd=None):
+    """Verify an input under a media root still comes from the mounted volume."""
+    root = _media_root(path)
+    if root is None:
+        return
+    if fd is not None:
+        _checked_media(path, fd, root, removable=False, writing=False)
+        return
+    pin = os.open(path, os.O_PATH | os.O_NOFOLLOW | os.O_CLOEXEC)
+    try:
+        _checked_media(path, pin, root, removable=False, writing=False)
+    finally:
+        os.close(pin)
 
 
 def mounted_usb_volumes():

@@ -3,7 +3,7 @@
 from pathlib import Path
 import argparse, ast, hashlib, io, runpy, subprocess, tarfile
 VERSION='0.7.4'
-PACKAGE_SHA='3f096e834afd5125dea9a873f1b3a93766d798729e90d9339bc39dedcff18c46'
+PACKAGE_SHA='d7c900fd17005985a3b422360624b927c8170c64053966de026055ee279c17cd'
 
 def require(ok, text):
     if not ok: raise RuntimeError(text)

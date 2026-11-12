@@ -70,6 +70,37 @@ class USBTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             backup.recovery_destination(self.root / 'unselected-internal-location', self.workspace)
 
+    def test_double_slash_and_stale_read_dont_fall_back_to_host_directory(self):
+        source = self.drive / 'selected.gpg'
+        source.write_bytes(b'stale backing file')
+        doubled = '//' + str(source).lstrip('/')
+        self.assertEqual(backup.backup_output_path(doubled), source)
+        with patch.object(destinations, '_mounts', return_value={}):
+            with self.assertRaises(backup.BackupError):
+                backup.selected_paths([doubled])
+            with self.assertRaises(ValueError):
+                with destinations.destination_directory(backup.backup_output_path(doubled).parent):
+                    self.fail('Reached the backing directory.')
+            with source.open('rb') as raw, self.assertRaises(ValueError):
+                destinations.check_media_input(source, raw.fileno())
+        with patch.object(destinations, '_mounts', return_value={self.mid: (self.drive, '8:1', ['ro'])}):
+            self.assertEqual(backup.selected_paths([str(source)]), [source])
+
+    def test_published_output_kept_if_final_directory_sync_fails(self):
+        target = self.drive / 'kept'
+        actual = os.fsync
+        def unavailable(fd):
+            if os.path.samestat(os.fstat(fd), self.drive.stat()):
+                raise OSError('fixture device error')
+            return actual(fd)
+        with patch.object(os, 'fsync', unavailable), self.assertRaises(backup.BackupError) as error:
+            self.recover(target)
+        self.assertIn(str(target), str(error.exception))
+        self.assertIn('published', str(error.exception))
+        self.assertEqual((target/'notes'/'with spaces').read_bytes(), b'public test input' * 100)
+        with self.assertRaises(layers.LayerError):
+            self.recover(target)
+
     def test_only_managed_alias_is_expanded(self):
         runtime = self.root / 'runtime'
         alias = runtime / 'core-vault-core-file-dialogs' / 'USB Media'
