@@ -2,8 +2,8 @@
 """Read-only source/package gate for Encrypted Backup. Does not open a wallet."""
 from pathlib import Path
 import argparse, ast, hashlib, io, runpy, subprocess, tarfile
-VERSION='0.7.3'
-PACKAGE_SHA='5a4bae7b3d77576ca961d1e116907430af292d4c67732a46215976dcf8e056ab'
+VERSION='0.7.4'
+PACKAGE_SHA='d7c900fd17005985a3b422360624b927c8170c64053966de026055ee279c17cd'
 
 def require(ok, text):
     if not ok: raise RuntimeError(text)
@@ -59,7 +59,7 @@ def check(root):
     raw=subprocess.check_output(['dpkg-deb','--fsys-tarfile',str(package)])
     with tarfile.open(fileobj=io.BytesIO(raw)) as tar:
         members={m.name.removeprefix('./'):m for m in tar.getmembers()}
-        for name in ('backup.py','setup.py','self-test.py','password_dialog.py','message_dialog.py','gui-test.py',
+        for name in ('backup.py','destinations.py','setup.py','self-test.py','password_dialog.py','message_dialog.py','gui-test.py',
                      'gpg_backend.py','gpg-self-test.py','recovery_dialog.py','layered_backend.py'):
             data=(source/'src'/name).read_bytes();ast.parse(data)
             member=members['usr/lib/core-vault-backup/'+name]

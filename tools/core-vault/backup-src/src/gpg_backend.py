@@ -254,6 +254,8 @@ def _transform(mode, source, destination, password, *, ram_root, progress, execu
             raise GPGError('GPG output is outside the private RAM filesystem.')
         exe = _executable(executable)
         source_fd = os.open(src, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC | os.O_NONBLOCK)
+        from destinations import check_media_input
+        check_media_input(src, source_fd)
         if not stat.S_ISREG(os.fstat(source_fd).st_mode):
             raise GPGError('Select one regular file for GPG encryption or recovery.')
         before = _identity(source_fd)

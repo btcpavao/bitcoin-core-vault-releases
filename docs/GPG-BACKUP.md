@@ -47,8 +47,8 @@ all of them in one immediately accessible database removes that separation.
    **Files → Create Encrypted Backup** for selected files and folders.
 2. Keep one layer or choose **+ Add Encryption Layer**. Generate and confirm
    a fresh passphrase for every layer.
-3. Choose a new destination. Private Workspace is temporary RAM; an external
-   medium retains the encrypted file after the session.
+3. Select your mounted USB drive and choose a new filename to save the
+   encrypted backup there. The default, Private Workspace, is temporary RAM.
 4. Create the backup. Vault stages plaintext in verified RAM, verifies each
    encryption layer, then recovers the complete result and compares it with
    the original wallet snapshot or TAR package.
@@ -86,7 +86,9 @@ bypassed by Vault.
    **Decrypt Encrypted Backup** from its context menu.
 2. Enter all required external passphrases in any order. Vault tries them
    against the outermost remaining layer.
-3. Choose a new recovery folder in Private Workspace.
+3. Keep Private Workspace for a temporary recovery, or select your writable
+   USB drive and name a new folder on it. Files recovered to USB remain there
+   after shutdown with the outer GPG encryption removed.
 4. Vault authenticates the layers and validates the final wallet or TAR
    payload. A direct-wallet backup becomes wallet.dat; packaged backups
    recover their original files and folders.

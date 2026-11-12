@@ -13,7 +13,7 @@ import subprocess
 import sys
 import threading
 
-from PySide6.QtCore import Qt, QThread, Signal
+from PySide6.QtCore import Qt, QThread, Signal, Slot
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (QApplication, QDialog, QHBoxLayout, QLabel,
                                QPlainTextEdit, QProgressBar, QPushButton,
@@ -39,9 +39,9 @@ QProgressBar::chunk { background: #438fcf; }
 '''
 
 EXPLANATION = (
-    'File contents will be overwritten and the selected items removed without '
-    'using Trash. This is permanent deletion: there is no Undo. '
-    'Close applications using these files before continuing.'
+    'Quick Delete removes items without overwriting their contents. Secure Delete '
+    'overwrites regular files three times before removal. Both skip Trash and have '
+    'no Undo. Close applications using these files before continuing.'
 )
 LIMITS = (
     'On SSDs and USB flash drives, older copies may remain. Backups and '
@@ -86,19 +86,20 @@ def prepare_dialog(dialog: QDialog, title: str) -> QVBoxLayout:
 
 
 class ConfirmDialog(QDialog):
-    def __init__(self, plan, parent=None):
+    def __init__(self, paths, parent=None):
         super().__init__(parent)
+        self.mode = None
+        self.error = None
         outer = prepare_dialog(self, 'Permanent deletion')
-        counts = (f'{plan.files_count} files, {plan.dirs_count} folders, '
-                  f'{plan.links_count} links · {size_text(plan.total_bytes)} logical size')
-        outer.addWidget(label(counts))
+        self.status = label('Checking the selected items…')
+        outer.addWidget(self.status)
         outer.addWidget(label(EXPLANATION))
         self.paths = QPlainTextEdit(self)
         self.paths.setReadOnly(True)
         self.paths.setAccessibleName('Selected items to permanently delete')
-        visible = [plain(p) for p in plan.display_paths[:100]]
-        if len(plan.display_paths) > 100:
-            visible.append(f'… and {len(plan.display_paths) - 100} more selected items')
+        visible = [plain(p) for p in paths[:100]]
+        if len(paths) > 100:
+            visible.append(f'… and {len(paths) - 100} more selected items')
         self.paths.setPlainText('\n'.join(visible))
         self.paths.setMinimumHeight(70)
         self.paths.setMaximumHeight(110)
@@ -108,33 +109,79 @@ class ConfirmDialog(QDialog):
         buttons = QHBoxLayout()
         buttons.addStretch(1)
         self.cancel_button = QPushButton('Cancel', self)
-        self.delete_button = QPushButton('Permanently Delete', self)
-        self.delete_button.setObjectName('delete')
-        # Opening the menu and pressing Return must never start deletion.
+        self.quick_button = QPushButton('Quick Delete', self)
+        self.secure_button = QPushButton('Secure Delete', self)
+        self.secure_button.setObjectName('delete')
         self.cancel_button.setAutoDefault(False)
         self.cancel_button.setDefault(True)
-        self.delete_button.setAutoDefault(False)
-        self.delete_button.setDefault(False)
         self.cancel_button.clicked.connect(self.reject)
-        self.delete_button.clicked.connect(self.accept)
         buttons.addWidget(self.cancel_button)
-        buttons.addWidget(self.delete_button)
+        for button in (self.quick_button, self.secure_button):
+            button.setEnabled(False)
+            button.setAutoDefault(False)
+            button.setDefault(False)
+            buttons.addWidget(button)
+        self.quick_button.clicked.connect(lambda: self.choose('quick'))
+        self.secure_button.clicked.connect(lambda: self.choose('secure'))
         outer.addLayout(buttons)
         self.cancel_button.setFocus(Qt.FocusReason.OtherFocusReason)
+
+    @Slot(object)
+    def ready(self, plan):
+        self.status.setText(f'{plan.files_count} files, {plan.dirs_count} folders, '
+                            f'{plan.links_count} links · {size_text(plan.total_bytes)} logical size')
+        self.quick_button.setEnabled(True)
+        self.secure_button.setEnabled(True)
+
+    @Slot(str)
+    def failed(self, error):
+        self.error = error
+        self.status.setText(error)
+        self.cancel_button.setText('Close')
+
+    def choose(self, mode):
+        self.mode = mode
+        self.accept()
+
+
+class Preflight(QThread):
+    ready = Signal(object)
+    failed = Signal(str)
+
+    def __init__(self, paths):
+        super().__init__()
+        self.paths = paths
+        self.cancel_event = threading.Event()
+        self.plan = None
+        self.engine = None
+
+    def run(self):
+        try:
+            paths = vault_paths(self.paths, self.cancel_event)
+            if self.cancel_event.is_set():
+                return
+            self.engine = load_engine()
+            self.plan = self.engine.build_plan(paths, check_overwrite=False,
+                                               cancel_event=self.cancel_event)
+            if not self.cancel_event.is_set():
+                self.ready.emit(self.plan)
+        except Exception as exc:
+            if not self.cancel_event.is_set():
+                self.failed.emit(plain(exc))
 
 
 class Worker(QThread):
     progress = Signal(dict)
     done = Signal(object)
 
-    def __init__(self, engine, plan, parent=None):
+    def __init__(self, engine, plan, mode, parent=None):
         super().__init__(parent)
-        self.engine, self.plan = engine, plan
+        self.engine, self.plan, self.mode = engine, plan, mode
         self.cancel_event = threading.Event()
 
     def run(self):
         try:
-            result = self.engine.erase(self.plan, self.cancel_event, self.progress.emit)
+            result = self.engine.erase(self.plan, self.cancel_event, self.progress.emit, mode=self.mode)
         except Exception as exc:
             # The engine owns restoration of staged entries and detailed results.
             # Never turn an unexpected error into an ordinary-delete fallback.
@@ -150,7 +197,7 @@ class ProgressDialog(QDialog):
         super().__init__(parent)
         self.worker, self.plan = worker, plan
         self.result = None
-        outer = prepare_dialog(self, 'Permanently deleting')
+        outer = prepare_dialog(self, 'Secure Delete' if worker.mode == 'secure' else 'Quick Delete')
         self.status = label('Checking the selected items…')
         outer.addWidget(self.status)
         self.bar = QProgressBar(self)
@@ -242,7 +289,7 @@ def load_engine():
     return module
 
 
-def vault_paths(values: list[str]) -> list[str]:
+def vault_paths(values: list[str], cancel_event=None) -> list[str]:
     account = pwd.getpwuid(os.getuid())
     if os.geteuid() == 0 or account.pw_name != 'vault' or account.pw_uid != 1000:
         raise RuntimeError('Run permanent deletion inside the Vault session, without sudo.')
@@ -262,19 +309,37 @@ def vault_paths(values: list[str]) -> list[str]:
     }
     paths = []
     for value in values:
+        if cancel_event is not None and cancel_event.is_set():
+            return []
         path = Path(value)
         if not path.is_absolute() or '..' in path.parts:
             raise RuntimeError('Only absolute local file paths can be permanently deleted.')
+        # Linux treats a leading double slash as the same local filesystem root.
+        path = Path('/') / value.lstrip('/')
         for alias, target in aliases.items():
             if path != alias and path.is_relative_to(alias):
                 if not alias.is_symlink() or alias.resolve() != target.resolve():
                     raise RuntimeError('A Vault display shortcut changed. Reopen Files.')
                 path = target / path.relative_to(alias)
                 break
-        if path == home / '.bitcoin' or path.is_relative_to(home / '.bitcoin'):
+        private_core = (home / '.bitcoin', Path('/run/core-vault/home/.bitcoin'))
+        if any(path.is_relative_to(core) or core.is_relative_to(path) for core in private_core):
             raise RuntimeError('Please use Finish Private Session to remove wallet data after verified encrypted export. Wallets are already stored in RAM.')
         paths.append(str(path))
     return paths
+
+
+class AlreadyOpen(RuntimeError):
+    pass
+
+
+def raise_existing_dialog():
+    try:
+        subprocess.run(['/usr/bin/xdotool', 'search', '--sync', '--onlyvisible', '--limit', '1',
+                        '--class', '^core-vault-shred$', 'windowactivate'],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2)
+    except (OSError, subprocess.TimeoutExpired):
+        pass  # The original dialog may have just closed.
 
 
 def session_lock() -> int:
@@ -291,7 +356,7 @@ def session_lock() -> int:
         try:
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
-            raise RuntimeError('Permanent deletion is already open. Finish or cancel that operation first.')
+            raise AlreadyOpen('Permanent deletion is already open.') from None
         return fd
     except Exception:
         os.close(fd)
@@ -306,35 +371,52 @@ def main() -> int:
     app.setStyle('Fusion')
     app.setFont(QFont('DejaVu Sans', 10))
     lock_fd = None
+    preparation = None
     try:
-        paths = vault_paths(args.paths)
-        lock_fd = session_lock()
-        engine = load_engine()
-        with engine.build_plan(paths) as plan:
-            confirm = ConfirmDialog(plan)
-            if confirm.exec() != QDialog.DialogCode.Accepted:
-                return 0
-            worker = Worker(engine, plan)
-            progress = ProgressDialog(worker, plan)
-            worker.start()
-            progress.exec()
-            worker.wait()
-            result = progress.result
-            if result is None:
-                raise RuntimeError('Deletion ended without a result. Check the selected folders.')
-            if result.status == 'completed':
-                return 0
-            text = result.message
-            if result.leftover_paths:
-                text += '\n\nRemaining items:\n' + '\n'.join(plain(p) for p in result.leftover_paths)
-            message('Deletion stopped' if result.status == 'cancelled' else 'Deletion incomplete', text)
-            return 1
+        try:
+            lock_fd = session_lock()
+        except AlreadyOpen:
+            raise_existing_dialog()
+            return 0
+        confirm = ConfirmDialog(args.paths)
+        preparation = Preflight(args.paths)
+        preparation.ready.connect(confirm.ready)
+        preparation.failed.connect(confirm.failed)
+        confirm.show()
+        preparation.start()
+        if confirm.exec() != QDialog.DialogCode.Accepted or confirm.mode is None:
+            return 1 if confirm.error else 0
+        preparation.wait()
+        plan = preparation.plan
+        worker = Worker(preparation.engine, plan, confirm.mode)
+        progress = ProgressDialog(worker, plan)
+        worker.start()
+        progress.exec()
+        worker.wait()
+        result = progress.result
+        if result is None:
+            raise RuntimeError('Deletion ended without a result. Check the selected folders.')
+        if result.status == 'completed':
+            return 0
+        text = result.message
+        if result.leftover_paths:
+            text += '\n\nRemaining items:\n' + '\n'.join(plain(p) for p in result.leftover_paths)
+        message('Deletion stopped' if result.status == 'cancelled' else 'Deletion incomplete', text)
+        return 1
     except Exception as exc:
         message('Deletion could not start', plain(exc))
         return 1
     finally:
+        if preparation is not None:
+            preparation.cancel_event.set()
         if lock_fd is not None:
             os.close(lock_fd)
+        # Cancelled read-only work may still be finishing its bounded storage
+        # check. A fresh request can acquire the lock immediately.
+        if preparation is not None:
+            preparation.wait()
+            if preparation.plan is not None:
+                preparation.plan.close()
 
 
 if __name__ == '__main__':

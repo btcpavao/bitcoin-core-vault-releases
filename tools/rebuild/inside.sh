@@ -81,7 +81,7 @@ if script.count(before) != 1:
     raise SystemExit("Unrecognized live-build APT cache cleanup")
 path.write_text(script.replace(before, after))
 PYCODE
-backup=core-vault-backup_0.7.3_all.deb
+backup=core-vault-backup_0.7.4_all.deb
 bash tools/core-vault/backup-src/build-package.sh
 cmp -- "tools/core-vault/backup-src/$backup" "config/packages.chroot/$backup"
 sha256sum "tools/core-vault/backup-src/$backup" > /evidence/vault-backup-package.sha256

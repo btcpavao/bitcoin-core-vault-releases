@@ -54,8 +54,8 @@ def _mount_id(fd: int) -> int:
     raise PlanError("Cannot verify the selected filesystem mount.")
 
 
-def _signature(s: os.stat_result, *, ignore_ctime: bool = False) -> tuple:
-    return (s.st_dev, s.st_ino, s.st_mode, s.st_uid, s.st_gid, s.st_nlink,
+def _signature(s: os.stat_result, *, ignore_ctime: bool = False, removed_links=0) -> tuple:
+    return (s.st_dev, s.st_ino, s.st_mode, s.st_uid, s.st_gid, s.st_nlink - removed_links,
             s.st_size, s.st_mtime_ns, None if ignore_ctime else s.st_ctime_ns)
 
 
@@ -153,7 +153,8 @@ class Result:
 
 
 def _record(root: _Root, parent: int, name: str, rel: tuple[str, ...],
-            expected_mount: int, count: list[int]) -> None:
+            expected_mount: int, count: list[int], check_overwrite: bool, cancel_event) -> None:
+    _check_cancel(cancel_event)
     if len(rel) > _MAX_DEPTH or count[0] >= _MAX_NODES:
         raise PlanError("The selected folder tree is too large or too deeply nested.")
     anchor = os.open(name, _PATH_FLAGS, dir_fd=parent)
@@ -164,8 +165,8 @@ def _record(root: _Root, parent: int, name: str, rel: tuple[str, ...],
             raise PlanError("A selected folder contains another mounted filesystem.")
         if stat.S_ISREG(info.st_mode):
             kind = "file"
-            writable = _writable_anchor(anchor, info)
-            os.close(writable)
+            if check_overwrite:
+                os.close(_writable_anchor(anchor, info))
         elif stat.S_ISDIR(info.st_mode):
             kind = "dir"
         elif stat.S_ISLNK(info.st_mode):
@@ -182,7 +183,8 @@ def _record(root: _Root, parent: int, name: str, rel: tuple[str, ...],
                 if not _same_inode(info, os.fstat(directory)):
                     raise PlanError("A selected directory changed during preflight.")
                 for child in sorted(os.listdir(directory)):
-                    _record(root, directory, child, rel + (child,), expected_mount, count)
+                    _record(root, directory, child, rel + (child,), expected_mount, count,
+                            check_overwrite, cancel_event)
                 if _signature(info) != _signature(os.fstat(directory)):
                     raise PlanError("A selected directory changed during preflight.")
             finally:
@@ -194,12 +196,13 @@ def _record(root: _Root, parent: int, name: str, rel: tuple[str, ...],
         os.close(anchor)
 
 
-def build_plan(paths) -> Plan:
+def build_plan(paths, *, check_overwrite=True, cancel_event=None) -> Plan:
     """Inspect all selected local paths without writing, renaming or deleting."""
     if _RENAME is None:
         raise PlanError("This system does not support safe no-replace renaming.")
     normalized = set()
     for value in paths:
+        _check_cancel(cancel_event)
         path = os.fspath(value)
         if not isinstance(path, str) or "\0" in path or not path.startswith("/"):
             raise PlanError("Please select local files using absolute paths.")
@@ -230,7 +233,7 @@ def build_plan(paths) -> Plan:
                 if stat.S_ISDIR(info.st_mode) and mount != _mount_id(parent):
                     raise PlanError("A filesystem mount root cannot be deleted.")
                 root = _Root(path, parent, name, anchor)
-                _record(root, parent, name, (), mount, count)
+                _record(root, parent, name, (), mount, count, check_overwrite, cancel_event)
                 if _signature(info) != _signature(root.nodes[()].info):
                     raise PlanError("A selected entry changed during preflight.")
                 roots.append(root)
@@ -260,31 +263,43 @@ class _Stage:
     moved: bool = False
 
 
-def _check_node(node: _Node, current: os.stat_result, *, exact: bool = True) -> None:
+def _check_node(node: _Node, current: os.stat_result, *, exact: bool = True,
+                changed_links=None) -> None:
     # Rename legitimately updates only the selected top-level entry's ctime.
     if exact:
-        same = _signature(node.info, ignore_ctime=not node.rel) == _signature(
-            current, ignore_ctime=not node.rel)
+        key = (node.info.st_dev, node.info.st_ino)
+        # Staging a selected name changes ctime for its hard-linked siblings.
+        # Unlinking a selected name also reduces their shared link count.
+        changed = changed_links is not None and key in changed_links
+        skip_ctime = not node.rel or changed
+        removed = changed_links[key] if changed else 0
+        same = _signature(node.info, ignore_ctime=skip_ctime, removed_links=removed) == _signature(
+            current, ignore_ctime=skip_ctime)
     else:
         same = _same_inode(node.info, current)
     if not same:
         raise PlanError("The selected entry changed after confirmation.")
 
 
-def _validate_tree(stage: _Stage) -> None:
-    root = stage.root
+def _validate_tree(root: _Root, parent_fd: int, top_name: str, mode: str, event,
+                   changed_links=None) -> None:
     children: dict[tuple[str, ...], set[str]] = {}
     for rel in root.nodes:
         if rel:
             children.setdefault(rel[:-1], set()).add(rel[-1])
     def walk(parent: int, name: str, rel: tuple[str, ...]) -> None:
+        _check_cancel(event)
+        if not os.access(".", os.W_OK | os.X_OK, dir_fd=parent, effective_ids=True):
+            raise PlanError("A selected entry's parent directory is not writable.")
         node = root.nodes[rel]
         anchor = os.open(name, _PATH_FLAGS, dir_fd=parent)
         try:
-            _check_node(node, os.fstat(anchor))
+            _check_node(node, os.fstat(anchor), changed_links=changed_links)
             if _mount_id(anchor) != node.mount:
                 raise PlanError("The selected entry's filesystem mount changed.")
-            if node.kind == "dir":
+            if node.kind == "file" and mode == "secure":
+                os.close(_writable_anchor(anchor, node.info))
+            elif node.kind == "dir":
                 directory = os.open(name, _DIR_FLAGS, dir_fd=parent)
                 try:
                     _check_node(node, os.fstat(directory))
@@ -297,7 +312,7 @@ def _validate_tree(stage: _Stage) -> None:
                     os.close(directory)
         finally:
             os.close(anchor)
-    walk(stage.fd, "entry", ())
+    walk(parent_fd, top_name, ())
 
 
 def _node_parent(stage: _Stage, node: _Node) -> tuple[int, str]:
@@ -356,7 +371,7 @@ def _run_shred(fd: int, event) -> None:
     os.lseek(fd, 0, os.SEEK_SET)
     env = dict(os.environ, LC_ALL="C")
     process = subprocess.Popen(
-        ["/usr/bin/shred", "--iterations=1", "--exact", "--verbose", "--", "-"],
+        ["/usr/bin/shred", "--iterations=3", "--exact", "--verbose", "--", "-"],
         stdin=subprocess.DEVNULL, stdout=fd, stderr=subprocess.PIPE,
         close_fds=True, env=env)
     tail = bytearray()
@@ -437,13 +452,17 @@ def _restore(stages: list[_Stage]) -> tuple[list[str], list[str]]:
     return list(dict.fromkeys(leftovers)), list(dict.fromkeys(notes))
 
 
-def erase(plan: Plan, cancel_event=None, progress_callback=None) -> Result:
+def erase(plan: Plan, cancel_event=None, progress_callback=None, *, mode="secure") -> Result:
     """Execute a GUI-confirmed plan once; errors/cancel preserve remaining entries."""
+    if mode not in ("quick", "secure"):
+        return Result("error", message="Unknown deletion mode.")
     if plan._closed or plan._used:
         return Result("error", message="This delete plan is closed or has already been used.")
     plan._used = True
     result = Result("error")
     stages: list[_Stage] = []
+    changed_links: dict[tuple[int, int], int] = {}
+    removed_roots = set()
     try:
         _check_cancel(cancel_event)
         # Recheck every root before changing *any* selected pathname.
@@ -454,6 +473,7 @@ def erase(plan: Plan, cancel_event=None, progress_callback=None) -> Result:
                 raise PlanError("The selected entry changed after confirmation.")
             if _signature(os.fstat(root.anchor)) != _signature(current):
                 raise PlanError("The selected inode no longer matches its original pathname.")
+            _validate_tree(root, root.parent, root.name, mode, cancel_event)
         for root in plan._roots:
             _check_cancel(cancel_event)
             stage_name = ".vault-delete-" + secrets.token_hex(12)
@@ -477,10 +497,13 @@ def erase(plan: Plan, cancel_event=None, progress_callback=None) -> Result:
                 raise PlanError("The staging folder is on a different filesystem mount.")
             _rename_noreplace(root.parent, root.name, stage_fd, "entry")
             stage.moved = True
+            selected = root.nodes[()]
+            if mode == "quick" and selected.kind == "file" and selected.info.st_nlink > 1:
+                changed_links[(selected.info.st_dev, selected.info.st_ino)] = 0
         # Full staged tree validation precedes all overwrite/unlink operations.
         for stage in stages:
             _check_cancel(cancel_event)
-            _validate_tree(stage)
+            _validate_tree(stage.root, stage.fd, "entry", mode, cancel_event, changed_links)
         for kind in ("file", "link", "dir"):
             for stage in stages:
                 nodes = [n for n in stage.root.nodes.values() if n.kind == kind]
@@ -489,16 +512,16 @@ def erase(plan: Plan, cancel_event=None, progress_callback=None) -> Result:
                 for node in nodes:
                     _check_cancel(cancel_event)
                     display = os.path.join(stage.root.path, *node.rel)
-                    _notify(progress_callback, "overwriting" if kind == "file" else "removing",
+                    _notify(progress_callback, "overwriting" if kind == "file" and mode == "secure" else "removing",
                             display, plan, result)
                     parent, name = _node_parent(stage, node)
                     anchor = writable = -1
                     try:
                         anchor = os.open(name, _PATH_FLAGS, dir_fd=parent)
-                        _check_node(node, os.fstat(anchor), exact=kind != "dir")
+                        _check_node(node, os.fstat(anchor), exact=kind != "dir", changed_links=changed_links)
                         if _mount_id(anchor) != node.mount:
                             raise PlanError("The selected entry's filesystem mount changed.")
-                        if kind == "file":
+                        if kind == "file" and mode == "secure":
                             writable = _writable_anchor(anchor, os.fstat(anchor))
                             # Recheck after gaining the advisory lock.
                             _check_node(node, os.fstat(writable))
@@ -512,12 +535,21 @@ def erase(plan: Plan, cancel_event=None, progress_callback=None) -> Result:
                                 raise PlanError("The overwritten file's pathname changed; remaining entries were preserved.")
                             os.unlink(name, dir_fd=parent)
                             result.completed_files += 1
+                        elif kind == "file":
+                            _check_cancel(cancel_event)
+                            os.unlink(name, dir_fd=parent)
+                            if node.info.st_nlink > 1:
+                                key = (node.info.st_dev, node.info.st_ino)
+                                changed_links[key] = changed_links.get(key, 0) + 1
+                            result.completed_files += 1
                         elif kind == "link":
                             os.unlink(name, dir_fd=parent)
                             result.completed_links += 1
                         else:
                             os.rmdir(name, dir_fd=parent)
                             result.completed_dirs += 1
+                        if not node.rel:
+                            removed_roots.add(stage.root.path)
                     finally:
                         if writable >= 0:
                             os.close(writable)
@@ -525,7 +557,8 @@ def erase(plan: Plan, cancel_event=None, progress_callback=None) -> Result:
                             os.close(anchor)
                         os.close(parent)
         result.status = "completed"
-        result.message = "Selected file contents were overwritten and the selected entries were deleted."
+        result.message = ("Selected files and folders were deleted." if mode == "quick" else
+                          "Selected file contents were overwritten in three passes and the selected entries were deleted.")
     except _Cancelled:
         result.status = "cancelled"
         result.message = "Stopped. Already overwritten or deleted data cannot be restored by this action; remaining entries were kept."
@@ -538,7 +571,7 @@ def erase(plan: Plan, cancel_event=None, progress_callback=None) -> Result:
         # The pinned O_PATH descriptor also tracks a selected entry renamed by
         # somebody else; no arbitrary replacement is opened or deleted here.
         for root in plan._roots:
-            if os.fstat(root.anchor).st_nlink:
+            if root.path not in removed_roots and os.fstat(root.anchor).st_nlink:
                 actual = os.readlink(f"/proc/self/fd/{root.anchor}")
                 if actual not in leftovers:
                     leftovers.append(actual)

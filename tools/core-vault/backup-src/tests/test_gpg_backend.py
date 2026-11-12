@@ -1,6 +1,6 @@
 """Real stock GPG corruption tests plus explicitly synthetic failure fixtures."""
 import ctypes
-import importlib.util
+import sys
 import json
 import os
 from pathlib import Path
@@ -13,8 +13,8 @@ import unittest
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parent.parent
-spec = importlib.util.spec_from_file_location('gpg_backend', ROOT/'src/gpg_backend.py')
-b = importlib.util.module_from_spec(spec); spec.loader.exec_module(b)
+sys.path.insert(0, str(ROOT / 'src'))
+import gpg_backend as b
 FAKE = ROOT/'tests/fakegpg.py'
 
 
