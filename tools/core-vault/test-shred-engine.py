@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import dataclasses
 import hashlib
+import fcntl
 import importlib.util
 import json
 import os
@@ -82,6 +83,67 @@ def main() -> int:
             os.close(read_fd)
 
     case("real_gnu_shred_pinned_fd", actual_fd_overwrite)
+
+    def quick_unlink(d):
+        target = d / 'readonly'
+        target.write_bytes(b'synthetic quick removal')
+        with target.open('rb') as reader:
+            target.chmod(0)
+            with engine.build_plan([target], check_overwrite=False) as plan, \
+                    patch.object(engine, '_writable_anchor', side_effect=AssertionError('write-open')), \
+                    patch.object(engine, '_run_shred', side_effect=AssertionError('overwrite')):
+                result = engine.erase(plan, mode='quick')
+            assert result.status == 'completed', result.message
+            assert not target.exists() and reader.read() == b'synthetic quick removal'
+        no_staging(d)
+    case("quick_unlinks_without_writing_content", quick_unlink)
+
+    def checked_before_mutation(d):
+        first = d / 'a-safe'
+        first.write_text('preserved')
+        last = d / 'z-busy'
+        last.write_text('busy')
+        with engine.build_plan([first, last], check_overwrite=False) as plan, last.open('ab') as writer:
+            fcntl.flock(writer, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            with patch.object(engine, '_rename_noreplace') as rename:
+                result = engine.erase(plan, mode='secure')
+            assert result.status == 'error', result.message
+            rename.assert_not_called()
+        assert first.read_text() == 'preserved' and last.read_text() == 'busy'
+        no_staging(d)
+    case("secure_refuses_locked_writer_before_staging", checked_before_mutation)
+
+    def choose_mode_after_inspection(d):
+        first = d / 'a'; first.write_text('first')
+        last = d / 'z'; last.write_text('second'); last.chmod(0o400)
+        with engine.build_plan([first,last], check_overwrite=False) as plan, \
+                patch.object(engine, '_rename_noreplace') as rename:
+            result = engine.erase(plan, mode='secure')
+            assert result.status == 'error' and 'read-only' in result.message
+            rename.assert_not_called()
+        assert first.read_text() == 'first' and last.read_text() == 'second'
+        hard = d / 'linked'; os.link(first, hard)
+        group = d / 'group'; group.mkdir()
+        sibling = group / 'also-selected'; os.link(first, sibling)
+        with engine.build_plan([first, group], check_overwrite=False) as plan:
+            result = engine.erase(plan, mode='quick')
+            assert result.status == 'completed' and not result.leftover_paths, result.message
+        assert not first.exists() and not group.exists()
+        assert hard.read_text() == 'first' and hard.stat().st_nlink == 1
+        no_staging(d)
+    case("secure_fails_closed_and_quick_preserves_unselected_hardlinks", choose_mode_after_inspection)
+
+    def cancelled_inspection(d):
+        target = d/'data'; target.write_text('fixture')
+        event = threading.Event(); event.set()
+        try:
+            engine.build_plan([target], check_overwrite=False, cancel_event=event)
+        except engine._Cancelled:
+            pass
+        else:
+            raise AssertionError('Cancelled inspection was allowed')
+        assert target.read_text() == 'fixture'
+    case("cancellable_structural_inspection", cancelled_inspection)
 
     def recursive_and_dedup(d):
         root = d / "selected"
@@ -346,7 +408,7 @@ def main() -> int:
         real_popen = subprocess.Popen
         child_code = "import os,time\nwhile True:\n os.write(1,b'P'*64)\n time.sleep(0.01)\n"
         def writer_popen(argv, **kwargs):
-            assert argv == ["/usr/bin/shred", "--iterations=1", "--exact", "--verbose", "--", "-"]
+            assert argv == ["/usr/bin/shred", "--iterations=3", "--exact", "--verbose", "--", "-"]
             process = real_popen([sys.executable, "-c", child_code], **kwargs)
             processes.append(process)
             return process

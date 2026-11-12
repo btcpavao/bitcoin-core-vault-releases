@@ -33,7 +33,7 @@ jobs:
           apt-get install -y --no-install-recommends \
             bash ca-certificates git dpkg sudo util-linux \
             python3 python3-yaml python3-pyside6.qtgui \
-            python3-pyside6.qtwidgets tar gpg xvfb xauth x11-xserver-utils libxss1
+            python3-pyside6.qtwidgets tar gpg xvfb xauth x11-xserver-utils libxss1 libxcb-cursor0
           test "$(dpkg --print-architecture)" = amd64
           . /etc/os-release
           test "$VERSION_ID" = 13
@@ -103,6 +103,13 @@ jobs:
           runuser -u vault-test -- env VAULT_TEST_DISK_ROOT="$vault_test_disk" \
             python3 -m unittest discover \
             -s tools/core-vault/backup-src/tests -p test_gpg_backend.py -v
+
+      - name: Test the deletion choices with disposable files
+        run: |
+          set -euo pipefail
+          runuser -u vault-test -- python3 tools/core-vault/test-shred-engine.py
+          runuser -u vault-test -- xvfb-run -a -s '-screen 0 800x600x24' \
+            python3 tools/core-vault/test-shred-gui.py --output /tmp/vault-delete-ui
 
       - name: Check native creation and recovery dialogs
         env:

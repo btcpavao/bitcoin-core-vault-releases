@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import argparse
 import ast
-from contextlib import ExitStack, contextmanager
+from contextlib import ExitStack
 from dataclasses import dataclass, field
 import hashlib
 import importlib.machinery
@@ -58,6 +58,7 @@ class SyntheticWorker(QObject):
     def __init__(self):
         super().__init__()
         self.cancel_event = threading.Event()
+        self.mode = 'secure'
 
 
 def key(app, widget, code):
@@ -145,16 +146,17 @@ def main():
     long_path = '/synthetic/' + '/'.join(['wallet-' + ('a' * 230)] * 10) + '/wallet.dat'
     plan = SimpleNamespace(display_paths=[strange, long_path],
                            files_count=27, dirs_count=4, links_count=2,
-                           total_bytes=12345678)
+                           total_bytes=12345678, close=lambda: None)
 
-    confirm = helper.ConfirmDialog(plan)
+    confirm = helper.ConfirmDialog(plan.display_paths)
+    confirm.ready(plan)
     accepted = []
     confirm.accepted.connect(lambda: accepted.append(True))
     show(confirm)
     check('confirmation fits 800x600 with long literal paths', fits(confirm), geometry(confirm))
     check('initial focus is Cancel', app.focusWidget() is confirm.cancel_button)
     check('Cancel is default; delete is not default',
-          confirm.cancel_button.isDefault() and not confirm.delete_button.isDefault())
+          confirm.cancel_button.isDefault() and not confirm.quick_button.isDefault() and not confirm.secure_button.isDefault())
     check('names are plain text with control characters escaped',
           confirm.paths.toPlainText().startswith(helper.plain(strange))
           and '<b>wallet</b>' in confirm.paths.toPlainText()
@@ -171,7 +173,8 @@ def main():
     check('opening confirmation then Enter cancels without acceptance',
           not accepted and not confirm.isVisible() and confirm.result() == QDialog.DialogCode.Rejected)
 
-    confirm = helper.ConfirmDialog(plan)
+    confirm = helper.ConfirmDialog(plan.display_paths)
+    confirm.ready(plan)
     accepted = []
     confirm.accepted.connect(lambda: accepted.append(True))
     show(confirm)
@@ -179,11 +182,12 @@ def main():
     check('Escape cancels confirmation without acceptance',
           not accepted and not confirm.isVisible() and confirm.result() == QDialog.DialogCode.Rejected)
 
-    confirm = helper.ConfirmDialog(plan)
+    confirm = helper.ConfirmDialog(plan.display_paths)
+    confirm.ready(plan)
     accepted = []
     confirm.accepted.connect(lambda: accepted.append(True))
     show(confirm)
-    mouse_click(app, confirm.delete_button)
+    mouse_click(app, confirm.secure_button)
     check('explicit delete mouse action accepts', len(accepted) == 1
           and not confirm.isVisible() and confirm.result() == QDialog.DialogCode.Accepted)
 
@@ -238,14 +242,14 @@ def main():
             Result = ResultClass
 
             @staticmethod
-            def erase(received_plan, cancel_event, callback):
+            def erase(received_plan, cancel_event, callback, *, mode):
                 check('Worker passed exact plan and cancellation token ' + str(raises),
-                      received_plan is plan and isinstance(cancel_event, threading.Event))
+                      received_plan is plan and isinstance(cancel_event, threading.Event) and mode == 'secure')
                 if raises:
                     raise RuntimeError('<b>synthetic engine error</b>\n')
                 callback({'phase': 'removing', 'path': strange, 'completed_files': 27})
                 return ResultClass('completed', 27, 2, 'Synthetic completion.', [], 4)
-        thread = helper.Worker(FakeEngine, plan)
+        thread = helper.Worker(FakeEngine, plan, 'secure')
         results = []
         thread.done.connect(results.append)
         thread.start()
@@ -267,31 +271,75 @@ def main():
                       message='Synthetic error', leftover_paths=[]).completed_dirs == 0)
 
     original_confirm = helper.ConfirmDialog
-    for action in ('Enter', 'Escape', 'ExplicitDelete'):
+    for action in ('Enter', 'Escape', 'quick', 'secure', 'CancelDuringCheck', 'CloseDuringCheck', 'Invalid'):
         calls = []
         messages = []
+        entered = threading.Event()
+        early_cancel = action in ('CancelDuringCheck', 'CloseDuringCheck')
+
+        def slow_guard(paths, cancel):
+            entered.set()
+            if early_cancel:
+                if not cancel.wait(3):
+                    raise AssertionError('Dialog did not cancel the preflight')
+                # A new request can acquire the singleton even before a bounded
+                # read-only operation in the cancelled worker has returned.
+                limit = time.monotonic() + 1
+                while time.monotonic() < limit:
+                    try:
+                        os.fstat(lock_fd)
+                    except OSError:
+                        calls.append(('unlocked', True))
+                        break
+                    time.sleep(0.01)
+            return paths
+
         class SyntheticMainEngine:
             Result = ResultClass
 
             @staticmethod
-            @contextmanager
-            def build_plan(paths):
+            def build_plan(paths, *, check_overwrite, cancel_event):
                 calls.append(('plan', paths))
-                yield plan
+                if action == 'Invalid':
+                    raise ValueError('Synthetic invalid selection')
+                if check_overwrite or cancel_event.is_set():
+                    raise AssertionError('Expected uncancelled structural preflight')
+                return plan
 
             @staticmethod
-            def erase(received_plan, cancel_event, callback):
-                calls.append(('erase', received_plan is plan))
+            def erase(received_plan, cancel_event, callback, *, mode):
+                calls.append(('erase', mode))
                 return ResultClass('completed', 27, 2, 'Synthetic completion.', [], 4)
 
-        def confirmation(received_plan):
-            dialog = original_confirm(received_plan)
+        def confirmation(paths):
+            dialog = original_confirm(paths)
+            limit = time.monotonic() + 4
+
             def activate():
-                if action == 'ExplicitDelete':
-                    mouse_click(app, dialog.delete_button)
+                if time.monotonic() >= limit:
+                    check(action + ' dialog reached expected state', False)
+                    dialog.reject()
+                elif early_cancel and entered.is_set():
+                    check(action + ' is visible and inactive during the storage check',
+                          dialog.isVisible() and not dialog.quick_button.isEnabled()
+                          and not dialog.secure_button.isEnabled() and dialog.cancel_button.isDefault())
+                    if action == 'CancelDuringCheck':
+                        dialog.cancel_button.click()
+                    else:
+                        dialog.close()
+                elif action == 'Invalid' and dialog.error:
+                    check('failed preflight leaves both modes disabled',
+                          not dialog.quick_button.isEnabled() and not dialog.secure_button.isEnabled())
+                    dialog.cancel_button.click()
+                elif dialog.secure_button.isEnabled():
+                    if action in ('secure', 'quick'):
+                        mouse_click(app, dialog.secure_button if action == 'secure' else dialog.quick_button)
+                    else:
+                        key(app, dialog.cancel_button if action == 'Enter' else dialog,
+                            Qt.Key.Key_Return if action == 'Enter' else Qt.Key.Key_Escape)
                 else:
-                    key(app, dialog.cancel_button if action == 'Enter' else dialog,
-                        Qt.Key.Key_Return if action == 'Enter' else Qt.Key.Key_Escape)
+                    QTimer.singleShot(5, activate)
+
             QTimer.singleShot(0, activate)
             return dialog
 
@@ -300,15 +348,17 @@ def main():
             with ExitStack() as stack:
                 stack.enter_context(patch.object(sys, 'argv', ['core-vault-shred', '/synthetic/wallet.dat']))
                 stack.enter_context(patch.object(helper, 'QApplication', return_value=app))
-                stack.enter_context(patch.object(helper, 'vault_paths', return_value=['/synthetic/wallet.dat']))
+                stack.enter_context(patch.object(helper, 'vault_paths', side_effect=slow_guard))
                 stack.enter_context(patch.object(helper, 'session_lock', return_value=lock_fd))
                 stack.enter_context(patch.object(helper, 'load_engine', return_value=SyntheticMainEngine))
                 stack.enter_context(patch.object(helper, 'ConfirmDialog', side_effect=confirmation))
                 stack.enter_context(patch.object(helper, 'message', side_effect=lambda *args: messages.append(args)))
                 code = helper.main()
-            check('main ' + action + ' reaches erase only after explicit consent',
-                  code == 0 and sum(1 for c in calls if c[0] == 'erase') ==
-                  (1 if action == 'ExplicitDelete' else 0) and not messages)
+            check('main ' + action + ' reaches erase only in the explicitly chosen mode',
+                  code == int(action == 'Invalid') and not messages
+                  and [c[1] for c in calls if c[0] == 'erase'] == ([action] if action in ('quick', 'secure') else []))
+            if early_cancel:
+                check(action + ' releases lock before waiting with no delayed confirmation', calls == [('unlocked', True)])
             try:
                 os.fstat(lock_fd)
             except OSError:
@@ -316,6 +366,17 @@ def main():
             else:
                 os.close(lock_fd)
                 check('main ' + action + ' closes its session lock', False)
+
+    with ExitStack() as stack:
+        stack.enter_context(patch.object(sys, 'argv', ['core-vault-shred', '/synthetic/other-selection']))
+        stack.enter_context(patch.object(helper, 'QApplication', return_value=app))
+        stack.enter_context(patch.object(helper, 'session_lock', side_effect=helper.AlreadyOpen()))
+        focus = stack.enter_context(patch.object(helper.subprocess, 'run'))
+        guard = stack.enter_context(patch.object(helper, 'vault_paths'))
+        modal = stack.enter_context(patch.object(helper, 'message'))
+        check('duplicate invocation only raises the existing dialog',
+              helper.main() == 0 and not guard.called and not modal.called and focus.call_count == 1
+              and focus.call_args.args[0][-3:] == ['--class', '^core-vault-shred$', 'windowactivate'])
 
     long_error = 'Deletion stopped. Remaining items:\n' + '\n'.join(
         '/synthetic/' + str(i) + '/' + 'a' * 220 + '/wallet.dat' for i in range(20))
@@ -349,7 +410,7 @@ def main():
             proc = stack.enter_context(patch.object(helper.subprocess, 'run',
                          return_value=SimpleNamespace(returncode=storage)))
             try:
-                result = helper.vault_paths(values or ['/home/vault/.bitcoin/wallets/synthetic/wallet.dat'])
+                result = helper.vault_paths(values or ['/home/vault/Private Workspace/synthetic.txt'])
                 return True, result, proc.call_args
             except Exception as exc:
                 return False, str(exc), proc.call_args
@@ -358,12 +419,19 @@ def main():
     check('Vault account uses exact session storage guard',
           valid and call.args[0] == ['/usr/local/bin/core-vault-storage-check', '--session']
           and call.kwargs['timeout'] == 15 and call.kwargs['capture_output'] is True)
+    valid, _, _ = account_call(values=['/media/vault/USB/wallet.dat'])
+    check('a directly selected external wallet copy remains eligible', valid)
     for name, kwargs in [
         ('root rejected', {'euid': 0}),
         ('other account rejected', {'acct': SimpleNamespace(pw_name='other', pw_uid=1000, pw_dir='/home/vault')}),
         ('other account UID rejected', {'acct': SimpleNamespace(pw_name='vault', pw_uid=1001, pw_dir='/home/vault')}),
         ('wrong home rejected', {'home': '/synthetic/home'}),
         ('unready storage rejected', {'storage': 1}),
+        ('Core wallet files rejected', {'values': ['/home/vault/.bitcoin/wallets/test/wallet.dat']}),
+        ('RAM-side Core wallet rejected', {'values': ['/run/core-vault/home/.bitcoin/wallets/test/wallet.dat']}),
+        ('RAM-side Core ancestor rejected', {'values': ['/run/core-vault/home']}),
+        ('bound home ancestor rejected', {'values': ['/home/vault']}),
+        ('equivalent double-slash path rejected', {'values': ['//home/vault/.bitcoin/wallets/test/wallet.dat']}),
         ('relative path rejected', {'values': ['relative/wallet.dat']}),
         ('parent traversal rejected', {'values': ['/home/vault/../wallet.dat']}),
     ]:

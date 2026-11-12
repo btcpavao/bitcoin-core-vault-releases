@@ -1,13 +1,13 @@
 {
   "files": {
-    "usr/lib/core-vault-shred/engine.py": "8125a7d1c2551e46ba0986b8cce3e5968ba7bec985fd3f37fa0c8f0108fe853c",
+    "usr/lib/core-vault-shred/engine.py": "615afb526d40e6ee6a05568c493b8064f68d9249c8086bb2c8c5a5a127184095",
     "usr/lib/core-vault/guide_visuals.py": "f173fbbc1db2d545206eab03ec445e4de6dc3a0398246516eee01ba129922a48",
     "usr/local/bin/core-vault-core-file-dialogs": "db7449cb274eeb0424912779c98ec0f4d0d0fe9983b38dae26c811d7f6a08a16",
     "usr/local/bin/core-vault-file-places": "0fabe3fdc497adc258273b40586f1ba96a1d0ff7282180aa18fc2ce10d76dd7f",
     "usr/local/bin/core-vault-guide": "10600d858b75ebdadd1a9d1db2ba0d2859d5c6915e206862ad19ac168eea5025",
     "usr/local/bin/core-vault-home": "c3743c4704780df6ae0c4f0855d7f7c9322fa584eb819ae72d97926a00c8f6fb",
     "usr/local/bin/core-vault-session": "efe2fef653b5f7ef83a9c44ed99c7115cefda44e5751467123306bd392ba079b",
-    "usr/local/bin/core-vault-shred": "9500ff64e4002c0c5852b2dc2e16931ea9228c18a33841314ad1c9a5a8d74537"
+    "usr/local/bin/core-vault-shred": "259c41e024a35efbba204804d3b7fc6777b651168e3bda7dfc27954040da1ad7"
   },
   "name": "vault-permanent-delete",
   "schema": 1,
