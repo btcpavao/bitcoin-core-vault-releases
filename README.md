@@ -29,27 +29,27 @@ The project is independently developed. An independent security audit has yet to
 
 ## Screenshots
 
-View the [v0.6.0 installed boot screen](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/download/v0.6.0/vault-boot.png) and the backup dialogs in [Create](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/download/v0.6.0/vault-create-backup.png) and [Decrypt](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/download/v0.6.0/vault-decrypt-backup.png). The embedded gallery below shows an earlier v0.4.0 demonstration session at 1280 × 800.
+These screenshots show the Live RAM desktop, its built-in guide and an installed session of the [published v0.6.0 ISO](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/tag/v0.6.0). The backup example uses a disposable USB drive.
 
 ### Offline workspace
 
-![image: Offline workspace](docs/screenshots/home.png)
+![Vault Home with the Bitcoin Core, Wallet Backup, Decrypt Backup and KeePassXC launchers](docs/screenshots/home.png)
 
-Wallet tools, encrypted backups and recovery in one place.
+Open Bitcoin Core to create a wallet or sign a transaction offline. The current session keeps wallets and working files in RAM.
 
-### Create Encrypted Backup
+### Practical Vault Guide
 
-![image: Create Encrypted Backup](docs/screenshots/backup.png)
+![Vault Guide showing the offline Vault, the online Node and the files transferred between them](docs/screenshots/guide.png)
 
-The native backup interface with empty passphrase fields. The demonstration wallet is unfunded.
+The first chapter shows which computer creates the watch-only copy, prepares the payment and signs it.
 
-### Vault Guide
+### Wallet Backup
 
-![image: Vault Guide](docs/screenshots/guide.png)
+![Create Encrypted Backup with the Save to menu open and the available destinations visible](docs/screenshots/backup.png)
 
-Built-in guidance for wallet protection and recovery.
+Open **Save to** and choose your mounted backup drive to keep the encrypted file after shutdown.
 
-[Capture details](docs/screenshots/CAPTURE.json) · [Website gallery](https://btcpavao.com/en/bitcoin-core/debian-images/#vault)
+[Decrypt Backup screenshot](docs/screenshots/recover.png) · [Capture details](docs/screenshots/CAPTURE.json) · [Website gallery](https://btcpavao.com/en/bitcoin-core/debian-images/#vault)
 
 ## Use Vault
 

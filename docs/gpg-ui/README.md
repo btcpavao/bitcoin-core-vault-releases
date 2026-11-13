@@ -1,7 +1,8 @@
-# GPG-only interface previews
+# GPG interface previews
 
-The current candidate uses dynamic encryption layers and shared passphrase controls.
-Preview images contain synthetic inputs only.
+For the released v0.6.0 dialogs, see [Create Encrypted Backup](../screenshots/backup.png) and [Decrypt Encrypted Backup](../screenshots/recover.png).
+
+The earlier development previews below document the introduction of dynamic encryption layers and shared passphrase controls. They use synthetic inputs.
 
 - [Create encrypted backup](create-gpg.png)
 - [Recover encrypted backup](recover-gpg.png)

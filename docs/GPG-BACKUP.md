@@ -1,6 +1,6 @@
 # Bitcoin Core Vault — backup and recovery
 
-This guide describes the current backup engine shipped with Vault v0.4.0.
+This guide covers Vault Backup 0.7.5 in Bitcoin Core Vault v0.6.0.
 The in-app Vault Guide contains the same workflow. Keep a copy of your own
 recovery instructions outside the encrypted backup they explain.
 
@@ -45,6 +45,9 @@ all of them in one immediately accessible database removes that separation.
 
 1. Use **Wallet Backup** on Home for a consistent wallet snapshot. Use
    **Files → Create Encrypted Backup** for selected files and folders.
+
+   ![Wallet Backup shows PracticeVault selected in the wallet list](screenshots/backup-select.png)
+
 2. Keep one layer or choose **+ Add Encryption Layer**. Generate and confirm
    a fresh passphrase for every layer.
 3. Select your mounted USB drive and choose a new filename to save the
@@ -54,6 +57,8 @@ all of them in one immediately accessible database removes that separation.
    the original wallet snapshot or TAR package.
 5. Vault checks the published encrypted copy. Make independent copies and
    practice restoring and signing with disposable test data.
+
+![Create Encrypted Backup with Private Workspace and a USB drive in the Save to menu](screenshots/backup.png)
 
 Loaded wallets are snapshotted through Bitcoin Core. Supported closed
 wallets use read-only SQLite backup. Original files are not encrypted in
@@ -95,6 +100,8 @@ bypassed by Vault.
 5. For a wallet, use **Bitcoin Core → File → Restore Wallet**. Check expected
    addresses and labels, then practice signing. Supply the separate Core
    passphrase when signing if that wallet's private keys are encrypted.
+
+![Decrypt Encrypted Backup with Private Workspace and a USB drive in the Recover to menu](screenshots/recover.png)
 
 Missing or incorrect secrets, damage and unsupported formats can cause a
 failure. Partial results are discarded on failure or cancellation, and
