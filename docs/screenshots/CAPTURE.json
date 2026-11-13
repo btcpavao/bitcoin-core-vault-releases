@@ -1,28 +1,49 @@
 {
   "product": "Bitcoin Core Vault",
-  "release": "v0.4.0",
-  "capture_date": "2026-11-09",
-  "iso_sha256": "7320f3e3cb1c906d5cfbe701c2e9fb1cce95e0488283ac82ef6415d9498ac864",
-  "session": "Live RAM session booted from the published ISO",
-  "method": "Unaltered QEMU display capture; PNG originals. Website previews use lossless WebP.",
+  "release": "v0.6.0",
+  "capture_date": "2026-11-13",
+  "iso_sha256": "d1e3656099875e6cde7ed6c78fcf9ee3217d8bed4f8ccd5500b4231ad6bfa8ba",
+  "method": "Captured inside disposable offline virtual machines running the published amd64 image. Website previews use lossless WebP.",
   "images": [
     {
       "file": "home.png",
-      "sha256": "8408fbde5915af5e2f598fa57794b0912ec744f37427f77b2dac63c52e4abf2f",
+      "screen": "Home",
+      "session": "Live RAM",
       "width": 1280,
-      "height": 800
-    },
-    {
-      "file": "backup.png",
-      "sha256": "1e9718b97d40fec91cba23cc73e44aaa3368b0539fbed4ca000653b91c01d362",
-      "width": 1280,
-      "height": 800
+      "height": 800,
+      "sha256": "dee3b45351f2da420c1285446849a2403d75b49610a7cea36af780eccb5e0cd5"
     },
     {
       "file": "guide.png",
-      "sha256": "626f215b0a6c0a135f0d64856edb5959f314b3dd33c829877e5a8a0d234ee913",
+      "screen": "Vault Guide",
+      "session": "Live RAM",
       "width": 1280,
-      "height": 800
+      "height": 800,
+      "sha256": "2eec30f7cc1ad99df2ec69eb384fc25d43733ad33313461a38497dce1878701a"
+    },
+    {
+      "file": "backup.png",
+      "screen": "Create Encrypted Backup",
+      "session": "Installed",
+      "width": 1280,
+      "height": 760,
+      "sha256": "223f955e50ec61e01db5165b318f92dd204162494eae871c2f6c6e2600fcc48b"
+    },
+    {
+      "file": "recover.png",
+      "screen": "Decrypt Encrypted Backup",
+      "session": "Installed",
+      "width": 1280,
+      "height": 760,
+      "sha256": "9071dd48080c118d7c9ed155e99fa9737f9ee1ebec2a74923ad907d0bec2c5b3"
+    },
+    {
+      "file": "backup-select.png",
+      "screen": "Select wallet to back up",
+      "session": "Installed",
+      "width": 1280,
+      "height": 760,
+      "sha256": "e9e93c95f3ebe760f830ee7220fc8eca4f08909a95b135e7ce8f534dda038103"
     }
   ]
 }
