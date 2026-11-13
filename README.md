@@ -180,8 +180,8 @@ and confirm the full maintainer fingerprint through a channel you already trust.
 787A 2AAF B0D1 19CA 0522 B2A5 B9C9 9AF8 5788 96D0
 ```
 
-The [public key on btcpavao.com](https://btcpavao.com/pgp.txt) provides a second
-copy. After confirming the fingerprint, run these commands in Bash with GnuPG
+The website also publishes the [fingerprint](https://btcpavao.com/pgp.txt)
+and the [armored public key](https://btcpavao.com/btcpavao-pgp.asc). After confirming the fingerprint, run these commands in Bash with GnuPG
 2.4.7 or newer (included with Debian 13) from the download directory. The temporary keyring keeps this check separate from your
 personal keys.
 
