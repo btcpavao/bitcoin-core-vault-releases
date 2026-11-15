@@ -13,7 +13,7 @@ import sys
 
 sys.path.insert(0, '/usr/lib/core-vault-backup')
 from backup import BackupError, publish_new, confirm_publication
-from destinations import MEDIA_ROOTS, destination_directory, require_same_directory
+from destinations import MEDIA_ROOTS, _mount_id, destination_directory, require_same_directory
 
 # Rows written by Core 32.1 ExportWatchOnlyWallet (wallet/export.cpp).
 PUBLIC_ROWS = frozenset({
@@ -174,13 +174,121 @@ class ExternalTarget:
                 pass
 
 
+def kernel_external(device, sysfs=Path('/sys')):
+    """Look for a positive hardware-bus signal, never a generic hotplug hint."""
+    link = sysfs / 'dev/block' / device
+    try:
+        physical = link.resolve(strict=True)
+        for ancestor in physical.parents:
+            subsystem = ancestor / 'subsystem'
+            if not subsystem.is_symlink():
+                continue
+            bus = subsystem.resolve().name
+            if bus in ('usb', 'firewire'):
+                return True
+            if bus == 'pci' and (ancestor / 'removable').is_file():
+                if (ancestor / 'removable').read_text().strip() == 'removable':
+                    return True
+    except OSError:
+        pass
+    return False
+
+
+def physical_drives(source, *, boot=False, seen=()):
+    # The source field can include a btrfs subvolume suffix. lsblk's inverse
+    # dependency tree follows partitions and unlocked encrypted external drives.
+    block = source.split('[', 1)[0]
+    if not block.startswith('/dev/'):
+        raise ValueError('The selected filesystem is not on a local block device.')
+    if block in seen or len(seen) >= 8:
+        raise ValueError('The backing disk could not be identified.')
+    result = subprocess.run(['/usr/bin/lsblk', '--inverse', '--json', '--output',
+                             'NAME,TYPE,RM,TRAN,MAJ:MIN,FSTYPE', '--', block],
+                            capture_output=True, text=True, check=True, timeout=5)
+    devices = json.loads(result.stdout)['blockdevices']
+    drives = {}
+    while devices:
+        row = devices.pop()
+        if row.get('children'):
+            devices.extend(row['children'])
+            continue
+        if row['type'] == 'loop' and boot:
+            # File-backed Live ISO. Find the physical disk that hosts the ISO,
+            # including a preserved findiso/fromiso carrier mount.
+            sysnode = Path('/sys/dev/block') / row['maj:min']
+            backing = (sysnode / 'loop/backing_file').read_text().strip()
+            if not Path(backing).is_absolute() or not Path(backing).is_file():
+                raise ValueError('The backing file for the loop device is unavailable.')
+            owner = subprocess.run(['/usr/bin/findmnt', '--uniq', '--json', '--target',
+                                    backing, '--output', 'SOURCE'], capture_output=True,
+                                   text=True, check=True, timeout=5)
+            carrier = json.loads(owner.stdout)['filesystems']
+            if len(carrier) != 1:
+                raise ValueError('The ISO carrier mount is ambiguous.')
+            drives.update(physical_drives(carrier[0]['source'], boot=True, seen=(*seen, block)))
+            continue
+        if row['type'] not in ('disk', 'rom') or not row['maj:min']:
+            raise ValueError('The physical transfer drive could not be identified.')
+        identity = row['maj:min']
+        # A directly flashed Vault ISO is an isohybrid whole device. Refuse
+        # all partitions of that physical drive, including its writable EFI
+        # partition, even after live-boot has replaced the medium with tmpfs.
+        external = row['rm'] is True or row['tran'] in ('usb', 'sbp') or kernel_external(identity)
+        drives[identity] = external and row.get('fstype') != 'iso9660'
+    if not drives:
+        raise ValueError('The physical transfer drive is unavailable.')
+    return drives
+
+
+def require_external_volume(fd):
+    # Match the pinned directory's kernel mount ID, including on FUSE-backed
+    # NTFS and btrfs where st_dev can differ from the drive's device number.
+    try:
+        result = subprocess.run(['/usr/bin/findmnt', '--list', '--json', '--output',
+                                 'ID,TARGET,SOURCE,FSTYPE'], capture_output=True, text=True,
+                                check=True, timeout=5)
+        mounts = json.loads(result.stdout)['filesystems']
+        current_id = _mount_id(fd)
+        selected = next(row for row in mounts if str(row['id']) == current_id)
+        drives = physical_drives(selected['source'])
+        if not all(drives.values()):
+            raise ValueError('Choose a drive connected through USB, FireWire or a port Linux marks as removable.')
+        boot_paths = ('/run/live/medium', '/lib/live/mount/medium',
+                      '/run/live/findiso', '/run/live/fromiso')
+        boot_mounts = [row for row in mounts if row['target'] in boot_paths]
+        if not boot_mounts:
+            boot_mounts = [row for row in mounts if row['target'] == '/'
+                           and row['source'].startswith('/dev/')]
+        carriers = [row for row in boot_mounts if row['fstype'] not in ('tmpfs', 'ramfs')]
+        image_hosts = [row for row in carriers if row['target'] in ('/run/live/findiso', '/run/live/fromiso')]
+        if image_hosts:
+            carriers = image_hosts  # Use the real filesystem hosting the ISO.
+        if boot_mounts and not carriers:
+            # Default toram flashes are covered by the whole-device ISO check.
+            # A detached *file* boot loses that signature, so don't guess its
+            # physical carrier when live-boot no longer exposes it.
+            args = Path('/proc/cmdline').read_text().split()
+            if any(arg.startswith(('findiso=', 'fromiso=', 'iso-scan/filename=', 'vtoy'))
+                   for arg in args) or Path('/dev/mapper/ventoy').exists():
+                raise ValueError('The file-backed Vault boot drive could not be identified. Use Private Workspace.')
+        for row in carriers:
+            if drives.keys() & physical_drives(row['source'], boot=True).keys():
+                raise ValueError('Choose a transfer drive other than the Vault boot medium.')
+    except (OSError, subprocess.SubprocessError, KeyError, StopIteration) as err:
+        raise ValueError('Vault could not identify the external transfer drive.') from err
+
+
 def open_target(media_root, relative, *, replace):
     root, relative = Path(media_root), Path(relative)
     if (root not in MEDIA_ROOTS or relative.is_absolute() or len(relative.parts) < 2
             or '..' in relative.parts or any(ord(c)<32 or ord(c)==127 for c in str(relative))):
         raise ValueError('Choose a file on a mounted removable drive.')
     parent = root / relative.parent
-    with destination_directory(parent, removable=True) as fd:
+    # The shared policy still pins and checks the writable desktop mount.
+    # Public Core exports additionally accept proven external FireWire and
+    # tunneled PCIe enclosures; encrypted backup policy stays independent.
+    with destination_directory(parent) as fd:
+        require_external_volume(fd)
         previous = identity(fd, relative.name)
         if previous is not None and (not replace or relative.suffix.lower() != '.psbt'):
             raise FileExistsError('Choose a new export filename.')

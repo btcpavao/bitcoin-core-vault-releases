@@ -6,6 +6,13 @@ drive and save `watch-only.dat`. Wait for the export to finish before ejecting
 the drive. Choose Private Workspace for a temporary RAM copy. Keep the original
 signing wallet offline.
 
+Direct PSBT and watch-only export supports USB flash drives and external USB
+SSDs or hard disks, FireWire storage, and drives Linux identifies as removable.
+A USB4 or Thunderbolt NVMe enclosure can use its PCIe connection when the kernel
+marks its PCIe path as externally removable. Internal fixed disks and the Vault
+boot medium are excluded. If a file-backed live session can no longer identify
+the disk hosting its ISO, save to Private Workspace.
+
 On an online computer with Core 32.1 or newer, use File → Restore Wallet, select
 the exported file and name the new wallet. Confirm watch-only status and compare
 a receiving address independently before use. Older wallets may need a rescan;

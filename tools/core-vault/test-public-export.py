@@ -2,13 +2,14 @@
 """Exercise the public export policy and atomic publication using disposable files."""
 from contextlib import closing
 import errno
+import json
 import os
 from pathlib import Path
 import sqlite3
 import sys
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT / 'config/includes.chroot/usr/lib/core-vault'),
@@ -41,6 +42,82 @@ class PublicExportTests(unittest.TestCase):
                 (b'\x05flags', flags.to_bytes(8, 'little')),
                 (bytes([len(tag)]) + tag + bytes(32), bytes([len(desc)]) + desc + bytes(20)),
             ])
+
+    def test_external_transport_and_internal_negative(self):
+        def disk(transport, *, removable=False):
+            return {'type': 'disk', 'rm': removable, 'tran': transport, 'maj:min': '8:0'}
+        cases = [('usb', False, True), ('sbp', False, True), ('mmc', True, True),
+                 ('nvme', False, False), ('sata', False, False), ('mmc', False, False)]
+        for transport, removable, allowed in cases:
+            with self.subTest(transport=transport, removable=removable):
+                leaf = disk(transport, removable=removable)
+                row = {'type': 'part', 'children': [leaf]}
+                result = Mock(stdout=json.dumps({'blockdevices': [row]}))
+                with patch.object(export.subprocess, 'run', return_value=result), \
+                        patch.object(export, 'kernel_external', return_value=False):
+                    self.assertEqual(export.physical_drives('/dev/test'), {'8:0': allowed})
+
+    def test_kernel_external_pci_and_firewire(self):
+        sysfs = self.root / 'sys'
+        devlink = sysfs / 'dev/block'
+        devlink.mkdir(parents=True)
+        busdir = sysfs / 'bus'
+        device = sysfs / 'devices/rootport/endpoint'
+        block = device / 'nvme/nvme0n1'
+        block.mkdir(parents=True)
+        (devlink / '8:0').symlink_to(block)
+        for name in ('pci', 'firewire'):
+            (busdir / name).mkdir(parents=True)
+        subsystem = device / 'subsystem'
+        subsystem.symlink_to(busdir / 'pci')
+        for value in ('', 'fixed', 'unknown', '1', 'removable'):
+            with self.subTest(pci=value):
+                (device / 'removable').write_text(value)
+                self.assertEqual(export.kernel_external('8:0', sysfs), value == 'removable')
+        (device / 'removable').unlink()
+        subsystem.unlink()
+        subsystem.symlink_to(busdir / 'firewire')
+        self.assertTrue(export.kernel_external('8:0', sysfs))
+        self.assertFalse(export.kernel_external('8:1', sysfs))
+
+    def test_boot_and_mixed_internal_disks_rejected(self):
+        mounts = [{'id': 45, 'target': '/media/vault/disk', 'source': '/dev/test1', 'fstype': 'exfat'},
+                  {'id': 55, 'target': '/run/live/medium', 'source': '/dev/test2', 'fstype': 'iso9660'}]
+        result = Mock(stdout=json.dumps({'filesystems': mounts}))
+        for disks, error in (([{'8:0': True}, {'8:0': True}], 'boot medium'),
+                             ([{'8:0': True, '8:16': False}], 'removable')):
+            with self.subTest(disks=disks), patch.object(export, '_mount_id', return_value='45'), \
+                    patch.object(export.subprocess, 'run', return_value=result), \
+                    patch.object(export, 'physical_drives', side_effect=disks):
+                with self.assertRaisesRegex(ValueError, error):
+                    export.require_external_volume(0)
+
+    def test_toram_and_iso_whole_disk(self):
+        live = {'id': 55, 'target': '/run/live/medium', 'source': 'tmpfs', 'fstype': 'tmpfs'}
+        usb = {'id': 45, 'target': '/media/vault/test', 'source': '/dev/test1', 'fstype': 'vfat'}
+        with patch.object(export, '_mount_id', return_value='45'), \
+                patch.object(export.subprocess, 'run', return_value=Mock(stdout=json.dumps({'filesystems': [usb, live]}))), \
+                patch.object(export, 'physical_drives', return_value={'8:0': True}), \
+                patch.object(Path, 'read_text', return_value='boot=live toram'), \
+                patch.object(Path, 'exists', return_value=False):
+            export.require_external_volume(0)
+        leaf = {'type': 'disk', 'rm': True, 'tran': 'usb', 'maj:min': '8:0', 'fstype': 'iso9660'}
+        result = Mock(stdout=json.dumps({'blockdevices': [{'type': 'part', 'children': [leaf]}]}))
+        with patch.object(export.subprocess, 'run', return_value=result):
+            self.assertEqual(export.physical_drives('/dev/test1'), {'8:0': False})
+
+    def test_live_iso_carrier_and_installed_root(self):
+        usb = {'id': 45, 'target': '/media/vault/test', 'source': '/dev/test1', 'fstype': 'exfat'}
+        loop = {'id': 54, 'target': '/run/live/medium', 'source': '/dev/loop0', 'fstype': 'iso9660'}
+        for boot in ('/run/live/findiso', '/'):
+            real = {'id': 55, 'target': boot, 'source': '/dev/test2', 'fstype': 'ext4'}
+            mounts = [usb, loop, real] if boot != '/' else [usb, real]
+            with self.subTest(boot=boot), patch.object(export, '_mount_id', return_value='45'), \
+                    patch.object(export.subprocess, 'run', return_value=Mock(stdout=json.dumps({'filesystems': mounts}))), \
+                    patch.object(export, 'physical_drives', side_effect=[{'8:0': True}, {'8:0': True}]) as disks:
+                with self.assertRaisesRegex(ValueError, 'boot medium'):
+                    export.require_external_volume(0)
+                self.assertEqual(disks.call_args.args[0], '/dev/test2')
 
     def test_publish_native_watchonly_once(self):
         self.wallet()
