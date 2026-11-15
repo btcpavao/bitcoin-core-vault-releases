@@ -62,9 +62,9 @@ SETTINGS
 fi
 
 
-# The official Core binary can read imported files but native save dialogs and
-# pathlike wallet names cannot write to any OS disk or removable filesystem.
-# RAM aliases stay writable; encrypted export runs separately on Vault Home.
+# Core writes private data only to RAM. The media helper accepts two public
+# export formats on a separate FUSE view; physical media stays inaccessible
+# for direct writes, including pathlike wallet creation and backups.
 # Keep the network/PID namespaces: host loopback RPC, Finish and the addressed
 # X11 observer retain their existing identities. Bubblewrap keeps fd3's lock
 # in its supervisor until Core exits; no unsupported FD-preservation option.

@@ -51,8 +51,8 @@ def main():
     for section, (asset, _, _) in guide.SECTION_ICONS.items():
         if asset:
             assert (guide.ASSETS / asset).is_file(), (section, 'missing chapter artwork')
-    assert 'The save dialog starts in <b>Private Workspace</b>' in guide.SECTIONS['Watch-Only Wallet in Bitcoin Core']
-    assert 'USB Media' in guide.SECTIONS['Files'] and 'read-only' in guide.SECTIONS['Files']
+    assert 'mounted transfer drive in the save dialog' in guide.SECTIONS['Watch-Only Wallet in Bitcoin Core']
+    assert 'USB Media' in guide.SECTIONS['Files'] and 'signed PSBT directly' in guide.SECTIONS['Files']
     assert 'core-vault-optical-diagnostics' in guide.SECTIONS['Brasero']
     assert 'does not read files from the disc or test burning' in guide.SECTIONS['Brasero']
     assert 'single supported wallet.dat is encrypted directly' in guide.SECTIONS['Files']

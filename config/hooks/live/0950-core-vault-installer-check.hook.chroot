@@ -52,7 +52,8 @@ paths.add(Path('/etc/lightdm/lightdm.conf.d/55-core-vault-volatile-auth.conf'))
 paths.add(Path('/etc/initramfs-tools/conf.d/core-vault-noresume'))
 for d in ('/usr/share/core-vault','/usr/share/themes/CoreVault','/usr/share/plymouth/themes/core-signer'):
     paths.update(Path(d).rglob('*'))
-required=('/usr/bin/bwrap','/usr/local/libexec/core-vault-core-session',
+required=('/usr/lib/core-vault/public_export.py', '/usr/lib/core-vault/export_view.py',
+    '/usr/lib/python3/dist-packages/fusepy.py', '/usr/bin/bwrap','/usr/local/libexec/core-vault-core-session',
     '/usr/lib/core-vault/guide_visuals.py',
     '/usr/lib/core-vault/guide_content.py','/usr/lib/core-vault/ram_notice.py',
     '/usr/bin/shred','/usr/lib/core-vault-shred/engine.py',

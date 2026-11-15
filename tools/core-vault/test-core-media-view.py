@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-"""Regression for the read-only Core hotplug bridge.
+"""Regression for the Core hotplug bridge and its read-only fallback.
 
 Default checks do not mount anything. --disposable-vm additionally creates a
 private mount namespace inside QEMU/KVM, then verifies an actual child tmpfs
@@ -60,7 +60,18 @@ def policy_tests(module):
                 'target': target, 'fstype': fstype, 'options': options}), \
                 mock.patch.object(module.os, 'statvfs', return_value=mock.Mock(f_flag=flags)):
             assert module.is_read_only_view(path) is expected
-    print('[PASS] Only verified read-only media mounts are inserted; no-view fallback preserves confinement')
+    with mock.patch.object(module, 'is_export_view', return_value=True):
+        enabled = module.command_with_views(command, views, export=True)
+        assert enabled[-7:] == ['--bind', str(views[0][0]), '/media/vault',
+                                '--bind', str(views[1][0]), '/run/media/vault', command[-1]]
+    with mock.patch.object(module, 'is_export_view', return_value=False):
+        try:
+            module.command_with_views(command, views, export=True)
+        except RuntimeError:
+            pass
+        else:
+            raise AssertionError('An unverified writable filesystem was accepted.')
+    print('[PASS] Only a verified export view can use a writable bind. Read-only fallback and hotplug remain available.')
 
 
 PROBE = r"""

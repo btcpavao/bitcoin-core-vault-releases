@@ -151,15 +151,14 @@ does not prove its contents or layer count.
 
 ## Public transfers and external media
 
-**Bitcoin Core → File → Export watch-only wallet** now starts in
-**Private Workspace**. Save the public export there, then use **Files** to
-copy that specific file to the intended transfer USB. It can be restored
+In **Bitcoin Core → File → Export watch-only wallet**, select your transfer
+drive and save `watch-only.dat`. You can also save in **Private Workspace**.
+The exported watch-only wallet can be restored
 on an online Bitcoin Core 32.1-or-newer node. Compare receiving addresses
 independently before using the public wallet.
 
-Core's USB view is read-only. It can read connected drives, but saves signed
-PSBTs and public watch-only exports in private RAM. Copy completed transfer
-files with Files. Keep the original signing wallet and its decrypted
+After signing a PSBT in Core, choose **Save…**, select your writable
+transfer drive and save a new file such as `payment-signed.psbt`. Keep the original signing wallet and its decrypted
 backups offline.
 
 Files and the included file choosers use wide Places sidebars. Mounted

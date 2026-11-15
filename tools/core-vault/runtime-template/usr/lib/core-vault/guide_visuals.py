@@ -18,7 +18,7 @@ VISUALS = {
     'Start here: Vault & Node': ('workflow', 'From wallet creation to an authorized payment', 'Vault creates and signs offline. Node watches, prepares and broadcasts online. Back up the encrypted file and every required passphrase independently.'),
     'Backup components & storage': ('components', 'Three component groups; redundant copies of each', 'Recover one encrypted file copy, one GPG-passphrase copy and one Core-passphrase copy. Keep the groups separate. An additional GPG layer adds another required secret group.'),
     'Watch-Only Wallet in Bitcoin Core': ('pairing', 'Public view and private authority',
-        'Vault keeps the private keys. Core exports a public watch-only copy into Private Workspace by default. Files copies that export to USB for Restore Wallet on the online node. Compare receiving addresses independently; only Vault signs.'),
+        'Vault keeps the private keys. Export the watch-only copy to a transfer drive in Core. On the online node, open Restore Wallet and select the exported file. Compare receiving addresses independently; only Vault signs.'),
     'Home & keyboard': ('keyboard', 'Move around Home with the keyboard',
         'F12 shows Home or returns to your applications. Tab and Shift+Tab move focus; Space activates a control. In the power confirmation, Enter selects No and Esc cancels.'),
     'Bitcoin Core': ('wallet', 'Two different kinds of protection',
@@ -50,7 +50,7 @@ VISUALS = {
     'Finish Private Session': ('finish', 'Two confirmations, then five minutes to reconsider',
         'Confirm that you saved what you need, then confirm the loss of unsaved RAM data. The five-minute countdown can be cancelled or explicitly skipped. Core and the clipboard stay available until the countdown ends. Shutdown never asks for passphrases or verifies backups.'),
     'Sign a PSBT offline': ('psbt', 'Transaction files travel; private keys do not',
-        'An online coordinator prepares a PSBT. Transfer it by removable media to Private Workspace, review and sign in the offline Vault, then return the signed PSBT for online broadcast. A PSBT transfer does not carry private keys.'),
+        'An online coordinator prepares a PSBT. Open the PSBT from removable media on Vault, review and sign it, then save the signed file to the drive for online broadcast. A PSBT transfer does not carry private keys.'),
     'Recovery / inheritance': ('recovery', 'Redundancy within groups; every required group available',
         'The standard plan needs one encrypted file copy, the GPG passphrase and the separate Core passphrase. Copies within a group are alternatives; every group remains necessary. Extra GPG layers add extra secret groups.'),
     'Decrypt Backup': ('decrypt', 'Stop when the original files are recovered',
@@ -411,7 +411,7 @@ def workflow(d, _):
         ('ONLINE NODE', 'Import the public watch-only copy. Receive and prepare payments.', 'blue'))
     y += 20
     y += d.box(1, y, d.width - 2, 'Public watch-only copy: Vault to Node',
-               'Export in Core; save in Private Workspace; transfer using Files and USB.', 'green') + 20
+               'In Core, export watch-only.dat to your transfer drive. Open it on Node.', 'green') + 20
     y += d.box(1, y, d.width - 2, 'Payment file: Node to Vault to Node',
                'Create unsigned PSBT -> review and sign offline -> broadcast online.', 'blue')
     return d.footer(y + 12, 'Backup file + GPG secret + Core secret: copy each, store separately.', 'muted')
@@ -432,7 +432,7 @@ def pairing(d, _):
         ('Offline Vault', 'Private keys stay here.\nReview and sign transactions.', 'amber'),
         ('Online Node', 'Public descriptors only.\nWatch and prepare transactions.', 'blue'))
     y = d.box(1, y + 24, d.width - 2, 'Public watch-only export',
-        'Core → Private Workspace → Files → USB', 'blue') + y + 24
+        'Vault → watch-only.dat on USB → Node', 'blue') + y + 24
     y = d.box(1, y + 24, d.width - 2, 'Compare independently',
         'Receiving addresses + change addresses + next index + network', 'green') + y + 24
     return d.footer(y + 12, 'Public descriptors reveal activity, but cannot authorize spending.', 'muted')

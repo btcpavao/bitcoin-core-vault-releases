@@ -31,6 +31,7 @@ python3 tools/core-vault/check-files-recovery.py
 python3 tools/core-vault/check-places-v2.py
 python3 tools/core-vault/check-core-file-dialogs.py
 python3 tools/core-vault/test-core-media-view.py
+python3 tools/core-vault/test-public-export.py
 python3 tools/core-vault/test-optical-diagnostics.py
 python3 tools/core-vault/check-shred.py --project "$ROOT"
 python3 tools/core-vault/check-bleachbit.py

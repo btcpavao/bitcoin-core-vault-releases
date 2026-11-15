@@ -67,17 +67,18 @@ Keep the signing computer disconnected from networks. Vault disables network
 interfaces and radios, and Core runs with peer networking inactive. Helper RPC
 uses loopback and cookie authentication. No blockchain synchronization occurs.
 
-Copy imported wallet and PSBT files into RAM before working on them in Core.
-Core's filesystem isolation permits writes only to checked RAM locations.
-Use **Wallet Backup** for wallet exports and **Files** to transfer signed PSBTs
-to external media.
+Use **File → Load PSBT from file…** to open an unsigned PSBT on the transfer
+drive. Review the payment, choose **Sign Tx**, then **Save…**. Select the
+mounted drive and give the signed file a distinct name, such as
+`payment-signed.psbt`. Wait for the export to finish before ejecting the drive.
+Use **Wallet Backup** for an encrypted backup of the signing wallet.
 
 ## Watch-only wallet
 
 Use **Bitcoin Core → File → Export watch-only wallet** to save `watch-only.dat`
-in Private Workspace (the default export folder), then copy that public file to USB using Files. On an
+directly to a mounted writable transfer drive or temporarily in Private Workspace. On an
 online computer running Core 32.1 or newer, use **File → Restore Wallet**.
-File choosers have wider Places sidebars and show mounted USB volumes. The USB Media shortcut also lets an already-open Core process read newly attached media; Core still saves only to checked RAM locations.
+File choosers have wider Places sidebars and show mounted USB volumes. If you attach the drive while Core is open, look under **USB Media** or reopen the chooser.
 Vault no longer includes a separate watch-only export tool or its JSON format.
 Keep the original signing wallet offline. See [the native workflow](docs/WATCH-ONLY.md).
 

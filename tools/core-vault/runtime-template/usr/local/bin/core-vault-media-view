@@ -1,9 +1,8 @@
 #!/usr/bin/python3
-"""Keep removable media readable after hotplug without granting Core disk writes.
+"""Show hotplugged media inside Core via scoped public-export FUSE mounts.
 
-The FUSE servers run in the desktop mount namespace. Core receives read-only
-binds of their stable mount roots, so a newly attached child filesystem can be
-read even though Core's mount namespace predates it. No file contents are copied.
+The original media is never bound writable in Core. If the export filesystem
+cannot start, fall back to read-only bindfs or the read-only mount snapshot.
 """
 import json
 import os
@@ -30,6 +29,13 @@ def mount_record(path):
     if len(rows) != 1:
         raise RuntimeError('The media view mount could not be identified.')
     return rows[0]
+
+
+def is_export_view(path):
+    row = mount_record(path)
+    return (row.get('target') == str(path)
+            and row.get('fstype') == 'fuse.vault-export'
+            and {'rw', 'nosuid', 'nodev', 'noexec'}.issubset(row.get('options', '').split(',')))
 
 
 def is_read_only_view(path):
@@ -78,39 +84,62 @@ def stop_views(views):
                 pass
 
 
-def start_view(source, destination):
+def start_view(source, destination, *, export=False):
     if source.is_symlink() or source.resolve(strict=True) != source or not source.is_dir():
         raise RuntimeError('A removable-media root is unavailable or redirected.')
     destination.mkdir(mode=0o700)
-    process = subprocess.Popen(
-        [BINDFS, '-f', '-r', '--no-allow-other',
-         '-o', 'subtype=bindfs,nosuid,nodev,noexec,attr_timeout=0,entry_timeout=0,negative_timeout=0',
-         str(source), str(destination)], stdout=subprocess.DEVNULL)
+    if export:
+        args = [sys.executable, os.path.abspath(__file__), '--serve', str(source), str(destination)]
+        check = is_export_view
+    else:
+        args = [BINDFS, '-f', '-r', '--no-allow-other',
+                '-o', 'subtype=bindfs,nosuid,nodev,noexec,attr_timeout=0,entry_timeout=0,negative_timeout=0',
+                str(source), str(destination)]
+        check = is_read_only_view
+    process = subprocess.Popen(args, stdout=subprocess.DEVNULL)
     try:
         for _ in range(50):
             if process.poll() is not None:
-                raise RuntimeError('The read-only media server exited.')
-            if is_read_only_view(destination):
+                raise RuntimeError('The media server exited.')
+            if check(destination):
                 return destination, process
             time.sleep(.1)
-        raise RuntimeError('The read-only media view did not become ready.')
+        raise RuntimeError('The media view did not become ready.')
     except BaseException:
         stop_views([(destination, process)])
         raise
 
 
-def command_with_views(command, views):
+def command_with_views(command, views, *, export=False):
     if (not command or command[0] != '/usr/bin/bwrap'
             or command[-1] != '/usr/local/libexec/core-vault-core-session'
             or command[1:4] != ['--ro-bind', '/', '/']):
         raise RuntimeError('The media helper only wraps the confined Core command.')
     extra = []
     for source, (destination, _) in zip(SOURCES, views):
-        extra.extend(['--ro-bind', str(destination), str(source)])
+        if export and not is_export_view(destination):
+            raise RuntimeError('Expected the verified public-export filesystem.')
+        extra.extend(['--bind' if export else '--ro-bind', str(destination), str(source)])
     return command[:-1] + extra + command[-1:]
 
 
+def serve(source, destination):
+    from fusepy import FUSE
+    sys.path.insert(0, '/usr/lib/core-vault')
+    from export_view import MediaView
+    validate_runtime()
+    if source not in SOURCES or destination.parent.parent != RUNTIME:
+        raise RuntimeError('Invalid Core media view.')
+    with tempfile.TemporaryDirectory(prefix='vault-public-stage-', dir=RUNTIME) as scratch:
+        FUSE(MediaView(source, scratch), str(destination), foreground=True, nothreads=True,
+             subtype='vault-export', fsname='vault-export', nosuid=True, nodev=True, noexec=True,
+             direct_io=True, atomic_o_trunc=True, attr_timeout=0, entry_timeout=0, negative_timeout=0)
+
+
 def main():
+    if len(sys.argv) == 4 and sys.argv[1] == '--serve':
+        serve(Path(sys.argv[2]), Path(sys.argv[3]))
+        return 0
     command = sys.argv[1:]
     if command[:1] == ['--']:
         command = command[1:]
@@ -131,28 +160,34 @@ def main():
     for number in (signal.SIGHUP, signal.SIGINT, signal.SIGTERM):
         signal.signal(number, forward_signal)
     temporary = tempfile.mkdtemp(prefix='core-vault-media-view-', dir=RUNTIME)
+    export = True
     try:
-        try:
-            for index, source in enumerate(SOURCES):
-                views.append(start_view(source, Path(temporary) / str(index)))
-        except (OSError, RuntimeError, subprocess.SubprocessError) as error:
-            stop_views(views)
-            views.clear()
-            # Preserve the existing root read-only snapshot if FUSE is
-            # unavailable. Never replace it with writable mount propagation.
-            print('Core live USB refresh unavailable; existing media remains read-only: '
-                  + str(error), file=sys.stderr)
+        for export in (True, False):
+            try:
+                for index, source in enumerate(SOURCES):
+                    dest = Path(temporary) / (('export-' if export else '') + str(index))
+                    views.append(start_view(source, dest, export=export))
+                break
+            except (OSError, RuntimeError, subprocess.SubprocessError) as error:
+                stop_views(views)
+                views.clear()
+                print('Core media view unavailable: ' + str(error), file=sys.stderr)
+                if export:
+                    try:
+                        subprocess.Popen(['/usr/bin/zenity', '--warning', '--title=External export unavailable',
+                                          '--text=Save files in Private Workspace. Direct external export is unavailable for this session.'],
+                                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    except OSError:
+                        pass
         if received_signal is not None:
             return 128 + received_signal
-        child = subprocess.Popen(command_with_views(command, views), pass_fds=(3,))
+        child = subprocess.Popen(command_with_views(command, views, export=export), pass_fds=(3,))
         result = child.wait()
         return result if result >= 0 else 128 - result
     finally:
         stop_views(views)
-        # Never recursively walk a removable-media view during cleanup.
         # rmdir refuses a still-mounted or nonempty directory without reading it.
-        for index in range(len(SOURCES)):
-            destination = Path(temporary) / str(index)
+        for destination in Path(temporary).iterdir():
             try:
                 destination.rmdir()
             except FileNotFoundError:

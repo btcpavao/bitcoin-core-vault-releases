@@ -14,6 +14,7 @@ ROOT=Path(__file__).resolve().parents[2]
 INC=ROOT/'config/includes.chroot'
 REQUIRED=(
     'usr/lib/core-vault/runtime.py','usr/lib/core-vault/export.py',
+    'usr/lib/core-vault/export_view.py','usr/lib/core-vault/public_export.py',
     'usr/local/libexec/core-vault-prepare','usr/local/libexec/core-vault-destroy',
     'usr/local/sbin/core-vault-end-session','usr/local/bin/core-vault-finish',
     'usr/local/bin/core-vault-wallet-backup','usr/local/bin/core-vault-security-check',
@@ -129,7 +130,7 @@ def check():
     if 'def check_core_mounts():' not in runtime or "'--uniq', '--list', '-J'" not in runtime:
         raise RuntimeError('Core mount topology validation is missing.')
     for relative in ('config/package-lists/core-vault.list.chroot','tools/core-vault/manifests/core-vault.list.chroot'):
-        if not {'bubblewrap', 'bindfs', 'fuse3'}.issubset((ROOT/relative).read_text().splitlines()):
+        if not {'bubblewrap', 'bindfs', 'fuse3', 'python3-fusepy'}.issubset((ROOT/relative).read_text().splitlines()):
             raise RuntimeError('Core filesystem isolation dependency is missing.')
     print('VAULT RAM-ONLY PRIVATE SESSION SOURCE CHECK PASSED')
 

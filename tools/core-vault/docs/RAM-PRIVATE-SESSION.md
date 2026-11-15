@@ -84,14 +84,14 @@ already exists. Installer mode retains its dedicated Calamares session.
 | XDG config/cache/data/state | Subdirectories of the RAM home | RAM session |
 | Export receipts and archive hashes | `/run/core-vault/state` | RAM session |
 | Ordinary system scratch / print spools | tmpfs `/tmp`, `/var/tmp`, `/var/log`, `/var/spool/cups`, `/var/cache/cups` | Boot |
-| Intentional encrypted exports | Selected USB/external filesystem | Persistent on selected media |
+| Intentional encrypted backups and approved public exports | Selected USB/external filesystem | Persistent on selected media |
 
 No executable is copied into the private mount. Required programs remain in
 the persistent, root-owned OS directories. Shell commands and Python scripts
 can still be read by their interpreters; `noexec` is not an application sandbox.
 
 Bitcoin Core now runs inside an unprivileged bubblewrap filesystem namespace.
-The OS, removable media and device filesystem are read-only to Core. Only the
+The OS and device filesystem are read-only to Core. The two desktop media roots expose imports and validated public exports. Only the
 verified RAM home/workspace, Core's private runtime and RAM system scratch are
 writable. The shared desktop runtime `/run/user/1000` remains read-only to Core;
 the outer startup lock stays there. `/dev/shm` is also read-only, so an unloaded wallet cannot be hidden
@@ -99,9 +99,12 @@ in a child-only temporary filesystem. Core's local RPC and process identities
 are preserved. There is no unsandboxed fallback when isolation cannot start.
 Both launch stages also reject descendant mounts under the writable RAM roots;
 recursive binds must not import a GVFS/portal filesystem or another tmpfs there.
-Normal Core save dialogs therefore save raw wallet backups and signed PSBTs in
-RAM. Wallet Backup exports encrypted archives separately; Files transfers signed
-PSBTs. Copy newly attached imports to Private Workspace before opening in Core.
+Raw signing-wallet backups stay in RAM. Two native Core operations can export
+to a mounted writable removable drive: signing-window **Save…** for a PSBT and
+**File → Export watch-only wallet** for a public wallet. The media helper stages
+the proposed file and any SQLite journal in RAM. It checks the export format
+before writing to the selected volume; a private wallet cannot be exported by
+renaming it. Use Wallet Backup for the encrypted signing-wallet archive.
 The installed `/media` mountpoint directory is protected tmpfs too, avoiding
 persistent media-label directories without changing external child filesystems.
 

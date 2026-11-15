@@ -141,6 +141,21 @@
       "uid": 0,
       "gid": 0,
       "mode": "-rw-r--r--"
+    },
+    "usr/lib/core-vault/export_view.py": {
+      "uid": 0,
+      "gid": 0,
+      "mode": "-rw-r--r--"
+    },
+    "usr/lib/core-vault/public_export.py": {
+      "uid": 0,
+      "gid": 0,
+      "mode": "-rw-r--r--"
+    },
+    "usr/lib/python3/dist-packages/fusepy.py": {
+      "uid": 0,
+      "gid": 0,
+      "mode": "-rw-r--r--"
     }
   },
   "reviewed_updates": [

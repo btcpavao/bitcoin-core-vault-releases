@@ -1,9 +1,10 @@
 # Native watch-only workflow (Bitcoin Core 32.1)
 
 Vault uses the unmodified Bitcoin Core GUI for export. Select the signing wallet,
-then File → Export watch-only wallet. Save `watch-only.dat` in Private Workspace
-and copy that public file to transfer media using Files. Core remains confined
-to checked RAM write locations. Never transfer the original signing wallet.
+then **File → Export watch-only wallet**. Select your mounted writable transfer
+drive and save `watch-only.dat`. Wait for the export to finish before ejecting
+the drive. Choose Private Workspace for a temporary RAM copy. Keep the original
+signing wallet offline.
 
 On an online computer with Core 32.1 or newer, use File → Restore Wallet, select
 the exported file and name the new wallet. Confirm watch-only status and compare
