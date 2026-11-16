@@ -1,6 +1,6 @@
 # Bitcoin Core Vault — backup and recovery
 
-This guide covers Vault Backup 0.7.5 in Bitcoin Core Vault v0.6.0.
+This guide covers Vault Backup 0.7.5 in Bitcoin Core Vault v0.7.0.
 The in-app Vault Guide contains the same workflow. Keep a copy of your own
 recovery instructions outside the encrypted backup they explain.
 

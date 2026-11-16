@@ -1,15 +1,15 @@
 # Build Bitcoin Core Vault and compare the complete ISO
 
-Use the [v0.6.0 release](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/tag/v0.6.0) and the Git revision
-`26e590741c968316b99416c51a53b9720d8134cb` for this walkthrough. The
-[release build on GitHub](https://github.com/btcpavao/bitcoin-core-vault-releases/actions/runs/43397223031) runs two clean builders, compares their
+Use the [v0.7.0 release](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/tag/v0.7.0) and the Git revision
+`5346a0db977049a028429482ff943619c52009c4` for this walkthrough. The
+[release build on GitHub](https://github.com/btcpavao/bitcoin-core-vault-releases/actions/runs/43864705133) runs two clean builders, compares their
 complete ISO files and installs the resulting image on a blank UEFI virtual disk.
 
 The signature authenticates the maintainer’s checksum list. Rebuilding lets
 you compare the bytes produced by the published source with those in your
 download. Reviewing what the source does is a separate step.
 
-## Build v0.6.0
+## Build v0.7.0
 
 1. On a separate 64-bit Intel or AMD Linux machine or disposable Linux VM, install Git and Docker Engine. Use a machine without wallets, passphrases or signing keys. Docker needs to mount filesystems inside the build container. Allow several gigabytes for downloads and approximately 40 GiB of working space. Run `git --version` and `docker run --rm hello-world`. If your disposable Linux VM requires `sudo docker`, use `--sudo-docker` before the output directory in step 4. Your source and output stay under your own account.
 2. Clone the repository and check out the release revision. The final command must print the exact 40-character commit shown above. The source tarball attached to the release is useful for inspection. The build script needs a Git checkout to archive the committed tree.
@@ -17,14 +17,14 @@ download. Reviewing what the source does is a separate step.
    ```bash
    git clone https://github.com/btcpavao/bitcoin-core-vault-releases.git vault-source
    cd vault-source
-   revision=26e590741c968316b99416c51a53b9720d8134cb
+   revision=5346a0db977049a028429482ff943619c52009c4
    git switch --detach "$revision" && git rev-parse HEAD
    ```
 
-3. Review the changes. The previous signed stable release was v0.5.0. Compare its revision below with the v0.6.0 checkout. `--stat` lists the changed files. The second command shows the actual changes, including image hooks, settings, local packages and build tools. In the pager, press **Space** to continue and **q** to return.
+3. Review the changes. The previous signed stable release was v0.6.0. Compare its revision below with the v0.7.0 checkout. `--stat` lists the changed files. The second command shows the actual changes, including image hooks, settings, local packages and build tools. In the pager, press **Space** to continue and **q** to return.
 
    ```bash
-   previous=723d3a8957e86a06853e3ac059159c71174f3c50
+   previous=26e590741c968316b99416c51a53b9720d8134cb
    git diff --stat "$previous" HEAD
    git diff "$previous" HEAD
    git ls-tree -r --long HEAD config/packages.chroot
@@ -48,7 +48,7 @@ download. Reviewing what the source does is a separate step.
 
    Keep `bitcoin-core-vault-amd64.iso`, the build-input record, package lists, archive metadata and build log. A second person can run the same commands with the same commit on their own computer. The GitHub workflow also builds on two separate hosted runners and compares both entire files. A copy made by the same hosting provider is useful for repeatability. A separately operated builder provides additional independent evidence.
 
-5. Download `bitcoin-core-vault-v0.6.0-amd64.iso`, `SHA256SUMS`, `SHA256SUMS.asc` and `btcpavao-pgp.asc` from the [same v0.6.0 release](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/tag/v0.6.0) into a new directory named `release` next to `vault-source`. From the source directory:
+5. Download `bitcoin-core-vault-v0.7.0-amd64.iso`, `SHA256SUMS`, `SHA256SUMS.asc` and `btcpavao-pgp.asc` from the [same v0.7.0 release](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/tag/v0.7.0) into a new directory named `release` next to `vault-source`. From the source directory:
 
    ```bash
    cd ../release
@@ -64,17 +64,17 @@ download. Reviewing what the source does is a separate step.
      trap 'rm -rf -- "$keyring"' EXIT
      gpg --homedir "$keyring" --batch --import btcpavao-pgp.asc
      gpg --homedir "$keyring" --batch --assert-signer 787A2AAFB0D119CA0522B2A5B9C99AF8578896D0 --verify SHA256SUMS.asc SHA256SUMS
-     published=bitcoin-core-vault-v0.6.0-amd64.iso
+     published=bitcoin-core-vault-v0.7.0-amd64.iso
      rebuilt=../vault-result/bitcoin-core-vault-amd64.iso
      expected=$(awk -v name="$published" '$2 == name || $2 == "*" name {print $1; n++} END {if (n != 1) exit 1}' SHA256SUMS)
      [[ $expected =~ ^[0-9a-f]{64}$ ]]
      printf '%s  %s\n' "$expected" "$published" "$expected" "$rebuilt" | sha256sum --strict --check -
      cmp -- "$rebuilt" "$published"
-     echo 'Your rebuilt ISO matches the signed Vault v0.6.0 download byte for byte.'
+     echo 'Your rebuilt ISO matches the signed Vault v0.7.0 download byte for byte.'
    )
    ```
 
-   The published v0.6.0 ISO is 714,080,256 bytes. Its expected SHA-256 is `d1e3656099875e6cde7ed6c78fcf9ee3217d8bed4f8ccd5500b4231ad6bfa8ba`.
+   The published v0.7.0 ISO is 714,080,256 bytes. Its expected SHA-256 is `1e1782d6dc1354585cf6ec941ed7d231f0e48adfc0cee3972af1eaf3483424bb`.
 
 6. If hashes differ, keep both hashes, the exact commit, package lists and build logs. `diffoscope --html vault-difference.html first.iso second.iso` compares two files you already have (replace their names). If the build stops earlier, record the first failing command plus the preceding error. Report the discrepancy with those public records. An error, a skipped workflow or a difference is an open investigation.
 
@@ -89,4 +89,5 @@ Copy public output into your LLM and ask, “I am following Vault's REBUILD.md. 
 
 ### Earlier releases and build records
 
+[v0.6.0](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/tag/v0.6.0) contains the previous signed ISO with its acceptance record.
 [v0.5.0](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/tag/v0.5.0) has its own signed checksum for an image assembled from an earlier local build. The [assembly candidate](rebuilds/9f466c5df912.md) and [native-source candidate](rebuilds/71242344618b.md) each have a separate unsigned ISO, source revision and comparison record.
