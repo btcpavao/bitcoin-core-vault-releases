@@ -27,6 +27,10 @@ PUBLIC_ROWS = frozenset({
 PUBLIC_FLAGS = (1 << 32) | (1 << 34)  # DISABLE_PRIVATE_KEYS and DESCRIPTORS
 
 
+class ExportCancelled(ValueError):
+    """The user declined publication before any bytes reached the drive."""
+
+
 def core_check(method, argument, *, result=False):
     # stdin keeps the PSBT/descriptor out of process listings and accepts
     # arguments longer than Linux's per-argument limit.
@@ -140,8 +144,10 @@ def check_watchonly(path):
                        'Any labels, notes or passphrases entered in these fields travel with the file. '
                        'Anyone with the file can read them. Please check these entries before exporting.',
             ], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=120)
+        if consent.returncode == 1:
+            raise ExportCancelled('Export cancelled before writing wallet metadata to the drive.')
         if consent.returncode:
-            raise ValueError('Export cancelled before writing wallet metadata to the drive.')
+            raise ValueError('Vault could not confirm permission to export wallet metadata.')
 
 
 def validate_export(path, kind):

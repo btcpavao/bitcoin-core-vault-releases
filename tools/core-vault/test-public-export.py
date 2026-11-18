@@ -145,11 +145,15 @@ class PublicExportTests(unittest.TestCase):
         with patch.object(export, 'core_check', return_value={'hasprivatekeys': False}), \
                 patch.object(export, 'retain_core_windows', side_effect=OSError('No XComposite')), \
                 patch.object(export.subprocess, 'run', return_value=Mock(returncode=1)) as question:
-            with self.assertRaisesRegex(ValueError, 'cancelled'):
+            with self.assertRaisesRegex(export.ExportCancelled, 'cancelled'):
                 self.target('public.dat').publish(self.stage, 'watchonly')
             self.assertEqual(list(self.drive.iterdir()), [])
             self.assertIn('--default-cancel', question.call_args.args[0])
             self.assertNotIn('example label', str(question.call_args))
+            question.return_value = Mock(returncode=-15)
+            with self.assertRaisesRegex(ValueError, 'could not confirm permission'):
+                self.target('public.dat').publish(self.stage, 'watchonly')
+            self.assertEqual(list(self.drive.iterdir()), [])
             question.return_value = Mock(returncode=0)
             self.target('public.dat').publish(self.stage, 'watchonly')
         self.assertEqual((self.drive / 'public.dat').read_bytes(), self.stage.read_bytes())

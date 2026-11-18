@@ -14,7 +14,7 @@ import time
 
 from fusepy import FuseOSError, Operations
 
-from public_export import open_target
+from public_export import ExportCancelled, open_target
 
 PSBT_LIMIT = 100_000_000  # Core's maximum accepted PSBT size (exclusive).
 DIR = os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
@@ -299,8 +299,25 @@ class MediaView(Operations):
         return 0
 
     def fsync(self, path, datasync, fh):
-        os.fsync(fh)
+        try:
+            os.fsync(fh)
+        except OSError as exc:
+            record, key, writable = self.handles[fh]
+            if writable and record and not record.failed:
+                record.failed = True
+                self.report(key, storage_error(exc))
+            raise
         return 0
+
+    def publish(self, key, record, kind):
+        try:
+            record.target.publish(record.main, kind)
+        except Exception as exc:
+            record.failed = True
+            if not isinstance(exc, ExportCancelled):
+                self.report(key, exc)
+            raise FuseOSError(getattr(exc, 'errno', None) or errno.EIO) from exc
+        record.committed = True
 
     def flush(self, path, fh):
         record, key, writable = self.handles[fh]
@@ -309,16 +326,12 @@ class MediaView(Operations):
             if stage == record.main:
                 if key.lower().endswith('.dat') and os.fstat(fh).st_size == 0:
                     return 0  # Core's initial create probe, no durable write.
-                try:
-                    if record.journal.exists():
-                        raise RuntimeError('The wallet database transaction is incomplete.')
-                    kind = 'psbt' if key.lower().endswith('.psbt') else 'watchonly'
-                    record.target.publish(record.main, kind)
-                    record.committed = True
-                except Exception as exc:
+                if record.journal.exists():
                     record.failed = True
-                    self.report(key, exc)
-                    raise FuseOSError(getattr(exc, 'errno', None) or errno.EIO) from exc
+                    self.report(key, 'The wallet database transaction is incomplete.')
+                    raise FuseOSError(errno.EIO)
+                kind = 'psbt' if key.lower().endswith('.psbt') else 'watchonly'
+                self.publish(key, record, kind)
         return 0
 
     def release(self, path, fh):
@@ -334,10 +347,23 @@ class MediaView(Operations):
     def unlink(self, path):
         key = self.key(path)
         record, stage = self.staged(key)
-        if not record or record.committed:
+        if not record:
+            # Core removes the failed export after closing its last handle.
+            # Its staging file may already be gone. Report ENOENT in that
+            # case, while keeping real files on the drive read-only.
+            self.backing_stat(key)
+            raise FuseOSError(errno.EROFS)
+        if record.committed:
             raise FuseOSError(errno.EROFS)
         if stage == record.journal:
             stage.unlink()
+            # Core backs its in-memory wallet up in one SQLite transaction to
+            # a new, empty database. DELETE-mode journal removal is its commit
+            # point. A rollback restores the original zero-page database.
+            # Return publication failures here: Core checks sqlite3_backup_step
+            # and sqlite3_backup_finish, but does not check the later close.
+            if not record.failed and record.main.stat().st_size:
+                self.publish(key[:-8], record, 'watchonly')
         elif not record.handles:
             self.forget(key)
         else:
