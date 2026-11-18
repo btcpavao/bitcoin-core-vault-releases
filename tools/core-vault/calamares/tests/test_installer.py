@@ -29,6 +29,23 @@ class DiskTests(unittest.TestCase):
         with self.assertRaises(D.UnsafeDisk):self.check(n)
     def test_usb_sysfs(self):
         with self.assertRaises(D.UnsafeDisk):self.check(sysfs='/sys/pci/usb1/1-2/block/vda')
+    def test_sbp(self):
+        n=disk(); n.update(name='/dev/sda',tran='sbp')
+        with self.assertRaises(D.UnsafeDisk): self.check(n)
+    def test_external_nvme_port(self):
+        n=disk(); n.update(name='/dev/nvme0n1',tran='nvme')
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp); bridge=root/'host'/'bridge'
+            device=bridge/'endpoint'/'nvme'/'nvme0n1'
+            device.mkdir(parents=True)
+            pci=root/'bus'/'pci'; pci.mkdir(parents=True)
+            (bridge/'subsystem').symlink_to(pci)
+            (bridge/'removable').write_text('removable')
+            with self.assertRaises(D.UnsafeDisk): self.check(n,sysfs=str(device))
+            (bridge/'removable').write_text('fixed')
+            self.check(n,sysfs=str(device))
+            (bridge/'untrusted').write_text('1')
+            with self.assertRaises(D.UnsafeDisk): self.check(n,sysfs=str(device))
     def test_readonly(self):
         n=disk();n['ro']=True
         with self.assertRaises(D.UnsafeDisk):self.check(n)
@@ -143,7 +160,12 @@ class SourceTests(unittest.TestCase):
     def test_safe_vm(self):
         s=(ROOT/'tools/core-vault/vm-installer-test.sh').read_text();self.assertIn('-nic none',s);self.assertIn('qemu-img create -f qcow2',s);self.assertNotIn('file=/dev/',s);self.assertIn('-no-reboot',s)
     def test_no_host_packages_in_builder(self):
-        s=(ROOT/'tools/core-vault/prepare-installer.sh').read_text();self.assertLess(s.index('chroot "$BUILDER"'),s.index('apt-get install'))
+        wrapper=(ROOT/'tools/core-vault/prepare-installer.sh').read_text()
+        self.assertIn('bash tools/rebuild/compile-package.sh calamares',wrapper)
+        self.assertNotIn('apt-get install',wrapper)
+        compiler=(ROOT/'tools/rebuild/compile-package.sh').read_text()
+        self.assertIn('docker_command=(docker)',compiler)
+        self.assertIn('exec bash /src/tools/rebuild/packages/compiler-entry.sh',compiler)
     def test_yaml_parses(self):
         for p in (INC/'etc/calamares').rglob('*.conf'):yaml.safe_load(p.read_text())
     def test_python_parses(self):

@@ -27,6 +27,7 @@ for suite in trixie trixie-updates trixie-security; do
     printf 'deb [check-valid-until=no signed-by=%s] %s %s main\n' "$key" "$mirror" "$suite"
     printf 'deb-src [check-valid-until=no signed-by=%s] %s %s main\n' "$key" "$mirror" "$suite"
 done > /etc/apt/sources.list
+bash /src/tools/rebuild/apt-pin-config.sh > /etc/apt/apt.conf.d/99vault-snapshot.conf
 apt-get -o Acquire::Retries=4 update
 apt-get install -y --no-install-recommends build-essential dpkg-dev fakeroot ca-certificates xz-utils python3 file
 if [[ $kind == calamares ]]; then

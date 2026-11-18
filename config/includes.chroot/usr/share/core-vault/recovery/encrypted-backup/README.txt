@@ -50,10 +50,10 @@ Six independent uniformly selected words from the 7,776-word EFF list provide ab
 
 
 Clipboard default
-Clear clipboard after is initially unchecked to allow time for copying multiple independent secrets. The secret remains available until replaced, explicitly cleared, or released by the session or clipboard owner. Other local applications may read it for longer. No clipboard-history application is installed by this workflow.
+KeePassXC clears a copied passphrase after 10 seconds by default. Other applications in the session can read it during that time. If it expires before you finish, copy the same passphrase from the generator again.
 
 
-To enable automatic clearing, open Tools → Settings → Security → Clear clipboard after, choose the timeout, and save. Relaunching KeePassXC does not overwrite your choice. Both Live and installed Vault use volatile user profiles: a fresh private session starts with the image defaults. Finish Private Session clears the clipboard.
+To adjust the timeout, open Tools → Settings → Security → Clear clipboard after and save your choice. Relaunching KeePassXC does not overwrite your choice. Both Live and installed Vault use volatile user profiles: a fresh private session starts with the image defaults. Finish Private Session clears the clipboard.
 
 
 Keep a deliberate recovery copy of every required secret. A KeePassXC database may hold a copy, but keeping every secret in one immediately accessible database defeats their geographic separation. Never keep the only database inside the backup it unlocks, or the only database password inside that database.
@@ -89,7 +89,7 @@ Open Decrypt Backup on Home, double-click a .gpg file in Files, or choose Decryp
 - Choose Private Workspace or a writable USB drive, name a new folder and click Decrypt Backup.
 - Vault authenticates each layer and restores the original filenames and folder structure into the chosen folder.
 
-If a secret is missing or wrong, add or correct it and retry. Damage and unsupported encryption can also cause a failure. Partial recovered data are discarded on failure or cancellation. Existing files are never overwritten.
+If a secret is missing or wrong, add or correct it and retry. Damage and unsupported encryption can also cause a failure. Vault discards incomplete results in RAM. When copying authenticated files to USB, power loss or unplugging the drive can leave partial plaintext on the drive. Existing files are never overwritten.
 
 
 For an ordinary GPG file made outside Vault, select Recover one ordinary GPG layer only. This deliberately stops after one authenticated layer and saves recovered-file; it does not guess whether your original data are themselves encrypted. Rename or handle that file explicitly. Vault backups always use a standard TAR package as their final payload; an original GPG file inside the package is preserved unchanged.

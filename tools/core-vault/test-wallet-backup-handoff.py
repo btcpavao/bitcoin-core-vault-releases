@@ -28,9 +28,14 @@ for folder in ('config/includes.chroot','tools/core-vault/runtime-template'):
                 def __init__(self):actions.append('progress-open')
                 def close(self):actions.append('progress-closed')
             def do_export(wallet_name,path,password,progress):
+                assert wallet_name == '--test-wallet'
                 assert actions[-1]=='progress-open'
                 actions.append('encrypted-verified')
                 return path
+            def select_wallet(*args):
+                assert args[args.index('--') + 1:] == ('0', 'test-wallet', '1', '--test-wallet')
+                assert '--print-column=1' in args
+                return '1'
             def popup(*args,**kw):actions.append('message')
             def spawn(cmd,**kw):
                 assert actions[-1]=='progress-closed', 'Thunar opened before progress/dialog closed'
@@ -38,8 +43,8 @@ for folder in ('config/includes.chroot','tools/core-vault/runtime-template'):
             module=SimpleNamespace(Popen=spawn, DEVNULL=object())
             env=dict(os=os,Path=Path,PRIVATE=private,subprocess=module,
                 harden=lambda:None,check_storage=lambda:None,
-                wallet_files=lambda:{'test-wallet':wallet},check_loaded_wallet_coverage=lambda w:None,
-                dialog=lambda *a:'0',get_backup_request=lambda *a,**kw:(destination,['fixture-passphrase']),
+                wallet_files=lambda:{'test-wallet':wallet, '--test-wallet':wallet},check_loaded_wallet_coverage=lambda w:None,
+                dialog=select_wallet,get_backup_request=lambda *a,**kw:(destination,['fixture-passphrase']),
                 validate_password=lambda a:None,backup_destination=lambda p:p,
                 Progress=Progress, export_wallet=do_export, message=popup,
                 Cancelled=type('Cancelled',(Exception,),{}),BackupError=Exception,RuntimeError=RuntimeError)

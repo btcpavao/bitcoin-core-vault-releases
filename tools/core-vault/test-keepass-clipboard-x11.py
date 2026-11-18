@@ -35,7 +35,7 @@ def bus_test(project, output, config):
         marker=pic.pixelColor(20,280)
         assert marker.green()>marker.red()+10,'Security page was not displayed'
         dark=sum(pic.pixelColor(x,y).lightness()<100 for x in range(140,152) for y in range(167,178))
-        assert (dark>5)==(launch==2),'Unexpected actual Settings checkbox state'
+        assert (dark>5)==(launch<2),'Unexpected actual Settings checkbox state'
         results['launch-'+str(launch)+'-checkbox-enabled']=dark>5
     try:
         for launch in range(3):
@@ -49,7 +49,7 @@ def bus_test(project, output, config):
             settings(launch);click(750,551)
             click(595,54);click(713,136)
             secret=app.clipboard().text();assert secret,'Generator did not copy'
-            if launch<2:
+            if launch==2:
                 wait(31)
                 field=QLineEdit();field.paste()
                 assert field.text()==secret,'Clipboard cleared before 31 seconds'
@@ -62,9 +62,9 @@ def bus_test(project, output, config):
             click(690,543)
             if launch==1:
                 click(637,54);click(58,275);click(145,172);click(750,551)
-                assert 'ClearClipboard=true' in config.read_text()
+                assert 'ClearClipboard=false' in config.read_text()
             process.terminate();process.wait(timeout=5);process=None
-            assert 'ClearClipboard='+('true' if launch>=1 else 'false') in config.read_text()
+            assert 'ClearClipboard='+('false' if launch>=1 else 'true') in config.read_text()
         (output/'result.json').write_text(json.dumps(results,indent=2)+'\n')
         print(json.dumps(results),flush=True)
         print('VAULT KEEPASSXC CLIPBOARD DEFAULT AND USER PREFERENCE TEST PASSED',flush=True)
@@ -91,7 +91,7 @@ def main():
             (tmp/name).mkdir(mode=0o700)
         config=tmp/'config/keepassxc.ini'
         defaults=(project/'config/includes.chroot/etc/skel/.config/keepassxc/keepassxc.ini').read_text()
-        assert 'ClearClipboard=false' in defaults
+        assert 'ClearClipboard=true' in defaults
         # Test-only: allow isolated test process alongside an existing host app.
         # Production image/launcher settings and the host profile are untouched.
         config.write_text(defaults.replace('[General]','[General]\nSingleInstance=false'))

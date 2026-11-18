@@ -92,6 +92,11 @@ with tempfile.TemporaryDirectory(
     )
 
 
+    assert 'usr/local/bin/core-signer-session' not in listing
+    sessions = [line.split('squashfs-root/', 1)[-1] for line in listing.splitlines()
+                if '/xsessions/' in line or '/wayland-sessions/' in line or '/lightdm/sessions/' in line]
+    assert [entry for entry in sessions if '.desktop' in entry] == ['usr/share/xsessions/core-vault.desktop']
+
     for expected in (
         "usr/local/bin/core-vault-home",
         "usr/local/bin/core-vault-session",

@@ -3,7 +3,7 @@ from pathlib import Path
 import hashlib,json,subprocess
 VERSION='3.3.14-1+corevault5'
 INPUTS = (
-    'tools/rebuild/inputs.env', 'tools/rebuild/InRelease.sha256',
+    'tools/rebuild/inputs.env', 'tools/rebuild/InRelease.sha256', 'tools/rebuild/apt-pin-config.sh',
     'tools/rebuild/packages/build.sh', 'tools/rebuild/packages/compiler-entry.sh',
     'tools/rebuild/compile-package.sh', 'tools/core-vault/prepare-installer.sh',
 )

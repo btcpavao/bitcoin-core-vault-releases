@@ -41,7 +41,11 @@ assert 'WebInterface No' in cups
 
 rule = (INC / 'etc/polkit-1/rules.d/49-core-vault-printer.rules').read_text()
 assert 'subject.user == "vault"' in rule
-assert 'org.opensuse.cupspkhelper.mechanism.' in rule
+import re
+assert set(re.findall(r'"org\.opensuse\.cupspkhelper\.mechanism\.([^"]*)"', rule)) == {
+    'devices-get', 'printer-local-edit'
+}
+assert 'subject.local && subject.active' in rule
 
 packages = (ROOT / 'config/package-lists/core-vault.list.chroot').read_text().splitlines()
 for package in (

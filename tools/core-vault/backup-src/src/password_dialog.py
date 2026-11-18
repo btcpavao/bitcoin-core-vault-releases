@@ -362,7 +362,8 @@ class PassphraseDialog(QDialog):
                       if path.is_relative_to(Path(self.locations.itemData(i)))), -1)
         self.locations.setCurrentIndex(index)
         self.locations.setToolTip(self.locations.currentData(Qt.ItemDataRole.ToolTipRole) or '')
-        self.media_note.setText('Recovered files will stay on this USB drive without the backup’s GPG protection.'
+        self.media_note.setText(('Recovered files will be written to this drive without GPG protection. '
+                                 'Interrupting the copy can leave plaintext on the drive.')
                                 if self.recovery else 'The encrypted backup will be saved on this USB drive.')
         external_recovery = (self.recovery and self.checked_destination is not None and
                              self.checked_destination.parent != self.workspace)

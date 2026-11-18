@@ -19,7 +19,10 @@ a receiving address independently before use. Older wallets may need a rescan;
 pruned nodes may need blocks they no longer hold.
 
 The native database includes public descriptors, cached derivations, transactions
-and address book data, without private keys. It is not a signing backup. Keep a
+and address book data, including any labels or notes you entered. Never use
+these fields for passphrases or private keys. Direct external export asks for
+confirmation when the database contains address book or transaction records.
+Please also review your labels before manually copying a RAM export to a drive. It is not a signing backup. Keep a
 separate verified encrypted signing-wallet backup offline. Encrypt the public
 copy with Files → Create Encrypted Backup if desired; Core itself does not add
 Vault's GPG wrapping. RAM-only copies disappear at shutdown.

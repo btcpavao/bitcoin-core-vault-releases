@@ -50,7 +50,7 @@ def status_icon(error=False, recovery=False):
 
 
 class ResultDialog(QDialog):
-    def __init__(self, text, error=False, parent=None, *, operation=None):
+    def __init__(self, text, error=False, parent=None, *, operation=None, external=False):
         super().__init__(parent)
         self.setObjectName('VaultResultDialog')
         recovery = operation == 'recovery'
@@ -73,8 +73,12 @@ class ResultDialog(QDialog):
         self.icon_label.setFixedSize(52, 52)
         row.addWidget(self.icon_label, 0, Qt.AlignTop)
         text_box = QVBoxLayout()
-        self.heading = QLabel(('GPG recovery could not be completed' if error else 'File recovered to RAM')
-            if recovery else ('Backup could not be completed' if error else 'Encrypted backup ready'))
+        if recovery:
+            success = 'Files recovered to removable drive' if external else 'File recovered to RAM'
+            heading = 'GPG recovery could not be completed' if error else success
+        else:
+            heading = 'Backup could not be completed' if error else 'Encrypted backup ready'
+        self.heading = QLabel(heading)
         self.heading.setObjectName('resultTitle')
         self.heading.setWordWrap(True)
         text_box.addWidget(self.heading)
@@ -96,8 +100,8 @@ class ResultDialog(QDialog):
         outer.addLayout(buttons)
 
 
-def show_message(text, error=False, *, operation=None):
+def show_message(text, error=False, *, operation=None, external=False):
     from password_dialog import ensure_app
     app = ensure_app()
-    window = ResultDialog(text, error, operation=operation)
+    window = ResultDialog(text, error, operation=operation, external=external)
     window.exec()

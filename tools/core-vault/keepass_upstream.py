@@ -144,6 +144,9 @@ def public_tree(directory):
 def install_release(candidate, root=RELEASES, key=KEY):
     """Caller is the root-only maintenance service or disposable ISO builder."""
     version(candidate['version'])
+    expected_digest = candidate.get('sha256')
+    if not isinstance(expected_digest, str) or not re.fullmatch(r'[0-9a-f]{64}', expected_digest):
+        raise UpdateError('A pinned KeePassXC SHA-256 is required for the Vault build.')
     expected = DOWNLOAD + candidate['version'] + '/' + candidate['name']
     if candidate['url'] != expected or not re.fullmatch(
             r'KeePassXC-' + re.escape(candidate['version']) + r'(?:-[1-9][0-9]{0,2})?-x86_64\.AppImage', candidate['name']):
@@ -159,6 +162,8 @@ def install_release(candidate, root=RELEASES, key=KEY):
         fetch(candidate['url'], image, 256*1024*1024)
         fetch(candidate['url'] + '.sig', signature, 64*1024)
         digest = verify_image(image, signature, key)
+        if digest != expected_digest:
+            raise UpdateError('KeePassXC does not match the pinned SHA-256.')
         image.chmod(0o700)
         # Never execute an unverified download. AppImage extraction needs no FUSE.
         subprocess.run([str(image), '--appimage-extract'], cwd=staging, check=True,

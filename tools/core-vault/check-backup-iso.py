@@ -7,7 +7,7 @@ def check(squash):
     def get(path):
         return subprocess.check_output(['unsquashfs','-cat',str(squash),path],stderr=subprocess.PIPE,timeout=90)
     record=json.loads(get('etc/core-vault/backup-build.json'))
-    if record.get('schema')!=3 or record.get('packages',{}).get('core-vault-backup')!='0.7.5':
+    if record.get('schema')!=3 or record.get('packages',{}).get('core-vault-backup')!='0.7.6':
         raise RuntimeError('Unexpected backup module build record')
     required={'usr/bin/core-vault-backup','usr/lib/core-vault-backup/backup.py',
               'usr/lib/core-vault-backup/destinations.py',
@@ -91,7 +91,7 @@ def check(squash):
                       'squashfs-root/usr/share/core-vault/recovery/veracrypt/'):
         if forbidden in listing:raise RuntimeError('Retired payload remains in ISO: '+forbidden)
 
-    if 'ClearClipboard=false' not in get('etc/skel/.config/keepassxc/keepassxc.ini').decode():
+    if 'ClearClipboard=true' not in get('etc/skel/.config/keepassxc/keepassxc.ini').decode():
         raise RuntimeError('Fresh ISO KeePassXC clipboard default is incorrect')
     if record.get('multilayer_round_trip') != 'passed':
         raise RuntimeError('Multi-layer round-trip gate is not recorded')

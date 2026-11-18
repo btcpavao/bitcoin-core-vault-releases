@@ -84,11 +84,10 @@ def _checked_media(parent, fd, root, removable, *, writing=True):
     if device in boot_devices:
         raise ValueError('Please select a drive other than the Vault boot medium.')
     if removable:
-        # Use the same block-device ancestry detection as verified wallet exports.
-        from export import media_for
-        external, location = media_for(target / '.vault-destination')
-        if not external or Path(location) != target:
-            raise ValueError('Please select a mounted USB or removable drive for recovered files.')
+        # Compare the pinned mount's physical ancestors with the boot carrier.
+        # This also covers sibling partitions, loop-backed ISOs and toram boots.
+        from public_export import require_external_volume
+        require_external_volume(fd)
 
 
 def check_media_input(path, fd=None):

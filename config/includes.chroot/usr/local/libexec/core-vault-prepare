@@ -17,6 +17,10 @@ if Path('/proc/swaps').read_text().splitlines()[1:]:
 account = pwd.getpwnam('vault')
 if (account.pw_uid, account.pw_gid, account.pw_dir) != (1000, 1000, '/home/vault'):
     raise SystemExit('Unexpected Vault account.')
+# live-config creates the Live account with a known password. LightDM
+# autologin uses the same password-locked configuration as installed Vault.
+if 'boot=live' in Path('/proc/cmdline').read_text().split():
+    subprocess.run(['/usr/bin/passwd', '--lock', 'vault'], check=True)
 os.umask(0o077)
 for name in ('home', 'home/.bitcoin', 'home/.bitcoin/wallets', 'home/Private Workspace',
              'home/.config', 'home/.cache', 'home/.local', 'home/.local/share', 'home/.local/state',

@@ -26,7 +26,7 @@ def main():
     else:
         # Use numeric IDs so arbitrary wallet names are never parsed as options.
         selected = dialog('--list', '--title=Select wallet to back up', '--hide-column=1',
-            '--column=ID', '--column=Wallet', *[value for i, name in enumerate(names) for value in (str(i), name or '(default wallet)')])
+            '--column=ID', '--column=Wallet', '--print-column=1', '--', *[value for i, name in enumerate(names) for value in (str(i), name or '(default wallet)')])
         wallet = names[int(selected)]
     default = PRIVATE
     def validate(value):

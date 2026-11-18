@@ -78,12 +78,15 @@ def check_watchonly(path):
         if int.from_bytes(flags[0], 'little') & PUBLIC_FLAGS != PUBLIC_FLAGS:
             raise ValueError('Only a watch-only wallet can be exported here. Use Wallet Backup for a signing wallet.')
         descriptors = 0
+        includes_metadata = False
         for (key,) in db.execute('SELECT key FROM main'):
             if not isinstance(key, bytes) or not key or key[0] >= 253 or len(key) < key[0]+1:
                 raise ValueError('Invalid wallet record.')
             tag = key[1:1+key[0]]
             if tag not in PUBLIC_ROWS:
                 raise ValueError('This wallet contains a record outside the public export format.')
+            if tag in (b'name', b'purpose', b'destdata', b'tx', b'wtxvariant'):
+                includes_metadata = True
             if tag == b'walletdescriptor':
                 value = db.execute('SELECT value FROM main WHERE key=?', (key,)).fetchone()[0]
                 if not isinstance(value, bytes):
@@ -94,6 +97,18 @@ def check_watchonly(path):
                 descriptors += 1
         if not descriptors:
             raise ValueError('The public wallet has no descriptors.')
+    if includes_metadata:
+        # Keep Core's native database intact. Obtain explicit consent before
+        # any bytes reach the drive, without displaying the private label text.
+        consent = subprocess.run([
+            '/usr/bin/zenity', '--question', '--default-cancel', '--no-markup',
+            '--title=Export wallet metadata?', '--ok-label=Export wallet', '--cancel-label=Cancel',
+            '--text=This watch-only wallet includes address book or transaction data. '
+                   'Any labels, notes or passphrases entered in these fields travel with the file. '
+                   'Anyone with the file can read them. Please check these entries before exporting.',
+        ], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=120)
+        if consent.returncode:
+            raise ValueError('Export cancelled before writing wallet metadata to the drive.')
 
 
 def validate_export(path, kind):
@@ -263,7 +278,7 @@ def require_external_volume(fd):
         image_hosts = [row for row in carriers if row['target'] in ('/run/live/findiso', '/run/live/fromiso')]
         if image_hosts:
             carriers = image_hosts  # Use the real filesystem hosting the ISO.
-        if boot_mounts and not carriers:
+        if not carriers:
             # Default toram flashes are covered by the whole-device ISO check.
             # A detached *file* boot loses that signature, so don't guess its
             # physical carrier when live-boot no longer exposes it.

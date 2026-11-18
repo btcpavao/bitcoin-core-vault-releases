@@ -99,8 +99,8 @@ class GuiTests(unittest.TestCase):
         mounts = {mount_id: (volume, '8:16', ['rw'])}
         self.enterContext(patch.object(destinations, 'MEDIA_ROOTS', (volume.parent,)))
         self.enterContext(patch.object(destinations, '_mounts', return_value=mounts))
-        external = SimpleNamespace(media_for=lambda _: (True, str(volume)))
-        self.enterContext(patch.dict(sys.modules, {'export': external}))
+        external = SimpleNamespace(require_external_volume=lambda fd: None)
+        self.enterContext(patch.dict(sys.modules, {'public_export': external}))
         return ram, volume, mounts
 
     def test_backup_location_picker_refreshes_and_preserves_layered_name(self):
@@ -150,6 +150,12 @@ class GuiTests(unittest.TestCase):
                     combo.hidePopup()
                     window.close()
                     self.app.processEvents()
+
+    def test_external_recovery_result_names_removable_drive(self):
+        from message_dialog import ResultDialog
+        window = ResultDialog('saved', operation='recovery', external=True)
+        self.addCleanup(window.deleteLater)
+        self.assertEqual(window.heading.text(), 'Files recovered to removable drive')
 
     def test_usb_recovery_warning_folder_retry_and_unplug(self):
         ram, volume, mounts = self.mount_fixture()

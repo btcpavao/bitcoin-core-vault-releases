@@ -92,7 +92,11 @@ An installation persists Debian, program binaries and immutable defaults,
 while user session files remain volatile. Calamares erases the selected whole
 internal disk after review and confirmations. Keep backup media disconnected
 while installing. This profile has no dual boot, manual partitioning or full-disk
-encryption. Secure Boot is disabled in the build configuration.
+encryption. Secure Boot is disabled in the build configuration. Someone with
+access to the installed disk between sessions can alter programs that will
+handle the next wallet. Keep the computer under physical control. If the disk
+may have been altered, start from a freshly verified image on write-protected
+media and trusted hardware before opening a wallet.
 
 Use the Home power controls and **Finish Private Session** when done. Finish
 shows two warnings, then a cancellable five-minute countdown before ending RAM.
@@ -141,11 +145,9 @@ Keep redundant backup copies and redundant secret recovery arrangements in
 appropriate separate locations. Geographic separation can delay access under
 coercion; it does not guarantee protection from continued coercion.
 
-KeePassXC starts with **Clear clipboard after** unchecked. This deliberately
-leaves copied secrets accessible to local applications for longer. Enable
-automatic clearing in **Tools → Settings → Security** if preferred. Relaunching
-the application preserves that choice within the session; a fresh volatile
-profile starts with the image defaults.
+KeePassXC clears a copied passphrase after 10 seconds by default. If the
+clipboard expires before you finish, copy the same passphrase again. Adjust the
+timeout in **Tools → Settings → Security**. A fresh Vault session restores the default.
 
 [The integrated and portable guide](docs/GPG-BACKUP.md) covers threat models,
 inheritance, stock GnuPG/TAR recovery and the distinction from multisig. Recovery

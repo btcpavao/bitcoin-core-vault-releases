@@ -44,6 +44,15 @@ lightdm = (
 
 assert "autologin-user=vault" in lightdm
 assert "autologin-session=core-vault" in lightdm
+assert "sessions-directory=/usr/share/xsessions" in lightdm
+
+# LightDM must wait for a successfully loaded firewall every time it starts.
+import configparser
+dependencies = configparser.ConfigParser()
+dependencies.read(INC / 'etc/systemd/system/lightdm.service.d/35-core-vault-safety.conf')
+for directive in ('Requires', 'After'):
+    assert 'nftables.service' in dependencies['Unit'][directive].split()
+
 
 desktop = (
     INC

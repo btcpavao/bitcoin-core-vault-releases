@@ -26,14 +26,12 @@ deb [check-valid-until=no signed-by=$keyring] $debian trixie main
 deb [check-valid-until=no signed-by=$keyring] $debian trixie-updates main
 deb [check-valid-until=no signed-by=$keyring] $security trixie-security main
 SOURCES
+# Use the same APT-local index checks in this builder and live-build's chroot.
+# live-build removes *.conf.chroot when switching to the final system sources.
+bash tools/rebuild/apt-pin-config.sh > /etc/apt/apt.conf.d/99vault-snapshot.conf
+mkdir -p config/archives
+cp /etc/apt/apt.conf.d/99vault-snapshot.conf config/archives/99vault-snapshot.conf.chroot
 apt-get -o Acquire::Retries=4 update
-# apt has already authenticated all three InRelease files with its bundled verifier.
-# Bind the package solver's local files to the exact metadata fetched above.
-for suite in trixie trixie-updates trixie-security; do
-    indexes=(/var/lib/apt/lists/*_dists_"${suite}"_InRelease)
-    [[ ${#indexes[@]} == 1 ]]
-    cmp -- "/evidence/archives/$suite.InRelease" "${indexes[0]}"
-done
 apt-get -o Acquire::Retries=4 install -y --no-install-recommends \
     sudo live-build debootstrap debian-archive-keyring \
     apt-utils ca-certificates wget rsync xorriso squashfs-tools isolinux syslinux-common \
@@ -63,10 +61,23 @@ cp -a /verified-native/{calamares,thunar} /evidence/native/
 echo 'ec430b43463d06183c22cf982969b9f2bbbfbe85eea8da1295faa9b1843b9415  /usr/lib/live/build/chroot_archives' | sha256sum --check
 python3 - <<'PYCODE'
 from pathlib import Path
+# debootstrap obtains its own copy before the target has APT. Check it before
+# it selects or executes any packages; its usual signature checks still run.
+functions = Path('/usr/share/debootstrap/functions')
+script = functions.read_text()
+verify = '\t\tdownload_release_sig "$m1" "$s" "$inreldest" "$reldest" "$relsigdest"\n'
+if script.count(verify) != 1:
+    raise SystemExit("Unrecognized debootstrap archive verification")
+functions.write_text(script.replace(verify, verify +
+    '\t\tcmp -- "/evidence/archives/$s.InRelease" "$inreldest" || '
+    'error 1 VAULTPIN "Bootstrap metadata does not match the pinned snapshot"\n'))
 path = Path('/usr/lib/live/build/chroot_archives')
 script = path.read_text()
 before = '\t\t# Updating indices\n\t\tApt chroot update\n'
-after = '\t\tif [ "${LB_APT_INDICES}" != false ]; then Apt chroot update; fi\n'
+after = (
+    "\t\tsed -i -E 's|^(#?deb(-src)?) https://|\\1 [signed-by=/usr/share/keyrings/debian-archive-keyring.gpg] https://|' chroot/etc/apt/sources.list\n"
+    '\t\tif [ "${LB_APT_INDICES}" != false ]; then Apt chroot update; fi\n'
+)
 if script.count(before) != 1:
     raise SystemExit("Unrecognized live-build archive update block")
 script = script.replace(before, after)
@@ -81,16 +92,19 @@ if script.count(before) != 1:
     raise SystemExit("Unrecognized live-build APT cache cleanup")
 path.write_text(script.replace(before, after))
 PYCODE
-backup=core-vault-backup_0.7.5_all.deb
+backup=core-vault-backup_0.7.6_all.deb
 bash tools/core-vault/backup-src/build-package.sh
 cmp -- "tools/core-vault/backup-src/$backup" "config/packages.chroot/$backup"
 sha256sum "tools/core-vault/backup-src/$backup" > /evidence/vault-backup-package.sha256
 bash tools/core-vault/build-live-iso.sh \
     --mirror-bootstrap "$debian" --mirror-chroot "$debian" --mirror-chroot-security "$security" \
     --parent-mirror-bootstrap "$debian" --parent-mirror-chroot "$debian" \
-    --parent-mirror-chroot-security "$security" --debootstrap-options '--include=ca-certificates' \
+    --parent-mirror-chroot-security "$security" --debootstrap-options '--include=ca-certificates --inrelease-path=InRelease' \
     --apt-options '--yes -o Acquire::Retries=4 -o Acquire::Check-Valid-Until=false' \
     --updates true --backports false --security true --apt-indices false
+# Check the actual source lines left in the packed image, including the keyring.
+unsquashfs -cat binary/live/filesystem.squashfs etc/apt/sources.list > /evidence/image-sources.list
+awk '/^deb / { n++; if ($2 != "[signed-by=/usr/share/keyrings/debian-archive-keyring.gpg]" || $3 !~ /^https:\/\//) exit 1 } END { if (!n) exit 1 }' /evidence/image-sources.list
 # SquashFS skips only APT's machine-generated binary lookup caches. Check
 # the exact packed filesystem rather than the build-time package-manager state.
 unsquashfs -ls -no-wildcards binary/live/filesystem.squashfs var/cache/apt > /tmp/apt-cache-list

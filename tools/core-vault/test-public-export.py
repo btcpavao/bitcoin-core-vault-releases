@@ -106,6 +106,16 @@ class PublicExportTests(unittest.TestCase):
         with patch.object(export.subprocess, 'run', return_value=result):
             self.assertEqual(export.physical_drives('/dev/test1'), {'8:0': False})
 
+    def test_detached_file_boot_without_medium_mount(self):
+        usb = {'id': 45, 'target': '/media/vault/test', 'source': '/dev/test1', 'fstype': 'exfat'}
+        mounts = [usb, {'id': 1, 'target': '/', 'source': 'overlay', 'fstype': 'overlay'}]
+        with patch.object(export, '_mount_id', return_value='45'), \
+                patch.object(export.subprocess, 'run', return_value=Mock(stdout=json.dumps({'filesystems': mounts}))), \
+                patch.object(export, 'physical_drives', return_value={'8:0': True}), \
+                patch.object(Path, 'read_text', return_value='boot=live toram findiso=/vault.iso'):
+            with self.assertRaisesRegex(ValueError, 'boot drive could not be identified'):
+                export.require_external_volume(0)
+
     def test_live_iso_carrier_and_installed_root(self):
         usb = {'id': 45, 'target': '/media/vault/test', 'source': '/dev/test1', 'fstype': 'exfat'}
         loop = {'id': 54, 'target': '/run/live/medium', 'source': '/dev/loop0', 'fstype': 'iso9660'}
@@ -125,6 +135,21 @@ class PublicExportTests(unittest.TestCase):
             self.target('public.dat').publish(self.stage, 'watchonly')
             core.assert_called_once_with('getdescriptorinfo', b'raw(51)', result=True)
         with self.assertRaises(FileExistsError):
+            self.target('public.dat').publish(self.stage, 'watchonly')
+        self.assertEqual((self.drive / 'public.dat').read_bytes(), self.stage.read_bytes())
+
+    def test_watchonly_metadata_needs_explicit_consent(self):
+        self.wallet()
+        with closing(sqlite3.connect(self.stage)) as db, db:
+            db.execute('INSERT INTO main VALUES (?,?)', (b'\x04nameaddress', b'example label'))
+        with patch.object(export, 'core_check', return_value={'hasprivatekeys': False}), \
+                patch.object(export.subprocess, 'run', return_value=Mock(returncode=1)) as question:
+            with self.assertRaisesRegex(ValueError, 'cancelled'):
+                self.target('public.dat').publish(self.stage, 'watchonly')
+            self.assertEqual(list(self.drive.iterdir()), [])
+            self.assertIn('--default-cancel', question.call_args.args[0])
+            self.assertNotIn('example label', str(question.call_args))
+            question.return_value = Mock(returncode=0)
             self.target('public.dat').publish(self.stage, 'watchonly')
         self.assertEqual((self.drive / 'public.dat').read_bytes(), self.stage.read_bytes())
 

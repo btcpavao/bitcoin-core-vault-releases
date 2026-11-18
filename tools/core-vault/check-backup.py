@@ -2,8 +2,8 @@
 """Read-only source/package gate for Encrypted Backup. Does not open a wallet."""
 from pathlib import Path
 import argparse, ast, hashlib, io, runpy, subprocess, tarfile
-VERSION='0.7.5'
-PACKAGE_SHA='25794fc3eadcb4d49d09c7e8083920f25650e9bf3ce249ca148c128d2b2bb0a9'
+VERSION='0.7.6'
+PACKAGE_SHA='bde98c16c03e147bfb2e3754d2fc91711ba3c081f1fd59fa46a793b0ee22a8c0'
 
 def require(ok, text):
     if not ok: raise RuntimeError(text)
@@ -91,8 +91,8 @@ def check(root):
     require(not list((root/'config/packages.chroot').glob('arqiver_*.deb')), 'Obsolete archive manager remains staged')
     for forbidden in ('7zip', 'arqiver'):
         require(forbidden not in depends, 'Obsolete encryption dependency remains')
-    require('ClearClipboard=false' in (inc/'etc/skel/.config/keepassxc/keepassxc.ini').read_text(),
-            'Fresh KeePassXC profile must disable automatic clipboard clearing')
+    require('ClearClipboard=true' in (inc/'etc/skel/.config/keepassxc/keepassxc.ini').read_text(),
+            'Fresh KeePassXC profile must enable automatic clipboard clearing')
     require((inc/'etc/skel/.config/keepassxc/keepassxc.ini').read_bytes() ==
             (template/'etc/skel/.config/keepassxc/keepassxc.ini').read_bytes(), 'KeePassXC profile mismatch')
     require('usr/lib/core-vault-backup/layered_backend.py' in hook0950, 'Layered backend missing from installer payload')

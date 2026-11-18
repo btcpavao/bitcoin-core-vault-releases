@@ -14,6 +14,26 @@ def walk(node):
 def flag(value):
     return value is True or str(value).lower() in ('1','true','yes')
 
+def external_bus(syspath):
+    # An external NVMe controller can report the same transport as an internal
+    # one. The PCI port or one of its bridges can carry the removable marker.
+    for parent in Path(syspath).parents:
+        subsystem = parent / 'subsystem'
+        if not subsystem.is_symlink():
+            continue
+        bus = subsystem.resolve(strict=True).name
+        if bus in ('usb', 'firewire', 'thunderbolt'):
+            return True
+        if bus == 'pci':
+            for attribute, external in (('removable', 'removable'), ('untrusted', '1')):
+                try:
+                    if (parent / attribute).read_text().strip() == external:
+                        return True
+                except FileNotFoundError:
+                    continue
+    return False
+
+
 def validate_tree(node, syspath, holders, active_swaps):
     name = node.get('name', '')
     if not re.fullmatch(r'/dev/(?:sd[a-z]+|hd[a-z]+|nvme\d+n\d+|vd[a-z]+)', name):
@@ -21,7 +41,8 @@ def validate_tree(node, syspath, holders, active_swaps):
     if node.get('type') != 'disk': raise UnsafeDisk('Not a whole disk.')
     if flag(node.get('ro')) or flag(node.get('rm')): raise UnsafeDisk('Read-only or removable device.')
     transport = (node.get('tran') or '').lower()
-    if transport in ('usb','mmc','firewire','iscsi','fc') or re.search(r'/usb\d*(?:/|$)', syspath):
+    if (transport in ('usb', 'sbp', 'mmc', 'firewire', 'iscsi', 'fc', 'tcp', 'rdma')
+            or re.search(r'/usb\d*(?:/|$)', syspath) or external_bus(syspath)):
         raise UnsafeDisk('External/removable/network storage is not an installation target.')
     if int(node.get('size',0)) < MIN_BYTES: raise UnsafeDisk('Disk must be at least 16 GiB.')
     if not ((node.get('serial') or '').strip() or (node.get('wwn') or '').strip()):

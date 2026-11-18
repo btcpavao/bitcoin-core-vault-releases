@@ -27,7 +27,7 @@ The following sections retain the historical v0.1.0 record.
 
 Core tests run in disposable bubblewrap/Xvfb environments, with synthetic regtest wallets. No real funds or user wallet profiles are used. A byte-identical, owned copy of stock GPG is bound into the test namespace to accommodate its uid mapping; production executable ownership checks remain enforced.
 
-- Actual stock KeePassXC clipboard acceptance passed in an isolated Xvfb session: Security checkbox initially unchecked, synthetic generated passphrase pasted after 31 seconds on two launches, user enabled the option through Settings, third launch preserved it and the clipboard cleared. Screenshots and results are retained beside the test logs. This verifies the host application with the image profile; Live/installed VM checks remain pending.
+- Historical test of the previous default in an isolated Xvfb session: Security checkbox initially unchecked, synthetic generated passphrase pasted after 31 seconds on two launches, user enabled the option through Settings, third launch preserved it and the clipboard cleared. Screenshots and results are retained beside the test logs. This verifies the host application with the image profile; Live/installed VM checks remain pending.
 
 ## Reproduce on Debian 13
 
@@ -69,7 +69,7 @@ In both Live and installed modes, record:
 1. Default one-layer creation and 3/10-layer creation from Home and Files, using independent synthetic secrets. Check keyboard navigation, scrolling, visibility controls, cancel, duplicate/mismatch validation, clear error messages and no overwrite.
 2. Any-order recovery, missing/wrong secret retry, cancellation and corrupted/truncated input, nested original `.gpg` preservation, explicit ordinary GPG behavior, and safe recovery of files only inside the RAM workspace.
 3. Core wallet export, recovery, labels/addresses/signing, and Finish verification of the unchanged current wallet with every required secret. Do not use real funds.
-4. KeePassXC Settings → Security: clipboard auto-clear initially unchecked; copy a newly generated synthetic passphrase, wait at least 31 seconds, paste successfully; restart KeePassXC and repeat. Enable auto-clear in Settings, restart, and verify that preference persists and clears the clipboard. A fresh Live profile should restore the image default. Never inspect or copy an existing user's password database.
+4. In KeePassXC Settings → Security, confirm clipboard auto-clear is checked with a 10-second timeout. Copy a synthetic passphrase, confirm it pastes immediately, then verify it clears after 12 seconds. Restart KeePassXC and repeat. Disable auto-clear in Settings, restart, and confirm this explicit choice persists for the session. A fresh Live profile should restore the image default. Never inspect or copy an existing user's password database.
 5. No active persistent swap, RAM-only private data and temporary plaintext, original media/storage policy and clean failure cleanup.
 
 No complete Live/installed VM acceptance, physical hardware acceptance, cross-platform recovery claim, or independent security audit is claimed for this candidate.

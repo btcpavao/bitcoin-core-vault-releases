@@ -33,11 +33,13 @@ def dialog(*args):
     # Remove exactly Zenity's final line ending, not passphrase whitespace.
     return r.stdout[:-1] if r.stdout.endswith('\n') else r.stdout
 
-def message(text, error=False, *, operation=None):
+def message(text, error=False, *, operation=None, external=False):
     from message_dialog import show_message
     options = {'error': error}
     if operation is not None:
         options['operation'] = operation
+    if external:
+        options['external'] = True
     show_message(text, **options)
 
 def validate_password(password):
@@ -473,7 +475,7 @@ def decrypt_ui(items):
         details = 'The recovered files are on the selected removable drive without backup encryption.'
     message('Files recovered to:\n' + str(result) + '\n\n' + details +
             ' For a wallet, please restore wallet.dat in Bitcoin Core and check its addresses.',
-            operation='recovery')
+            operation='recovery', external=result.parent != workspace)
 
 
 def main():

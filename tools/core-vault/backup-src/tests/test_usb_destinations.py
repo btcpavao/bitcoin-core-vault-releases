@@ -15,7 +15,7 @@ sys.path.insert(0, str(SRC))
 sys.path.insert(1, str(SRC.parents[3] / 'config/includes.chroot/usr/lib/core-vault'))
 import backup
 import destinations
-import export
+import public_export
 import layered_backend as layers
 
 
@@ -36,7 +36,7 @@ class USBTests(unittest.TestCase):
         self.records = {self.mid: (self.drive, '8:1', ['rw'])}
         for override in (patch.object(destinations, 'MEDIA_ROOTS', (self.media,)),
                          patch.object(destinations, '_mounts', return_value=self.records),
-                         patch.object(export, 'media_for', return_value=(True, str(self.drive)))):
+                         patch.object(public_export, 'require_external_volume')):
             override.start()
             self.addCleanup(override.stop)
         self.payload = self.root / 'payload.tar'
@@ -64,9 +64,10 @@ class USBTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     backup.recovery_destination(proposed, self.workspace)
                 self.assertEqual(destinations.mounted_usb_volumes(), [])
-        with patch.object(export, 'media_for', return_value=(False, str(self.drive))):
+        with patch.object(public_export, 'require_external_volume', side_effect=ValueError('boot carrier')) as check:
             with self.assertRaises(ValueError):
                 backup.recovery_destination(proposed, self.workspace)
+            check.assert_called_once()
         with self.assertRaises(ValueError):
             backup.recovery_destination(self.root / 'unselected-internal-location', self.workspace)
 

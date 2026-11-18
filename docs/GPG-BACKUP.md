@@ -1,6 +1,6 @@
 # Bitcoin Core Vault — backup and recovery
 
-This guide covers Vault Backup 0.7.5 in Bitcoin Core Vault v0.7.0.
+This guide covers Vault Backup 0.7.6.
 The in-app Vault Guide contains the same workflow. Keep a copy of your own
 recovery instructions outside the encrypted backup they explain.
 
@@ -75,10 +75,11 @@ KeePassXC opens its Passphrase generator with six random words selected.
 Generate each independent secret separately. You may change the word count;
 do not use phrases invented from quotations or familiar sentences.
 
-Clipboard clearing is initially disabled so you can confirm and record
-multiple secrets. Other local applications may read clipboard contents.
-You can enable a timeout in **Tools → Settings → Security → Clear clipboard
-after**. A fresh private session restores image defaults.
+KeePassXC clears each copied passphrase after 10 seconds by default. Other
+local applications can read it during that time. If it expires before you
+finish, copy the same passphrase again. You can adjust the timeout in
+**Tools → Settings → Security → Clear clipboard after**. A fresh Vault
+session restores the default.
 
 Keep deliberate recovery copies of the required secrets. Do not put the
 only secret inside the backup it unlocks, or the only password-manager
@@ -104,8 +105,10 @@ bypassed by Vault.
 ![Decrypt Encrypted Backup with Private Workspace and a USB drive in the Recover to menu](screenshots/recover.png)
 
 Missing or incorrect secrets, damage and unsupported formats can cause a
-failure. Partial results are discarded on failure or cancellation, and
-existing files are never overwritten.
+failure. Vault checks the entire recovered payload in RAM before copying it to
+a selected USB drive. It reads the copy back before publishing the new folder.
+Unplugging the drive or losing power during that copy can leave a partial
+plaintext folder on the drive. Existing files are never overwritten.
 
 For an ordinary GPG file not made as a Vault backup, select **Recover one
 ordinary GPG layer only**. This stops after one authenticated layer and saves

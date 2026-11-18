@@ -14,6 +14,12 @@ for unit in sleep.target suspend.target hibernate.target hybrid-sleep.target sus
     systemctl mask "$unit"
 done
 systemctl enable home-vault.mount 'run-core\x2dvault.mount' tmp.mount var-tmp.mount
+# Only Vault's guarded session may be started from a Live or installed greeter.
+for entry in /usr/share/lightdm/sessions/*.desktop /usr/share/xsessions/*.desktop /usr/share/wayland-sessions/*.desktop; do
+    [ "$entry" = /usr/share/xsessions/core-vault.desktop ] || rm -f -- "$entry"
+done
+rm -f -- /usr/local/bin/core-signer-session
+test -f /usr/share/xsessions/core-vault.desktop
 # LightDM creates its authentication file in /run; every user's HOME is RAM.
 mkdir -p /etc/lightdm/lightdm.conf.d
 cat > /etc/lightdm/lightdm.conf.d/55-core-vault-volatile-auth.conf <<'AUTH'
@@ -43,7 +49,7 @@ WordCount=6
 WordList=eff_large.wordlist
 
 [Security]
-ClearClipboard=false
+ClearClipboard=true
 ClearClipboardTimeout=10
 LockDatabaseIdle=true
 LockDatabaseIdleSeconds=120
