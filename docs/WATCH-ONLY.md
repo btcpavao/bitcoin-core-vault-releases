@@ -22,6 +22,10 @@ The native database includes public descriptors, cached derivations, transaction
 and address book data, including any labels or notes you entered. Never use
 these fields for passphrases or private keys. Direct external export asks for
 confirmation when the database contains address book or transaction records.
+Choose **Cancel** to leave the destination untouched. Bitcoin Core shows one
+**Export Error** message. You can try again using the same filename. When you
+choose **Export wallet**, Core shows **Export Successful** after the USB write
+is confirmed.
 Please also review your labels before manually copying a RAM export to a drive. It is not a signing backup. Keep a
 separate verified encrypted signing-wallet backup offline. Encrypt the public
 copy with Files → Create Encrypted Backup if desired; Core itself does not add

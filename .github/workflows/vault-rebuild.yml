@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: vault-rebuild-${{ github.sha }}
+  group: vault-rebuild-${{ github.ref }}-${{ github.sha }}
   cancel-in-progress: true
 
 jobs:
@@ -25,8 +25,17 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
-      - name: Build in a fresh container
-        run: bash tools/rebuild/build.sh "$RUNNER_TEMP/vault-result"
+          fetch-depth: 0
+      - name: Build the ISO from the checked-out source
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$GITHUB_REF" in
+            refs/tags/v0.8.0|refs/heads/release/v0.8.0-preparation)
+              bash tools/rebuild/build-release.sh "$RUNNER_TEMP/vault-result"
+              ;;
+            *) bash tools/rebuild/build.sh "$RUNNER_TEMP/vault-result" ;;
+          esac
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: vault-${{ matrix.builder }}-${{ github.sha }}
@@ -56,6 +65,12 @@ jobs:
             cat "$dir/SHA256SUMS"
           done
           cmp "$a/bitcoin-core-vault-amd64.iso" "$b/bitcoin-core-vault-amd64.iso"
+          case "$GITHUB_REF" in
+            refs/tags/v0.8.0|refs/heads/release/v0.8.0-preparation)
+              echo '0bc142508a35172ea92f645decc31be1373b05956e9a17d0ad01cee9bab84857  bitcoin-core-vault-amd64.iso' |
+                (cd "$a" && sha256sum --check --strict -)
+              ;;
+          esac
           printf 'Both complete ISO files match for commit %s\n' "$REVISION" >> "$GITHUB_STEP_SUMMARY"
           cat "$a/SHA256SUMS" >> "$GITHUB_STEP_SUMMARY"
       - name: Identify differences for an unsuccessful comparison

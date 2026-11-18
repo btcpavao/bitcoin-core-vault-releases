@@ -45,15 +45,14 @@ superseded kiosk or persistent-home design.
 
 Document all host packages and preparation steps. Check that a fresh checkout
 obtains every required build input and matching manifest. Keep package versions
-aligned with the current gates: Core 32.1; backup 0.7.3; Calamares
-3.3.14-1+corevault4; Thunar 4.20.2-1+deb13u1+corevault1. Confirm these versions against the authoritative tree
+aligned with the current gates: Core 32.1, backup 0.7.6, Calamares
+3.3.14-1+corevault5 and Thunar 4.20.2-1+deb13u1+corevault2. Confirm these versions against the authoritative tree
 before publication.
 
-The existing build entry point is:
-
-```bash
-bash tools/core-vault/build-live-iso.sh
-```
+For a published version, use the release build entry point in the tagged
+[build instructions](docs/REBUILD.md). `tools/rebuild/build.sh` runs the
+underlying clean Debian build. Record the release packaging steps and check
+the completed ISO against the SHA-256 of the image approved for publication.
 
 The builder runs source/package gates and then ISO content gates. A successful
 content check is separate from boot, installation and wallet recovery testing.

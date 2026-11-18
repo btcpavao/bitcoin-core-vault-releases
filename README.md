@@ -10,12 +10,9 @@ Run Vault as a Live RAM session or install its operating system on an internal
 disk. In both modes, the Vault account's home and private working data stay in
 RAM. Export the files you want to keep before ending the session.
 
-**[Download Bitcoin Core Vault v0.7.0](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/tag/v0.7.0).** Bitcoin Core 32.1 can save signed or partially signed PSBTs and export a
-watch-only wallet directly to a mounted USB drive. Use **Wallet Backup** to save
-an encrypted copy of the signing wallet.
+**[Download Bitcoin Core Vault v0.8.0 for amd64](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/download/v0.8.0/bitcoin-core-vault-v0.8.0-amd64.iso).** This release updates watch-only USB export, backup recovery, and the offline desktop. KeePassXC clears copied passphrases after 10 seconds by default.
 
-[Verify the signed ISO](#release-verification-and-status) or
-[rebuild v0.7.0 from source](docs/REBUILD.md).
+[Verify the signed download](#release-verification-and-status) · [Build the same ISO from source](docs/REBUILD.md) · [Release notes](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/download/v0.8.0/RELEASE-NOTES.md)
 
 A single valid Bitcoin Core SQLite
 `wallet.dat` is encrypted directly using standard AES-256 CFB+MDC OpenPGP,
@@ -28,7 +25,7 @@ The project is independently developed. An independent security audit has yet to
 
 ## Screenshots
 
-These screenshots show the Live RAM desktop, its built-in guide and an installed session of the [published v0.6.0 ISO](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/tag/v0.6.0). The backup example uses a disposable USB drive.
+These screenshots show the Live RAM desktop, its built-in guide and an installed session of Vault v0.6.0. The backup example uses a disposable USB drive.
 
 ### Offline workspace
 
@@ -77,6 +74,10 @@ Use **Wallet Backup** for an encrypted backup of the signing wallet.
 Use **Bitcoin Core → File → Export watch-only wallet** to save `watch-only.dat`
 directly to a mounted writable transfer drive or temporarily in Private Workspace. On an
 online computer running Core 32.1 or newer, use **File → Restore Wallet**.
+If the watch-only file includes address book or transaction records, Vault asks
+for confirmation before writing it to USB. **Cancel** leaves the drive untouched
+and Core displays **Export Error**. Choose **Export wallet** to write the file.
+Core displays **Export Successful** after Vault confirms the write.
 File choosers have wider Places sidebars and show mounted USB volumes. If you attach the drive while Core is open, look under **USB Media** or reopen the chooser.
 Vault no longer includes a separate watch-only export tool or its JSON format.
 Keep the original signing wallet offline. See [the native workflow](docs/WATCH-ONLY.md).
@@ -158,21 +159,16 @@ Test recovery on the actual target operating system before relying on it.
 
 ## Rebuild and compare the ISO
 
-[The step-by-step build guide](docs/REBUILD.md) checks out the
-[exact v0.7.0 source](https://github.com/btcpavao/bitcoin-core-vault-releases/commit/5346a0db977049a028429482ff943619c52009c4), compiles Calamares, Thunar and Vault
-Backup, and assembles the ISO from the pinned Debian, Bitcoin Core and KeePassXC
-inputs. It explains how to compare a locally built image with the signed download.
-The [release tag's GitHub Actions run](https://github.com/btcpavao/bitcoin-core-vault-releases/actions/runs/43864705133) shows the status and results of the two hosted
-builds, their byte comparison and the UEFI installation check.
+[Follow the build guide](docs/REBUILD.md) to inspect the changes since v0.7.0, rebuild the release using its pinned dependencies, and compare the result with the signed ISO. The [v0.8.0 tag](https://github.com/btcpavao/bitcoin-core-vault-releases/tree/v0.8.0) includes the runtime source and release build tools. The [native package guide](docs/NATIVE-REBUILD.md) covers the Calamares installer and the Thunar file manager.
 
 ## Release verification and status
 
-Download `bitcoin-core-vault-v0.7.0-amd64.iso`, `SHA256SUMS`,
+Download `bitcoin-core-vault-v0.8.0-amd64.iso`, `SHA256SUMS`,
 `SHA256SUMS.asc` and `btcpavao-pgp.asc` from the
-[v0.7.0 release](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/tag/v0.7.0). The ISO is **714,080,256 bytes** and its SHA-256 is
+[v0.8.0 release](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/tag/v0.8.0). The ISO is **714,407,936 bytes** and its SHA-256 is
 
 ```text
-1e1782d6dc1354585cf6ec941ed7d231f0e48adfc0cee3972af1eaf3483424bb
+0bc142508a35172ea92f645decc31be1373b05956e9a17d0ad01cee9bab84857
 ```
 
 Inspect the public key with `gpg --show-keys --with-fingerprint btcpavao-pgp.asc`
@@ -194,14 +190,14 @@ personal keys.
   trap 'rm -rf -- "$keyring"' EXIT
   gpg --homedir "$keyring" --batch --import btcpavao-pgp.asc
   gpg --homedir "$keyring" --batch --assert-signer 787A2AAFB0D119CA0522B2A5B9C99AF8578896D0 --verify SHA256SUMS.asc SHA256SUMS
-  iso=bitcoin-core-vault-v0.7.0-amd64.iso
+  iso=bitcoin-core-vault-v0.8.0-amd64.iso
   awk -v name="$iso" '$2 == name || $2 == "*" name {print; n++} END {if (n != 1) exit 1}' SHA256SUMS |
     sha256sum --strict --check -
 )
 ```
 
 GnuPG should report a good signature from the confirmed key. The following
-line should name the v0.7.0 ISO and report `OK`. The [v0.7.0 acceptance record](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/download/v0.7.0/ACCEPTANCE.json) lists the tests on the approved image. The [v0.6.0 release](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/tag/v0.6.0) retains the signed checksums and test record for the previous image.
+line should name the v0.8.0 ISO and report `OK`. The [v0.8.0 acceptance record](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/download/v0.8.0/ACCEPTANCE.json) lists the tests on the approved image. Pavao tested the release image on a ThinkPad T530. The acceptance record distinguishes physical tests from virtual-machine and image-content checks.
 
 ### Historical v0.4.0 tests
 
@@ -226,7 +222,7 @@ The public release repository contains a standalone snapshot of tracked
 Vault sources, build scripts, patches, notices and reviewed package inputs.
 The separate private development repository and its historical Git commit
 tree are not exposed. The ISO belongs to GitHub Release assets, not Git.
-The [v0.7.0 source snapshot](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/download/v0.7.0/bitcoin-core-vault-v0.7.0-source.tar.gz)
+The [v0.8.0 source snapshot](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/download/v0.8.0/bitcoin-core-vault-v0.8.0-source.tar.gz)
 contains the tagged files for inspection. The build guide uses a Git checkout
 so the builder can archive the exact committed tree. The [earlier native
 candidate record](docs/rebuilds/71242344618b.md) and [assembly candidate
