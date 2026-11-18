@@ -143,6 +143,7 @@ class PublicExportTests(unittest.TestCase):
         with closing(sqlite3.connect(self.stage)) as db, db:
             db.execute('INSERT INTO main VALUES (?,?)', (b'\x04nameaddress', b'example label'))
         with patch.object(export, 'core_check', return_value={'hasprivatekeys': False}), \
+                patch.object(export, 'retain_core_windows', side_effect=OSError('No XComposite')), \
                 patch.object(export.subprocess, 'run', return_value=Mock(returncode=1)) as question:
             with self.assertRaisesRegex(ValueError, 'cancelled'):
                 self.target('public.dat').publish(self.stage, 'watchonly')

@@ -1,9 +1,11 @@
 """Validate completed Core exports in private RAM before publishing on removable media."""
 import base64
-from contextlib import closing
+from contextlib import closing, ExitStack
+import ctypes
 import json
 import os
 from pathlib import Path
+import runpy
 import secrets
 import shutil
 import sqlite3
@@ -56,6 +58,32 @@ def descriptor_text(value):
     return text
 
 
+def retain_core_windows(cleanup):
+    # Core waits inside the export filesystem while Zenity asks for consent.
+    # On the non-composited Vault desktop it cannot repaint exposed regions.
+    # Automatic XComposite backing keeps the pixels in the X server until the
+    # dialog closes; no window contents are read by the export helper.
+    windows = subprocess.run(['/usr/bin/xdotool', 'search', '--onlyvisible', '--class',
+                              '^bitcoin-qt$'], capture_output=True, timeout=3)
+    if windows.returncode:
+        return
+    core_windows = [int(line) for line in windows.stdout.splitlines()]
+    x11 = runpy.run_path('/usr/local/bin/core-vault-show-home')['X11']()
+    cleanup.callback(x11.close)
+    composite = ctypes.CDLL('libXcomposite.so.1')
+    query = composite.XCompositeQueryExtension
+    query.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int)]
+    query.restype = ctypes.c_int
+    if not query(x11.display, ctypes.byref(ctypes.c_int()), ctypes.byref(ctypes.c_int())):
+        return
+    redirect = composite.XCompositeRedirectWindow
+    redirect.argtypes = [ctypes.c_void_p, ctypes.c_ulong, ctypes.c_int]
+    redirect.restype = None
+    for window in core_windows:
+        redirect(x11.display, window, 0)  # CompositeRedirectAutomatic
+    x11.lib.XSync(x11.display, 0)
+
+
 def check_watchonly(path):
     # The FUSE caller holds exclusive access to its completed private RAM file.
     # Use immutable here so SQLite never creates a sidecar during validation.
@@ -100,13 +128,18 @@ def check_watchonly(path):
     if includes_metadata:
         # Keep Core's native database intact. Obtain explicit consent before
         # any bytes reach the drive, without displaying the private label text.
-        consent = subprocess.run([
-            '/usr/bin/zenity', '--question', '--default-cancel', '--no-markup',
-            '--title=Export wallet metadata?', '--ok-label=Export wallet', '--cancel-label=Cancel',
-            '--text=This watch-only wallet includes address book or transaction data. '
-                   'Any labels, notes or passphrases entered in these fields travel with the file. '
-                   'Anyone with the file can read them. Please check these entries before exporting.',
-        ], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=120)
+        with ExitStack() as cleanup:
+            try:
+                retain_core_windows(cleanup)
+            except (OSError, RuntimeError, ValueError, subprocess.SubprocessError):
+                pass  # Optional display backing must never bypass the question.
+            consent = subprocess.run([
+                '/usr/bin/zenity', '--question', '--default-cancel', '--no-markup',
+                '--title=Export wallet metadata?', '--ok-label=Export wallet', '--cancel-label=Cancel',
+                '--text=This watch-only wallet includes address book or transaction data. '
+                       'Any labels, notes or passphrases entered in these fields travel with the file. '
+                       'Anyone with the file can read them. Please check these entries before exporting.',
+            ], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=120)
         if consent.returncode:
             raise ValueError('Export cancelled before writing wallet metadata to the drive.')
 

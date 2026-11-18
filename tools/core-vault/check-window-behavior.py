@@ -47,8 +47,14 @@ applications = xml.findall('o:applications/o:application', ns)
 maximize_rules = [n for n in applications if n.find('o:maximized', ns) is not None]
 if [(n.attrib, n.findtext('o:maximized', namespaces=ns)) for n in maximize_rules] != [
         ({'class': '*', 'type': 'normal'}, 'yes'),
-        ({'class': '*', 'type': 'dialog'}, 'yes')]:
-    raise RuntimeError('Expected initial maximization only for normal apps and dialogs.')
+        ({'class': '*', 'type': 'dialog'}, 'yes'),
+        ({'class': 'zenity', 'title': 'Export wallet metadata?'}, 'no')]:
+    raise RuntimeError('Expected initial maximization with the watch-only export prompt exception.')
+position = maximize_rules[-1].find('o:position', ns)
+if (position is None or position.get('force') != 'yes'
+        or [position.findtext('o:' + field, namespaces=ns) for field in ('x', 'y', 'monitor')]
+        != ['center', 'center', 'Active']):
+    raise RuntimeError('The watch-only export prompt must open in the center of the active monitor.')
 if any(n.find('o:size', ns) is not None or n.find('o:fullscreen', ns) is not None
        for n in maximize_rules):
     raise RuntimeError('Initial maximization must preserve size hints and the panel work area.')

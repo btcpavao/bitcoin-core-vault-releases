@@ -373,6 +373,14 @@
     <application class="*" type="dialog">
       <maximized>yes</maximized>
     </application>
+    <application class="zenity" title="Export wallet metadata?">
+      <maximized>no</maximized>
+      <position force="yes">
+        <x>center</x>
+        <y>center</y>
+        <monitor>Active</monitor>
+      </position>
+    </application>
     <application title="Bitcoin Core Vault" type="desktop">
       <decor>no</decor>
       <layer>below</layer>
