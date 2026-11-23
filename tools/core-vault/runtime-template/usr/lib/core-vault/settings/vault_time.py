@@ -106,6 +106,9 @@ def _write_root_file(path, raw):
     _regular_root_file(path, allow_missing=True)
     fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o644)
     with os.fdopen(fd, 'wb') as target:
+        # The private desktop uses umask 077. These non-secret timezone files
+        # must remain readable by ordinary applications after the RAM bind.
+        os.fchmod(target.fileno(), 0o644)
         target.write(raw)
         target.flush()
 
@@ -119,6 +122,9 @@ def _prepare_state():
                             text=True, capture_output=True, check=True, timeout=5, env=ENV)
     if result.stdout.strip() != 'tmpfs':
         raise TimeError('The time-settings workspace must be in RAM.')
+    # Apply the intended traversal permission only after validating this
+    # fixed, root-owned, non-writable directory and its RAM filesystem.
+    os.chmod(STATE, 0o755, follow_symlinks=False)
 
 
 def _prepare_timezone(raw):

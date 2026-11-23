@@ -7,6 +7,7 @@ import os
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 from pathlib import Path
 import runpy
+import stat
 import sys
 import tempfile
 import unittest
@@ -60,6 +61,58 @@ class TimeValidation(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     vault_time._prepare_timezone(b'not-used')
                 run.assert_not_called()
+
+    def test_private_umask_keeps_timezone_readable_and_lock_private(self):
+        # Only root identity and privileged operations are simulated. Creation,
+        # chmod/fchmod and the restrictive umask use real isolated files.
+        class RootFixturePath(type(Path())):
+            def lstat(self):
+                values = list(super().lstat()); values[4] = 0
+                return os.stat_result(values)
+
+        with tempfile.TemporaryDirectory() as directory:
+            state = RootFixturePath(directory) / 'state'
+            old_mask = os.umask(0o077)
+            try:
+                with patch.object(vault_time, 'STATE', state), \
+                        patch.object(vault_time.subprocess, 'run', return_value=Mock(stdout='tmpfs\n')):
+                    vault_time._prepare_state()
+                    self.assertEqual(stat.S_IMODE(state.stat().st_mode), 0o755)
+                    for name in ('localtime', 'zone'):
+                        path = state / name
+                        vault_time._write_root_file(path, b'non-secret timezone fixture')
+                        self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o644)
+                        path.chmod(0o600)
+                        vault_time._write_root_file(path, b'reapplied timezone fixture')
+                        self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o644)
+                    with patch.object(vault_time.os, 'geteuid', return_value=0), \
+                            patch.object(vault_time, '_prepare_timezone'), \
+                            patch.object(vault_time.time, 'clock_settime'):
+                        vault_time.apply_settings({'timezone': 'Etc/UTC', 'local_time': '2026-11-23 12:30:00'})
+                    self.assertEqual(stat.S_IMODE((state/'lock').stat().st_mode), 0o600)
+            finally:
+                os.umask(old_mask)
+
+    def test_timezone_modes_not_relaxed_for_unsafe_paths(self):
+        class UserFixturePath(type(Path())):
+            def lstat(self):
+                values = list(super().lstat()); values[4] = 12345
+                return os.stat_result(values)
+
+        with tempfile.TemporaryDirectory() as directory:
+            state = UserFixturePath(directory) / 'state'; state.mkdir()
+            with patch.object(vault_time, 'STATE', state), \
+                    patch.object(vault_time.os, 'chmod') as chmod:
+                with self.assertRaises(ValueError):
+                    vault_time._prepare_state()  # Unprivileged owner is rejected.
+                chmod.assert_not_called()
+            target = Path(directory) / 'target'; target.write_bytes(b'unchanged')
+            link = Path(directory) / 'link'; link.symlink_to(target)
+            with patch.object(vault_time.os, 'fchmod') as fchmod:
+                with self.assertRaises(ValueError):
+                    vault_time._write_root_file(link, b'changed')
+                fchmod.assert_not_called()
+            self.assertEqual(target.read_bytes(), b'unchanged')
 
 
 class InputPolicy(unittest.TestCase):
