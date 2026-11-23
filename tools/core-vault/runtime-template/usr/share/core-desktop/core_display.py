@@ -386,11 +386,18 @@ def parse_query(text):
                 edid_lines.append(line.strip().lower())
                 continue
             finish_edid()
-        candidate = re.match(r'^\s{2,}(\S+)\s+((?:\d+(?:\.\d+)?[+*]*\s*)+)$', line)
+        candidate = re.match(r'^\s{2,}(\S+)\s+(.+)$', line)
         if candidate:
             mode_name, values = candidate.groups()
             geometry = re.match(r'^(\d+)x(\d+)', mode_name)
             if not geometry or not NAME.fullmatch(mode_name):
+                continue
+            # xrandr prints current/preferred in separate flag columns. An
+            # inactive preferred rate is "74.99 +", not "74.99+". Attach
+            # only those flags to their rate; retain the separators between
+            # numeric rates and reject the entire line if anything remains.
+            values = re.sub(r'[ \t]+(?=[+*])', '', values)
+            if not re.fullmatch(r'(?:\d+(?:\.\d+)?(?:\*\+?|\+\*?)?(?:[ \t]+|$))+', values):
                 continue
             rates, preferred = [], False
             for value in values.split():
