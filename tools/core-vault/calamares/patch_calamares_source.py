@@ -3,15 +3,16 @@
 from pathlib import Path
 import argparse, shutil, tempfile
 import base_patch
+import advanced_patch
 
-EXTRA = ['src/modules/summary/SummaryViewStep.cpp', 'src/modules/summary/SummaryPage.cpp']
+EXTRA = ['src/modules/summary/SummaryViewStep.cpp', 'src/modules/summary/SummaryPage.cpp'] + advanced_patch.ADDITIONAL
 BASE = ['src/modules/'+p for p in ['partition/gui/ChoicePage.cpp',
     'partition/core/PartitionCoreModule.cpp', 'partition/PartitionViewStep.cpp',
     'keyboard/KeyboardPage.cpp', 'keyboard/Config.cpp', 'summary/Config.cpp',
     'finished/FinishedPage.cpp']] + ['src/calamares/CalamaresWindow.cpp',
     'src/libcalamaresui/viewpages/ExecutionViewStep.cpp']
 
-def patch(source, header, check_only=False):
+def patch(source, header, check_only=False, product="vault"):
     source=Path(source).resolve()
     if not (source/'debian/changelog').read_text().startswith('calamares (3.3.14-1)'):
         raise RuntimeError('Only clean Debian Calamares 3.3.14-1 source is accepted.')
@@ -87,6 +88,7 @@ def patch(source, header, check_only=False):
         # VAULT_VISUAL_POSTPASS_V3
         import visual_polish
         visual_polish.patch_tree(work)
+        advanced_patch.patch_tree(work, product)
         outputs=BASE+EXTRA+['src/modules/partition/core/CoreOfflineGuard.h']
         if not check_only:
             for rel in outputs:

@@ -1,0 +1,43 @@
+name: Compile the Settings and dual-boot installer candidate
+
+on:
+  push:
+    branches: [feature/settings-dualboot-20261123]
+    paths:
+      - 'tools/core-vault/calamares/**'
+      - 'tools/rebuild/packages/**'
+      - 'tools/rebuild/compile-package.sh'
+      - 'tools/rebuild/inputs.env'
+      - 'tools/core-vault/prepare-installer.sh'
+      - '.github/workflows/settings-dualboot-native.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: settings-dualboot-native-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  calamares:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Compile the committed native installer sources
+        run: |
+          set -euo pipefail
+          git -c tar.umask=0022 archive --format=tar HEAD > "$RUNNER_TEMP/source.tar"
+          bash tools/rebuild/compile-package.sh calamares "$RUNNER_TEMP/source.tar" "$RUNNER_TEMP/native-result"
+          printf 'source_commit=%s\n' "$GITHUB_SHA" > "$RUNNER_TEMP/native-result/candidate-source.txt"
+          (cd "$RUNNER_TEMP/native-result" && sha256sum --check SHA256SUMS)
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: settings-dualboot-calamares-${{ github.sha }}
+          path: ${{ runner.temp }}/native-result/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7

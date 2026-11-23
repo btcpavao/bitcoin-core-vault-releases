@@ -15,7 +15,7 @@ def digest(path):
     with Path(path).open('rb') as stream:
         return hashlib.file_digest(stream, 'sha256').hexdigest()
 
-report = {'component': kind, 'comparison': {}}
+report = {'component': kind, 'comparison': {}, 'purpose': 'Historical reference only; current candidate intentionally changes native installer source. Acceptance compares the reviewed candidate package against a fresh candidate rebuild.' if kind == 'calamares' else 'Historical rebuild comparison'}
 for name, old, new in [
     ('whole_deb', original, out / f'{kind}-rebuilt.deb'),
     ('installed_elf', out / f'expected-{kind}.elf', out / f'rebuilt-{kind}.elf'),

@@ -33,30 +33,38 @@ apt-get install -y --no-install-recommends build-essential dpkg-dev fakeroot ca-
 if [[ $kind == calamares ]]; then
     original=$historical_packages/calamares_3.3.14-1+corevault4_amd64.deb
     echo "2aee74ce7ac20ae2fefe40b3a2c4c196ed79170b97d36b9d4d56976c7a650227  $original" | sha256sum --check
-    curl --fail --location --retry 4 -o companion.tar.xz 'https://github.com/btcpavao/bitcoin-core-vault-releases/releases/download/v0.5.0/bitcoin-core-vault-v0.4.0-calamares-source.tar.xz'
-    echo '62faea95f14b7d4314931d434fb647ee51e9430d7b83154681615487dddf8e6d  companion.tar.xz' | sha256sum --check
-    tar -xOJf companion.tar.xz bitcoin-core-vault-v0.4.0-calamares-source/historical/patched-calamares-main-source.tar.gz > actual-source.tar.gz
-    echo 'de3a01497ef80f2ada39ed9dbcee0478beea8a5386665293d4c9dd8b98c2c9f8  actual-source.tar.gz' | sha256sum --check
-    tar --no-same-owner -xzf actual-source.tar.gz
+    # Signed, hash-pinned Debian snapshot above supplies pristine 3.3.14-1.
+    # Apply the CURRENT reviewed source transformers; never recompile a stale
+    # historical installer and label it as the new dual-boot implementation.
+    apt-get source calamares=3.3.14-1
+    mv calamares-3.3.14 source
+    python3 /src/tools/core-vault/calamares/patch_calamares_source.py source
+    (
+        cd source
+        EDITOR=true dpkg-source --commit . core-vault-native-installer
+    )
     # Make the compiled package distinguishable from the historical incremental rebuild.
     date_utc=$(date -u -R -d "@$SOURCE_DATE_EPOCH")
     cat > changelog-entry <<ENTRY
-calamares (3.3.14-1+corevault5) trixie; urgency=medium
+calamares (3.3.14-1+corevault6) trixie; urgency=medium
 
-  * Recompile the archived Vault installer source using the frozen Debian build inputs.
+  * Build the current native partition editor and validated installation plan guard from frozen Debian source.
 
  -- Bitcoin Core Vault builders <build@localhost>  $date_utc
 
 ENTRY
     cat source/debian/changelog >> changelog-entry
     mv changelog-entry source/debian/changelog
+    tar --sort=name --mtime="@$SOURCE_DATE_EPOCH" --owner=0 --group=0 --numeric-owner \
+        -cJf /evidence/calamares-patched-source.tar.xz source
+    (cd /evidence && sha256sum calamares-patched-source.tar.xz > calamares-source.SHA256SUMS)
     apt-get build-dep --no-install-recommends -y ./source
     (
         cd source
         export DEB_BUILD_OPTIONS='nocheck parallel=2'
         dpkg-buildpackage -us -uc -B -j2
     )
-    cp calamares_3.3.14-1+corevault5_amd64.deb /evidence/calamares-rebuilt.deb
+    cp calamares_3.3.14-1+corevault6_amd64.deb /evidence/calamares-rebuilt.deb
     cp ./*.buildinfo /evidence/
 else
     original=$historical_packages/thunar_4.20.2-1+deb13u1+corevault1_amd64.deb
