@@ -260,7 +260,7 @@ def validate_after(plan, current):
     for area,p in planned.items():
         now=actual[area]
         require(fs(now)==fs(p), 'Installed filesystem differs from the reviewed plan.')
-        if p['new'] and p.get('label'):
+        if disk.get('table_after')=='gpt' and p['new'] and p.get('label'):
             require(now.get('label')==p['label'], 'A new GPT partition label differs from the reviewed plan.')
         if not p['new'] and p.get('mount')!='/':
             old=original[area]

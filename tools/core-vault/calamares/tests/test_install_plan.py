@@ -132,6 +132,21 @@ class PlanTests(unittest.TestCase):
         p,d=fixture();p.update(mode='erase',firmware='bios');disk=p['disks'][0]
         root=disk['partitions'][2];disk['partitions']=[root];disk['jobs']=[dict(type='CreatePartitionTableJob',device='/dev/sda'),job('CreatePartitionJob',root),job('SetPartFlagsJob',root)]
         P.validate_plan(p,d)
+    def test_bios_msdos_readback_has_no_gpt_partition_name(self):
+        for product in ('node','vault'):
+            with self.subTest(product=product):
+                p,d=fixture(product);p.update(mode='erase',firmware='bios');disk=p['disks'][0]
+                root=disk['partitions'][2];root.update(path='/dev/sda1',label='core-'+product,uuid='')
+                disk.update(table_after='other',partitions=[root],jobs=[dict(type='CreatePartitionTableJob',device='/dev/sda'),job('CreatePartitionJob',root),job('SetPartFlagsJob',root)])
+                after=deepcopy(d);after.update(pttype='dos',ptuuid='12345678')
+                actual=oldpart(1,root['first'],root['size'],'ext4','')
+                actual.update(partuuid='12345678-01',parttype='0x83',fsuuid='new-root')
+                after['partitions']=[actual]
+                self.assertEqual(P.validate_after(p,after)['root']['path'],'/dev/sda1')
+                actual['fs']='ntfs'
+                with self.assertRaisesRegex(P.PlanError,'filesystem differs'):P.validate_after(p,after)
+                actual['fs']='ext4';disk['table_after']='gpt'
+                with self.assertRaisesRegex(P.PlanError,'GPT partition label'):P.validate_after(p,after)
     def test_whole_disk_uefi_erase_requires_explicit_table_job(self):
         p,d=created_layout();p['mode']='erase-layout'
         for part in p['disks'][0]['partitions']:part['new']=True
