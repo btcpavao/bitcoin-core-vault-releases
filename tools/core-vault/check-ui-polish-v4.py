@@ -8,10 +8,11 @@ TEMPLATE=ROOT/'tools/core-vault/runtime-template'
 home=INC/'usr/local/bin/core-vault-home';s=home.read_text();t=ast.parse(s)
 assert home.read_bytes()==(TEMPLATE/'usr/local/bin/core-vault-home').read_bytes()
 for marker in ('VAULT_OPTICAL_ICONS_V1','VAULT_POWER_ICON_BUTTONS_V1','optical_icon(icon)',
-               "setAccessibleName('Restart')","setAccessibleName('Finish & Shut Down')"):
+               "setAccessibleName('Settings')", "setAccessibleName('Restart')","setAccessibleName('Finish & Shut Down')"):
     assert marker in s,marker
 assert "self.shutdown_button = HintButton(" in s
-assert s.count('setFixedSize(48, 48)')==2
+assert s.count('setFixedSize(48, 48)')==3
+assert "self.settings_button.clicked.connect(self.settings)" in s
 assert "self.restart_button.clicked.connect(self.restart)" in s
 assert "self.shutdown_button.clicked.connect(self.shutdown)" in s
 cls=next(n for n in t.body if isinstance(n,ast.ClassDef) and n.name=='VaultHome')

@@ -1,0 +1,31 @@
+#!/usr/bin/python3
+"""Shared Node/Vault display preferences and session integration."""
+# SPDX-License-Identifier: GPL-3.0-or-later
+import argparse
+import sys
+
+sys.path.insert(0, '/usr/share/core-desktop')
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--product', choices=('node', 'vault'), required=True)
+    actions = parser.add_mutually_exclusive_group()
+    actions.add_argument('--restore', action='store_true', help='Apply a matching saved layout before desktop startup.')
+    actions.add_argument('--watch', action='store_true', help='Recover usable displays when monitors disconnect.')
+    actions.add_argument('--diagnose', action='store_true', help='Print read-only display modes and current layout.')
+    args = parser.parse_args()
+    if args.restore or args.watch or args.diagnose:
+        import core_display
+        action = 'query' if args.diagnose else ('restore' if args.restore else 'watch')
+        return core_display.main([action, '--product', args.product])
+    from PySide6.QtWidgets import QApplication
+    from core_display_settings import DisplaySettingsDialog, configure_application
+    app = QApplication(sys.argv)
+    app.setApplicationName('Display Settings')
+    configure_application(app)
+    dialog = DisplaySettingsDialog(product=args.product)
+    dialog.show()
+    return app.exec()
+
+if __name__ == '__main__':
+    raise SystemExit(main())

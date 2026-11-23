@@ -134,6 +134,14 @@ jobs:
         # Watch-only export now lives in Core; the retired custom dialog is gone.
         run: python3 tools/core-vault/test-home-fit.py vault /tmp/vault-home-fit
 
+      - name: Check Settings and the advanced installation policy
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          set -euo pipefail
+          python3 tools/core-vault/test-settings-local.py
+          python3 -m unittest discover -s tools/core-vault/calamares/tests -p 'test_*.py' -v
+
       # Boot, actual GUI, installation, filesystem isolation, physical media and
       # recovery acceptance remain separate release checks against the final ISO.
 

@@ -93,6 +93,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--diagnose', action='store_true', help='Report only; do not change the desktop.')
     parser.add_argument('--scale', default=None, help='auto, 1, 1.25, 1.5, 2, etc.')
+    parser.add_argument('--product', choices=('node', 'vault'), default=None,
+                        help='Read this desktop\'s confirmed user display preference.')
     parser.add_argument('command', nargs=argparse.REMAINDER)
     args = parser.parse_args()
     override = args.scale or os.environ.get('CORE_UI_SCALE', 'auto')
@@ -100,6 +102,18 @@ def main():
         config = Path('/etc/core-display-scale.conf')
         if config.is_file():
             override = config.read_text().strip()
+        product = args.product or os.environ.get('CORE_DESKTOP_PRODUCT')
+        if product not in ('node', 'vault'):
+            product = Path.home().name if Path.home().name in ('node', 'vault') else None
+        if product:
+            try:
+                sys.path.insert(0, '/usr/share/core-desktop')
+                from core_display import load_saved
+                profile = load_saved(product)
+                if profile is not None:
+                    override = profile['layout']['scale']
+            except (ImportError, OSError, ValueError):
+                pass
     try:
         result = choose(probe(), override)
         if args.diagnose:

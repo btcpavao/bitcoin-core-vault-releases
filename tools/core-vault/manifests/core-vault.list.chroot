@@ -25,6 +25,7 @@ udiskie
 usbutils
 e2fsprogs
 dosfstools
+mtools
 util-linux
 
 # Existing minimal graphical stack is inherited from Signer base.
@@ -64,3 +65,8 @@ tesseract-ocr-eng
 # File shredding uses the stock Debian GNU shred engine.
 coreutils
 tar
+
+# Local Settings controls; no network services or full desktop settings daemon.
+xinput
+x11-xkb-utils
+pkexec

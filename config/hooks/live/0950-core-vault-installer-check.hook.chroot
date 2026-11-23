@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 # Runs inside live-build's image chroot, not on the developer's running system.
-test "$(dpkg-query -W -f='${Version}' calamares)" = '3.3.14-1+corevault5'
+test "$(dpkg-query -W -f='${Version}' calamares)" = '3.3.14-1+corevault6'
 test "$(dpkg-query -W -f='${Version}' thunar)" = '4.20.2-1+deb13u1+corevault2'
 for module in partition keyboard summary mount unpackfs machineid fstab initramfs bootloader umount finished; do
     test -f "/usr/lib/x86_64-linux-gnu/calamares/modules/$module/module.desc"
@@ -40,8 +40,13 @@ for p in Path('/etc/calamares').rglob('*.conf'): yaml.safe_load(p.read_text())
 assert not Path('/etc/core-vault/installation.json').exists(), 'Installed marker must not be baked into Live image'
 paths=set(Path('/usr/local/bin').glob('core-vault-*'))
 paths.update(Path('/opt/keepassxc').rglob('*'))
-paths.update(Path('/usr/lib/core-vault').glob('*.py'))
+paths.update(Path('/usr/lib/core-vault').rglob('*.py'))
 paths.update(Path('/usr/local/libexec').glob('core-vault-*'))
+paths.update(Path('/usr/libexec').glob('core-vault-*'))
+paths.update(Path('/etc/polkit-1/rules.d').glob('*core-vault*'))
+paths.update(Path('/usr/share/polkit-1/actions').glob('*core-vault*'))
+paths.add(Path('/usr/local/bin/core-display-settings'))
+paths.add(Path('/usr/local/bin/core-display-scale'))
 paths.add(Path('/usr/local/sbin/core-vault-end-session'))
 paths.update(Path('/etc/systemd/system').glob('core-vault-*'))
 paths.update(Path('/etc/systemd/system').glob('*.mount'))
@@ -50,12 +55,22 @@ for directory in ('/etc/sysctl.d', '/etc/security/limits.d', '/etc/systemd/syste
     paths.update(Path(directory).rglob('*'))
 paths.add(Path('/etc/lightdm/lightdm.conf.d/55-core-vault-volatile-auth.conf'))
 paths.add(Path('/etc/initramfs-tools/conf.d/core-vault-noresume'))
-for d in ('/usr/share/core-vault','/usr/share/themes/CoreVault','/usr/share/plymouth/themes/core-signer'):
+for d in ('/usr/share/core-vault','/usr/share/core-desktop','/usr/share/themes/CoreVault','/usr/share/plymouth/themes/core-signer'):
     paths.update(Path(d).rglob('*'))
 required=('/usr/lib/core-vault/public_export.py', '/usr/lib/core-vault/export_view.py',
     '/usr/lib/python3/dist-packages/fusepy.py', '/usr/bin/bwrap','/usr/local/libexec/core-vault-core-session',
     '/usr/lib/core-vault/guide_visuals.py',
     '/usr/lib/core-vault/guide_content.py','/usr/lib/core-vault/ram_notice.py',
+    '/usr/lib/core-vault/settings/vault_settings.py',
+    '/usr/lib/core-vault/settings/vault_input.py',
+    '/usr/lib/core-vault/settings/vault_input_guard.py',
+    '/usr/lib/core-vault/settings/vault_time.py',
+    '/usr/local/libexec/core-vault-time',
+    '/etc/polkit-1/rules.d/49-core-vault-time.rules',
+    '/usr/share/polkit-1/actions/org.bitcoin-core-vault.time.policy',
+    '/usr/local/bin/core-display-settings','/usr/local/bin/core-display-scale',
+    '/usr/share/core-desktop/core_display.py','/usr/share/core-desktop/core_display_settings.py',
+    '/usr/bin/xrandr','/usr/bin/xinput','/usr/bin/setxkbmap','/usr/bin/pkexec',
     '/usr/bin/shred','/usr/lib/core-vault-shred/engine.py',
     '/usr/local/bin/core-vault-shred','/usr/local/bin/core-vault-core-file-dialogs',
     '/usr/share/core-vault/shred-policy.json',
@@ -92,6 +107,6 @@ for p in sorted(paths):
     if p.is_file() and not p.is_symlink():
         files[str(p).lstrip('/')]=hashlib.sha256(p.read_bytes()).hexdigest()
 Path('/etc/core-vault/installer-payload.json').write_text(json.dumps(
-    {'schema':1,'calamares_version':'3.3.14-1+corevault5','files':files},indent=2)+'\n')
+    {'schema':1,'calamares_version':'3.3.14-1+corevault6','files':files},indent=2)+'\n')
 print('VAULT CALAMARES CHROOT CHECK PASSED')
 PY

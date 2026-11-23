@@ -16,13 +16,25 @@ GTK3 uses integer widget scaling and density-adjusted text. GTK3's fractional
 icon geometry can differ from Qt; this is an X11/GTK3 limitation.
 
 The X11 session uses one shared scale, following the primary output. Mixed-DPI
-monitors cannot each get independent scaling here. Detection runs at session
-startup; reconnecting a different display requires signing out/restarting.
-No resolution-changing xrandr calls or framebuffer stretching are used.
+monitors cannot each get independent scaling here. Initial detection runs before
+the desktop starts. The shared Display Settings window changes supported video
+modes separately from this DPI helper, with a Keep/Revert confirmation. Its
+session watcher recovers usable outputs and reapplies the fit cap after monitor
+changes. No framebuffer stretching is used for interface scaling.
 
-For a manual preference, set /etc/core-display-scale.conf to auto or a number
-such as 1.25 or 1.5 and restart the session. The live and installed sessions
-both read this setting. Vault's volatile home and wallet policies are unchanged.
+The default preference remains /etc/core-display-scale.conf (auto or a number
+such as 1.25 or 1.5). A confirmed ~/.config/core-desktop/display.json profile takes
+precedence for that desktop, and Settings exposes Automatic and manual sizes.
+The setting is safely capped for the active outputs. Explicit --scale and
+CORE_UI_SCALE overrides retain highest precedence. The optional --product flag
+selects Node or Vault preference validation.
+
+Newly launched applications inherit refreshed Qt/GTK scale variables through
+core_display.launch_environment(). Some already-open applications may need to be
+reopened. Changing display settings never automatically closes an application or
+ends Vault's private session. Vault preferences stay in its RAM-backed home;
+save_profile rejects a persistent home destination. See DISPLAY-SETTINGS.md for
+the shared UI, session integration, profile format and rollback behavior.
 
 Diagnostics (read-only):
     core-display-scale --diagnose

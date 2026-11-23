@@ -41,5 +41,5 @@
     "tools/core-vault/thunar/prepare-private-prefix.py": "9cad458d5ea5f06dfaada96e35185510b712264bff2172d2bfba974a8e8670e8",
     "tools/core-vault/thunar/test-dispatch.py": "b4ee59bfeab29c85230810cbe8e3420b5d54637ea13bc53218673bb04c417409"
   },
-  "native_build_sha256": "a606d398bdb99583a32c8891bd61b0de5df86ad8d45d040e876c23f6b64f0258"
+  "native_build_sha256": "70f444a10a0a39e5328360e01c141a11ac3658efe7bd42f43d07c82b7bc8d282"
 }
