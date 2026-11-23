@@ -87,11 +87,16 @@ def prepare(directory, revision):
     old = "    stage['installation_target'] = {'path': '/dev/vda', 'serial': 'CV_RAM_TEST_INTERNAL', 'virtual_bytes': 24*1024**3}\n    vm.click_word('Continue', rows, image)"
     new = "    stage['installation_target'] = {'path': '/dev/vda', 'serial': 'CV_RAM_TEST_INTERNAL', 'virtual_bytes': 24*1024**3}\n" \
         "    vm.click_phrase('Install to disk', rows, image)\n" \
-        "    image, rows, text = vm.words('installer-method-selected')\n" \
+        "    image, rows, text = vm.wait_screen('installer-method-selected', lambda s:\n" \
+        "        selected_test_disk(s) and 'continue' in s.lower()\n" \
+        "        and 'everything on the selected physical disk' in s.lower(), 60)\n" \
         "    require(selected_test_disk(text), 'The selected fixture disk changed after the method choice.')\n" \
         "    stage['method_selection_screenshot'] = image.name\n" \
         "    vm.click_word('Continue', rows, image)"
     changes = (
+        ("'choose where to install bitcoin core vault' in s.lower() and 'installation drive' in s.lower() and 'continue' in s.lower()",
+         "'choose where to install bitcoin core vault' in s.lower() and 'installation drive' in s.lower() "
+         "and 'install to disk' in s.lower() and 'advanced partitioning' in s.lower()"),
         (old, new),
         ("'ready to install' in s.lower() and 'understand' in s.lower() and 'erase drive and install' in s.lower()",
          "'ready to install' in s.lower() and 'confirm these changes' in s.lower() and 'install bitcoin core vault' in s.lower()"),
