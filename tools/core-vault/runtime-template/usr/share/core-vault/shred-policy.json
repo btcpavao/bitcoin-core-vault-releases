@@ -5,8 +5,8 @@
     "usr/local/bin/core-vault-core-file-dialogs": "db7449cb274eeb0424912779c98ec0f4d0d0fe9983b38dae26c811d7f6a08a16",
     "usr/local/bin/core-vault-file-places": "0fabe3fdc497adc258273b40586f1ba96a1d0ff7282180aa18fc2ce10d76dd7f",
     "usr/local/bin/core-vault-guide": "10600d858b75ebdadd1a9d1db2ba0d2859d5c6915e206862ad19ac168eea5025",
-    "usr/local/bin/core-vault-home": "c3743c4704780df6ae0c4f0855d7f7c9322fa584eb819ae72d97926a00c8f6fb",
-    "usr/local/bin/core-vault-session": "efe2fef653b5f7ef83a9c44ed99c7115cefda44e5751467123306bd392ba079b",
+    "usr/local/bin/core-vault-home": "f95fdcc7df483b1933926f55365efe5fc38e24bc8a473f24b95fa354831fbadf",
+    "usr/local/bin/core-vault-session": "1783ceb317d777adecc669611ca7b3867d5c68923775228735f181c80df7a1bc",
     "usr/local/bin/core-vault-shred": "259c41e024a35efbba204804d3b7fc6777b651168e3bda7dfc27954040da1ad7"
   },
   "name": "vault-permanent-delete",
