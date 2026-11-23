@@ -1,0 +1,306 @@
+#!/usr/bin/python3
+"""Selected-ESP ownership, bounded reservation metadata and peer boot entries.
+
+Filesystem signatures are cleared only inside fresh, reviewed reservation spans.
+EFI and GRUB writes use the mounted, confirmed target. Other disks are inspected
+read-only with lsblk/mtype; their files are not mounted.
+Never import this module to perform writes: finalize() is an explicit entry point.
+"""
+from __future__ import annotations
+import hashlib, json, os, re, shutil, stat, subprocess, sys
+from pathlib import Path
+from install_plan import (ESP_TYPE, MIN_ROOT, PlanError, require, span, fs,
+                          validate_after, verify_reservation, validate_record)
+import disk_safety
+ENV={'PATH':'/usr/sbin:/usr/bin:/sbin:/bin','LC_ALL':'C','LANG':'C'}
+PRODUCTS={'node':'BitcoinCoreNode','vault':'BitcoinCoreVault'}
+META='EFI/BitcoinCore'
+MAX_RECORD=65536
+MAX_EFI=32*1024**2
+LSBLK='NAME,KNAME,TYPE,TRAN,RO,RM,SIZE,MOUNTPOINTS,SERIAL,WWN,MODEL,MAJ:MIN,LOG-SEC,PTTYPE,PTUUID,FSTYPE,PARTUUID,PARTLABEL,PARTTYPE,UUID'
+
+
+def bounded_json(data):
+    require(isinstance(data,(bytes,str)) and len(data)<=MAX_RECORD, 'EFI metadata exceeds the size limit.')
+    def unique(pairs):
+        result={}
+        for key,value in pairs:
+            require(key not in result,'Duplicate EFI metadata key.')
+            result[key]=value
+        return result
+    value=json.loads(data,object_pairs_hook=unique)
+    require(isinstance(value,dict) and type(value.get('schema')) is int and value.get('schema')==1, 'Unsupported EFI metadata schema.')
+    return value
+
+
+def direct_filesystem(device):
+    require(re.fullmatch(r'/dev/[A-Za-z0-9]+',device),'Invalid partition path.')
+    result=subprocess.run(['/usr/sbin/blkid','--probe','--output','export',device],
+        capture_output=True,text=True,timeout=5,env=ENV)
+    require(result.returncode in (0,2),'A partition signature could not be read reliably.')
+    fields=dict(line.split('=',1) for line in result.stdout.splitlines() if '=' in line)
+    return fields.get('TYPE','').lower(),fields.get('UUID','')
+
+
+def disk_layout(device):
+    """Inspect the mounted target after jobs; this is NOT an eligibility bypass."""
+    require(re.fullmatch(r'/dev/(?:sd[a-z]+|hd[a-z]+|nvme\d+n\d+|vd[a-z]+)',device), 'Invalid disk path.')
+    st=os.stat(device);require(stat.S_ISBLK(st.st_mode),'Target is not a block device.')
+    data=subprocess.check_output(['/usr/bin/lsblk','--json','--bytes','--paths','--output',LSBLK,device],timeout=10,env=ENV)
+    nodes=json.loads(data)['blockdevices'];require(len(nodes)==1,'Ambiguous disk identity.')
+    node=nodes[0];require(node['name']==device and node['type']=='disk','Not the selected physical disk.')
+    result={
+        'name':device,'size':int(node['size']),'major_minor':node.get('maj:min',''),
+        'serial':(node.get('serial') or '').strip(),'wwn':(node.get('wwn') or '').strip(),
+        'model':(node.get('model') or '').strip(),
+        'sysfs':str((Path('/sys/class/block')/Path(device).name).resolve(strict=True)),
+        'logical_size':int(node.get('log-sec') or 512),'pttype':node.get('pttype') or '',
+        'ptuuid':node.get('ptuuid') or '', 'partitions':[]}
+    require(result['major_minor']==f'{os.major(st.st_rdev)}:{os.minor(st.st_rdev)}','Disk changed while inspecting it.')
+    for child in disk_safety.walk(node):
+        if child is node:continue
+        require(child['type']=='part','Mapped storage is not a supported target.')
+        start=Path('/sys/class/block')/Path(child['name']).name/'start'
+        fs_type,fs_uuid=direct_filesystem(child['name'])
+        result['partitions'].append(dict(path=child['name'],first=int(start.read_text().strip())*512,
+            size=int(child['size']),fs=fs_type,partuuid=child.get('partuuid') or '',
+            label=child.get('partlabel') or '',parttype=child.get('parttype') or '',fsuuid=fs_uuid))
+    result['partitions'].sort(key=lambda p:(p['first'],p['path']))
+    return result
+
+
+def read_esp_record(esp, filename):
+    """Bound stdout before parsing an untrusted FAT file; never mount the ESP."""
+    require(filename in ('installed-node.json','installed-vault.json','reserved-node.json','reserved-vault.json'),
+            'Unsupported EFI metadata path.')
+    require(re.fullmatch(r'/dev/[A-Za-z0-9]+',esp),'Invalid EFI device path.')
+    process=subprocess.Popen(['/usr/bin/mtype','-i',esp,'::/'+META+'/'+filename],
+        stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,env=ENV)
+    try:
+        result=subprocess.run(['/usr/bin/head','-c',str(MAX_RECORD+1)],stdin=process.stdout,
+            capture_output=True,check=True,timeout=5,env=ENV)
+        process.stdout.close()
+        if len(result.stdout)>MAX_RECORD:return None
+        if process.wait(timeout=2)!=0:return None
+        return validate_record(bounded_json(result.stdout),'reserved' if filename.startswith('reserved-') else 'installed')
+    except (OSError,ValueError,RecursionError,subprocess.SubprocessError):return None
+    finally:
+        if process.poll() is None:process.kill()
+        process.wait(timeout=2)
+
+
+def verified_reservations(device, product):
+    require(product in PRODUCTS,'Unknown reservation product.')
+    identity=disk_safety.probe(device)
+    output=[]
+    for esp in identity['partitions']:
+        if esp['parttype'].lower()!=ESP_TYPE or fs(esp)!='fat32':continue
+        record=read_esp_record(esp['path'],'reserved-'+product+'.json')
+        if not record:continue
+        for part in identity['partitions']:
+            try:verify_reservation(record,product,identity,part)
+            except (PlanError,KeyError,TypeError):continue
+            output.append(dict(path=part['path'],first=part['first'],size=part['size'],partuuid=part['partuuid']))
+    # Two contradicting records never select a partition automatically.
+    unique={p['partuuid']:p for p in output}
+    return list(unique.values()) if len(unique)==1 else []
+
+
+def installed_peer(record, product, identity, esp):
+    validate_record(record,'installed')
+    require(record['product']==product,'Unverified peer product.')
+    require(record.get('serial')==identity['serial'] and record.get('wwn')==identity['wwn']
+            and record.get('disk_guid')==identity['ptuuid'],'Peer disk identity differs.')
+    require(record.get('esp_partuuid')==esp['partuuid'] and record.get('esp_fsuuid')==esp['fsuuid'],'Peer EFI identity differs.')
+    require(record.get('boot_id')==PRODUCTS[product],'Unexpected peer boot path.')
+    roots=[p for p in identity['partitions'] if p['partuuid']==record.get('root_partuuid')]
+    require(len(roots)==1 and fs(roots[0])=='ext4' and roots[0]['fsuuid']==record.get('root_fsuuid'),'Peer root identity differs.')
+    require(re.fullmatch(r'[0-9A-Fa-f-]{4,64}',esp['fsuuid']),'Unsafe EFI filesystem UUID.')
+    return dict(product=product,uuid=esp['fsuuid'],path='/EFI/'+PRODUCTS[product]+'/grubx64.efi')
+
+
+def discover_peers(product, own_identity):
+    other='vault' if product=='node' else 'node'; output=[]
+    rows=json.loads(subprocess.check_output(['/usr/bin/lsblk','--json','--bytes','--paths','--nodeps','--output','NAME,TYPE'],timeout=5,env=ENV))['blockdevices']
+    for row in rows:
+        if row.get('type')!='disk':continue
+        try:identity=own_identity if row['name']==own_identity['name'] else disk_safety.probe(row['name'])
+        except (OSError,ValueError,subprocess.SubprocessError):continue
+        for esp in identity['partitions']:
+            if esp['parttype'].lower()!=ESP_TYPE or fs(esp)!='fat32':continue
+            record=read_esp_record(esp['path'],'installed-'+other+'.json')
+            if not record:continue
+            try:output.append(installed_peer(record,other,identity,esp))
+            except (ValueError,KeyError,TypeError):continue
+    return list({(p['product'],p['uuid']):p for p in output}.values())
+
+
+def grub_peer_script(peers):
+    """Data is restricted to fixed product paths and validated FAT UUIDs."""
+    text='#!/bin/sh\nexec tail -n +3 "$0"\n# Bitcoin Core: chainload only explicit EFI paths. No OS filesystem probing.\n'
+    if peers:text+='insmod part_gpt\ninsmod fat\ninsmod search_fs_uuid\n'
+    for peer in peers:
+        require(peer.get('product') in PRODUCTS and re.fullmatch(r'[0-9A-Fa-f-]{4,64}',peer.get('uuid','')),'Unsafe boot entry.')
+        name='Bitcoin Core '+peer['product'].title();path='/EFI/'+PRODUCTS[peer['product']]+'/grubx64.efi'
+        text+=f"if search --no-floppy --fs-uuid --set=core_peer {peer['uuid']}; then\n"
+        text+=f"  if [ -f ($core_peer){path} ]; then\n"
+        text+=f"    menuentry '{name}' --class gnu-linux --id core-{peer['product']}-{peer['uuid']} {{\n"
+        text+="      insmod part_gpt\n      insmod fat\n      insmod chain\n"
+        text+=f"      search --no-floppy --fs-uuid --set=root {peer['uuid']}\n      chainloader {path}\n    }}\n  fi\nfi\n"
+    return text
+
+
+def safe(root, name):
+    path=root/name
+    require(path.resolve(strict=False).is_relative_to(root),'Path escapes the installation target.')
+    return path
+
+
+def write_json(path,value):
+    kind='reserved' if path.name.startswith('reserved-') else 'installed' if path.name.startswith('installed-') else 'fallback'
+    validate_record(value,kind)
+    data=(json.dumps(value,sort_keys=True,indent=2)+'\n').encode()
+    require(len(data)<=MAX_RECORD,'Generated EFI metadata exceeds the limit.')
+    require(not path.is_symlink(),'Refusing an EFI metadata symlink.')
+    path.parent.mkdir(parents=True,exist_ok=True)
+    temporary=path.with_name(path.name+'.new')
+    fd=os.open(temporary,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600)
+    try:
+        with os.fdopen(fd,'wb') as f:f.write(data);f.flush();os.fsync(f.fileno())
+        os.replace(temporary,path)
+    finally:temporary.unlink(missing_ok=True)
+
+
+def mounted_source(path):
+    value=json.loads(subprocess.check_output(['/usr/bin/findmnt','--json','--mountpoint',str(path),'--output','TARGET,SOURCE,FSTYPE'],timeout=5,env=ENV))['filesystems']
+    require(len(value)==1 and value[0]['target']==str(path),'Expected a separate mounted target.')
+    return value[0]['source'].split('[')[0],value[0]['fstype']
+
+
+def confirmed_plan():
+    require(os.geteuid()==0 and 'boot=live' in Path('/proc/cmdline').read_text().split(),
+            'Reservation jobs require the Live installer root context.')
+    record=Path('/run/core-installer/confirmed-plan.json');directory=record.parent.lstat()
+    require(stat.S_ISDIR(directory.st_mode) and directory.st_uid==0 and not directory.st_mode&0o077,'Untrusted installer runtime directory.')
+    st=record.lstat()
+    require(stat.S_ISREG(st.st_mode) and st.st_uid==0 and not st.st_mode&0o077 and st.st_size<=1024*1024,
+            'Untrusted installation plan record.')
+    return json.loads(record.read_text())
+
+
+def prepare_reservations():
+    """Clear signatures only in fresh reviewed reservations, before any mount job.
+
+    KPM intentionally leaves Unformatted partition contents alone. A previous
+    filesystem signature in otherwise unallocated sectors must not turn a new
+    reserved slot into an apparent existing filesystem. No existing preserved
+    partition can pass this boundary.
+    """
+    from copy import deepcopy
+    from install_plan import validate_plan
+    plan=confirmed_plan();intent=validate_plan(plan,plan['expected'])
+    if not intent['reserved']:return
+    # Eligibility again rejects every mounted/live/swap/held/removable device.
+    current=disk_safety.probe(plan['target']);permitted={span(p) for p in intent['reserved']}
+    normalized=deepcopy(current)
+    for part in normalized['partitions']:
+        if span(part) in permitted:part['fs']='';part['fsuuid']=''
+    validated=validate_after(plan,normalized)
+    for part in validated['reserved']:
+        require(span(part) in permitted and part['partuuid'],'Reservation identity is missing.')
+        signature,_=direct_filesystem(part['path'])
+        if signature:
+            subprocess.run(['/usr/sbin/wipefs','--all','--force','--',part['path']],
+                check=True,capture_output=True,text=True,timeout=30,env=ENV)
+        signature,_=direct_filesystem(part['path'])
+        require(not signature,'The reviewed reservation still contains a filesystem signature.')
+
+
+def bounded_efi_hash(path):
+    st=path.lstat()
+    if not stat.S_ISREG(st.st_mode) or st.st_size>MAX_EFI:return None
+    digest=hashlib.sha256();count=0
+    with path.open('rb') as stream:
+        for chunk in iter(lambda:stream.read(1024*1024),b''):
+            count+=len(chunk)
+            if count>MAX_EFI:return None
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def install_owned_fallback(esp_root, loader, product, esp):
+    """Create fallback, or refresh only a byte-verified fallback we already own."""
+    fallback=safe(esp_root,'EFI/BOOT/BOOTX64.EFI')
+    owner=safe(esp_root,META+'/fallback-owner.json')
+    replace=False
+    if fallback.exists():
+        require(fallback.is_file() and not fallback.is_symlink(),'Invalid existing EFI fallback.')
+        if fallback.stat().st_size>MAX_EFI:return fallback
+        if owner.is_file() and not owner.is_symlink() and owner.stat().st_size<=MAX_RECORD:
+            try:
+                with owner.open('rb') as stream:raw=stream.read(MAX_RECORD+1)
+                prior=validate_record(bounded_json(raw),'fallback')
+                replace=(prior.get('product')==product and prior.get('esp_partuuid')==esp['partuuid']
+                    and prior.get('sha256')==bounded_efi_hash(fallback))
+            except (ValueError,RecursionError):pass
+        if not replace:return fallback
+    else:
+        require(not fallback.is_symlink(),'Invalid EFI fallback symlink.')
+    fallback.parent.mkdir(parents=True,exist_ok=True)
+    temporary=fallback.with_name('BOOTX64.EFI.new')
+    try:
+        with loader.open('rb') as src, temporary.open('xb') as dst:
+            shutil.copyfileobj(src,dst);dst.flush();os.fsync(dst.fileno())
+        # The existing file is replaceable only after exact owner/hash checks.
+        if replace:os.replace(temporary,fallback)
+        else:
+            # Link is unsupported on FAT; use exclusive creation, preserving any
+            # concurrently created fallback rather than overwriting it.
+            with temporary.open('rb') as src, fallback.open('xb') as dst:shutil.copyfileobj(src,dst)
+    finally:temporary.unlink(missing_ok=True)
+    write_json(owner,dict(schema=1,product=product,esp_partuuid=esp['partuuid'],
+        sha256=bounded_efi_hash(fallback)))
+    return fallback
+
+
+def finalize(root,product):
+    require(product in PRODUCTS and os.geteuid()==0,'Invalid installation context.')
+    root=Path(root)
+    require(root.is_absolute() and root!=Path('/') and root.resolve()==root and os.path.ismount(root),'Not a separate installation target.')
+    require('boot=live' in Path('/proc/cmdline').read_text().split(),'The EFI finalizer only runs from the Live installer.')
+    plan=confirmed_plan();require(plan['product']==product,'Installation product mismatch.')
+    identity=disk_layout(plan['target']);intent=validate_after(plan,identity)
+    source,fstype=mounted_source(root)
+    require(source==intent['root']['path'] and fstype=='ext4','Mounted root is not the confirmed partition.')
+    if plan['firmware']=='bios':
+        require(plan['mode']=='erase','Advanced BIOS installation is not supported.');return
+    esp=intent['esp'];esp_root=safe(root,'boot/efi');source,fstype=mounted_source(esp_root)
+    require(source==esp['path'] and fstype in ('vfat','fat32'),'Mounted EFI is not the confirmed partition.')
+    loader=safe(esp_root,'EFI/'+PRODUCTS[product]+'/grubx64.efi')
+    require(loader.is_file() and not loader.is_symlink() and 1024<loader.stat().st_size<32*1024**2,'The product EFI loader is missing or invalid.')
+    with loader.open('rb') as f:require(f.read(2)==b'MZ','The product EFI loader is not a PE image.')
+    record=dict(schema=1,product=product,serial=identity['serial'],wwn=identity['wwn'],disk_guid=identity['ptuuid'],
+        root_partuuid=intent['root']['partuuid'],root_fsuuid=intent['root']['fsuuid'],
+        esp_partuuid=esp['partuuid'],esp_fsuuid=esp['fsuuid'],boot_id=PRODUCTS[product])
+    write_json(safe(esp_root,META+'/installed-'+product+'.json'),record)
+    other='vault' if product=='node' else 'node'
+    for reserved in intent['reserved']:
+        require(not fs(reserved) and reserved['size']>=MIN_ROOT[other],'Companion reservation is not unformatted.')
+        reservation=dict(schema=1,product=other,serial=identity['serial'],wwn=identity['wwn'],disk_guid=identity['ptuuid'],
+            partuuid=reserved['partuuid'],first=reserved['first'],size=reserved['size'])
+        write_json(safe(esp_root,META+'/reserved-'+other+'.json'),reservation)
+    fallback=install_owned_fallback(esp_root,loader,product,esp)
+    peers=discover_peers(product,identity)
+    # A same-ESP reservation gains a menu entry automatically once the peer is
+    # installed. The first system's root/GRUB never needs to be modified later.
+    if intent['reserved'] and not any(p['uuid']==esp['fsuuid'] for p in peers):
+        peers.append(dict(product=other,uuid=esp['fsuuid']))
+    script=safe(root,'etc/grub.d/41_bitcoin_core_peer');script.parent.mkdir(parents=True,exist_ok=True)
+    require(not script.is_symlink(),'Unsafe GRUB script path.');script.write_text(grub_peer_script(peers));script.chmod(0o755)
+    config=safe(root,'etc/default/grub.d/zz-bitcoin-core-boot-menu.cfg');config.parent.mkdir(parents=True,exist_ok=True)
+    require(not config.is_symlink(),'Unsafe GRUB configuration path.')
+    menu=('GRUB_TIMEOUT_STYLE=menu\nGRUB_TIMEOUT=8\n' if peers else 'GRUB_TIMEOUT_STYLE=hidden\nGRUB_TIMEOUT=0\n')
+    config.write_text(menu+'GRUB_DISABLE_OS_PROBER=true\n')
+    subprocess.run(['/usr/sbin/chroot',str(root),'/usr/sbin/grub-mkconfig','-o','/boot/grub/grub.cfg'],check=True,timeout=180,env=ENV)
+    # Check existence, not a hardcoded EFI ID shared with another product.
+    require(loader.is_file() and fallback.is_file(),'EFI boot files disappeared during finalization.')

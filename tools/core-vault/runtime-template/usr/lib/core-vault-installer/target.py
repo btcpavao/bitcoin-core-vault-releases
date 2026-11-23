@@ -227,6 +227,8 @@ def configure(root):
 
 def verify(root):
     root=validate_target(root);verify_policy(root);payload_verify(root)
+    from boot_finalize import finalize
+    finalize(root,'vault')
     for name in ('usr/bin/calamares','etc/calamares','usr/lib/core-vault-installer',
                  'usr/local/sbin/core-vault-installer','etc/sudoers.d/80-core-vault-installer'):
         p=root/name
