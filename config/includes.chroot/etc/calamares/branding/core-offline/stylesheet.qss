@@ -160,3 +160,72 @@ QWidget#coreVaultWizardSurface[coreVaultCompact="true"] QLabel#coreOfflineEraseW
 }
 QWidget#coreVaultWizardSurface[coreVaultCompact="true"] QLabel#summaryItemTitle,
 QWidget#coreVaultWizardSurface[coreVaultCompact="true"] QLabel#summaryItemBody { font-size: 13px; }
+
+/* Native partition choices/editors: retain the established installer palette. */
+QWidget#coreInstallMethodErase QRadioButton,
+QWidget#coreInstallMethodAdvanced QRadioButton { padding: 10px 2px; }
+QWidget#coreInstallMethodErase QRadioButton::indicator,
+QWidget#coreInstallMethodAdvanced QRadioButton::indicator {
+  width: 20px; height: 20px; border: 1px solid #b8b8b8;
+  border-radius: 11px; background: #111111;
+}
+QWidget#coreInstallMethodErase QRadioButton::indicator:checked,
+QWidget#coreInstallMethodAdvanced QRadioButton::indicator:checked {
+  border-color: #ffffff;
+  background: qradialgradient(cx:0.5, cy:0.5, radius:0.5, fx:0.5, fy:0.5,
+    stop:0 #ffffff, stop:0.52 #ffffff, stop:0.58 #111111, stop:1 #111111);
+}
+QWidget#coreInstallMethodErase QRadioButton::indicator:hover,
+QWidget#coreInstallMethodAdvanced QRadioButton::indicator:hover { border-color: #ffffff; }
+QWidget#coreInstallMethodErase QRadioButton::indicator:focus,
+QWidget#coreInstallMethodAdvanced QRadioButton::indicator:focus { border: 2px solid #f7931a; }
+QWidget#coreInstallMethodErase QRadioButton::indicator:disabled,
+QWidget#coreInstallMethodAdvanced QRadioButton::indicator:disabled { border-color: #555555; background: #171717; }
+QDoubleSpinBox#coreRootSizeGiB,
+QDoubleSpinBox#coreReservedSizeGiB {
+  background: #121212; color: #ffffff; border: 1px solid #4a4a4a;
+  border-radius: 6px; padding: 6px 24px 6px 6px; min-height: 26px;
+  selection-background-color: #343434; selection-color: #ffffff;
+}
+QDoubleSpinBox#coreRootSizeGiB:focus,
+QDoubleSpinBox#coreReservedSizeGiB:focus { border: 2px solid #f7931a; }
+QDoubleSpinBox#coreRootSizeGiB:disabled,
+QDoubleSpinBox#coreReservedSizeGiB:disabled { color: #777777; border-color: #303030; background: #151515; }
+QCheckBox#coreReserveCompanion,
+QCheckBox#coreFormatRootConsent { color: #ffffff; spacing: 10px; padding: 6px 0px; }
+QCheckBox#coreReserveCompanion::indicator,
+QCheckBox#coreFormatRootConsent::indicator {
+  width: 20px; height: 20px; border: 1px solid #888888; background: #111111;
+}
+QCheckBox#coreReserveCompanion::indicator:checked,
+QCheckBox#coreFormatRootConsent::indicator:checked {
+  image: url(/etc/calamares/branding/core-offline/checkmark.png);
+  background: #303030; border: 1px solid #b8b8b8;
+}
+QCheckBox#coreReserveCompanion::indicator:hover,
+QCheckBox#coreFormatRootConsent::indicator:hover { border-color: #ffffff; }
+QCheckBox#coreReserveCompanion::indicator:focus,
+QCheckBox#coreFormatRootConsent::indicator:focus { border: 2px solid #f7931a; }
+
+QDoubleSpinBox#coreRootSizeGiB::up-button,
+QDoubleSpinBox#coreReservedSizeGiB::up-button {
+  subcontrol-origin: border; subcontrol-position: top right; width: 18px;
+  background: #252525; border-top-right-radius: 5px; border: 1px solid #4a4a4a;
+}
+QDoubleSpinBox#coreRootSizeGiB::down-button,
+QDoubleSpinBox#coreReservedSizeGiB::down-button {
+  subcontrol-origin: border; subcontrol-position: bottom right; width: 18px;
+  background: #252525; border-bottom-right-radius: 5px; border: 1px solid #4a4a4a;
+}
+QDoubleSpinBox#coreRootSizeGiB::up-button:disabled,
+QDoubleSpinBox#coreRootSizeGiB::down-button:disabled,
+QDoubleSpinBox#coreReservedSizeGiB::up-button:disabled,
+QDoubleSpinBox#coreReservedSizeGiB::down-button:disabled { background: #303030; }
+QDoubleSpinBox#coreRootSizeGiB::up-arrow,
+QDoubleSpinBox#coreReservedSizeGiB::up-arrow {
+  image: url(/etc/calamares/branding/core-offline/spin-up.svg); width: 10px; height: 8px;
+}
+QDoubleSpinBox#coreRootSizeGiB::down-arrow,
+QDoubleSpinBox#coreReservedSizeGiB::down-arrow {
+  image: url(/etc/calamares/branding/core-offline/spin-down.svg); width: 10px; height: 8px;
+}

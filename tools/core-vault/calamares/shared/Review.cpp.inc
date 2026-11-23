@@ -19,7 +19,8 @@
             const auto p=entry.toObject();QString action;
             if(p.value("mount").toString()==QStringLiteral("/")) action=tr("Format ext4; install Bitcoin Core Vault");
             else if(p.value("mount").toString()==QStringLiteral("/boot/efi")) action=p.value("new").toBool()?tr("Create EFI / FAT32"):tr("Reuse EFI; do not format");
-            else if(p.value("new").toBool()) action=tr("Clear old signatures; reserve unformatted: %1").arg(p.value("label").toString());
+            else if(p.value("mount").toString()==QStringLiteral("/boot")) action=tr("Create and format ext4 boot partition");
+            else if(p.value("new").toBool()) action=tr("Create unformatted reservation for %1").arg(CORE_PRODUCT_NODE?tr("Vault"):tr("Node"));
             else action=tr("Keep unchanged");
             QString name=p.value("path").toString();if(name.isEmpty()) name=p.value("original_path").toString();if(name.isEmpty()) name=tr("New partition");
             rows+=QStringLiteral("<tr><td>%1 — %2 GiB</td><td>%3</td><td>%4</td></tr>")

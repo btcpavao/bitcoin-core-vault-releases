@@ -86,7 +86,7 @@ fi'''
     # Installer control assets must survive regeneration with identical templates.
     brand=INC/'etc/calamares/branding/core-offline'
     template_brand=ROOT/'tools/core-vault/installer-template/includes.chroot/etc/calamares/branding/core-offline'
-    for name in ('stylesheet.qss','checkmark.svg','checkmark.png'):
+    for name in ('stylesheet.qss','checkmark.svg','checkmark.png','spin-up.svg','spin-down.svg'):
         if (brand/name).read_bytes()!=(template_brand/name).read_bytes():
             raise RuntimeError('Installer branding template mismatch: '+name)
     import xml.etree.ElementTree as ET

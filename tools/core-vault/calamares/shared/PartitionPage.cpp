@@ -26,6 +26,7 @@
 #include <QJsonObject>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QScreen>
 #include <QSignalBlocker>
 #include <QTreeWidget>
 #include <QVBoxLayout>
@@ -42,6 +43,29 @@ static const int companionMinimum = isNode ? 16 : 32;
 static const char* companionName = isNode ? "Vault" : "Node";
 static const char* companionLabel = isNode ? "BitcoinCoreVaultReserved" : "BitcoinCoreNodeReserved";
 static QString sizeText(qint64 n) { return QString::number(double(n)/GiB, 'f', 2)+QStringLiteral(" GiB"); }
+// Keep the new editors compact even when the live window manager maximizes
+// ordinary dialogs. The fixed size is calculated after stylesheet polish and
+// word wrapping, so the visible controls fit the existing 800x600 minimum.
+static void preparePartitionDialog(QDialog& dialog, QFormLayout& form)
+{
+    dialog.setWindowModality(Qt::WindowModal);
+    dialog.setWindowFlag(Qt::WindowMaximizeButtonHint, false);
+    dialog.setSizeGripEnabled(false);
+    form.setContentsMargins(20, 16, 20, 16);
+    form.setHorizontalSpacing(16);
+    form.setVerticalSpacing(12);
+    form.setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+    dialog.ensurePolished();
+    QWidget* parent = dialog.parentWidget()->window();
+    QRect available = parent->frameGeometry();
+    if (parent->screen()) available = available.intersected(parent->screen()->availableGeometry());
+    available = available.adjusted(20, 20, -20, -20);
+    const int width = qMin(560, available.width());
+    const int wrappedHeight = form.totalHeightForWidth(width);
+    const int height = wrappedHeight >= 0 ? wrappedHeight : form.sizeHint().height();
+    dialog.setFixedSize(width, height);
+    dialog.move(available.center() - dialog.rect().center());
+}
 static bool espCandidate(const Partition* p)
 {
     return p && !isPartitionFreeSpace(p) && !isPartitionNew(p)
@@ -214,6 +238,7 @@ void PartitionPage::edit()
     connect(format,&QCheckBox::toggled,buttons->button(QDialogButtonBox::Ok),&QPushButton::setEnabled);
     connect(buttons,&QDialogButtonBox::accepted,&dialog,&QDialog::accept);
     connect(buttons,&QDialogButtonBox::rejected,&dialog,&QDialog::reject);
+    preparePartitionDialog(dialog, *form);
     if(dialog.exec()==QDialog::Accepted && format->isChecked()) setRoot(p);
 }
 void PartitionPage::createLayout()
@@ -264,6 +289,7 @@ void PartitionPage::createLayout()
     connect(root,QOverload<double>::of(&QDoubleSpinBox::valueChanged),&dialog,[=](double){validate();});
     connect(other,QOverload<double>::of(&QDoubleSpinBox::valueChanged),&dialog,[=](double){validate();});
     connect(buttons,&QDialogButtonBox::accepted,&dialog,&QDialog::accept); connect(buttons,&QDialogButtonBox::rejected,&dialog,&QDialog::reject); validate();
+    preparePartitionDialog(dialog, *form);
     if(dialog.exec()!=QDialog::Accepted) return;
     qint64 cursor=first;
     auto add=[&](qint64 mib,FileSystem::Type fs,const QString& mount,const QString& label,PartitionTable::Flags flags) {

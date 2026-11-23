@@ -9,10 +9,11 @@ INPUTS = (
 )
 # These patch records and assets feed the native Qt geometry and styling test.
 PATCH_INPUTS = ('base_patch.py', 'patch_calamares_source.py', 'CoreOfflineGuard.h',
-                'package_state.py', 'visual_polish.py', 'advanced_patch.py',
+                'package_state.py', 'visual_polish.py', 'advanced_patch.py', 'native_ui_test.py',
                 'shared/PartitionPage.h', 'shared/PartitionPage.cpp',
                 'shared/CoreOfflineGuard.h', 'shared/PlanMethods.cpp.inc', 'shared/Review.cpp.inc')
-BRANDING = ('stylesheet.qss', 'checkmark.svg', 'checkmark.png', 'bitcoin.png', 'debian.png'
+BRANDING = ('stylesheet.qss', 'checkmark.svg', 'checkmark.png', 'bitcoin.png', 'debian.png',
+            'spin-up.svg', 'spin-down.svg'
 )
 
 

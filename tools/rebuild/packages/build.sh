@@ -59,6 +59,10 @@ ENTRY
         -cJf /evidence/calamares-patched-source.tar.xz source
     (cd /evidence && sha256sum calamares-patched-source.tar.xz > calamares-source.SHA256SUMS)
     apt-get build-dep --no-install-recommends -y ./source
+    apt-get install -y --no-install-recommends qt6-svg-plugins
+    python3 /src/tools/core-vault/calamares/native_ui_test.py --product vault \
+        --branding /src/config/includes.chroot/etc/calamares/branding/core-offline \
+        --artifacts /evidence/native-ui
     (
         cd source
         export DEB_BUILD_OPTIONS='nocheck parallel=2'

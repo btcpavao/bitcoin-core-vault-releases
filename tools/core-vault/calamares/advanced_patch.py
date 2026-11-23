@@ -53,7 +53,7 @@ def patch_tree(root, product='vault'):
     s=b.once(s,'        m_config->setInstallChoice( InstallChoice::Erase ); // CORE_OFFLINE_INTEGRATION\n        checkInstallChoiceRadioButton( InstallChoice::Erase );',
         '        m_config->setInstallChoice( InstallChoice::NoChoice );\n        checkInstallChoiceRadioButton( InstallChoice::NoChoice );','no automatic erase selection')
     s=b.once(s,'    force_uncheck(m_grp, m_somethingElseButton);',
-        '    m_somethingElseButton->show();\n    m_somethingElseButton->setObjectName(QStringLiteral("coreInstallMethodAdvanced"));\n    m_eraseButton->setObjectName(QStringLiteral("coreInstallMethodErase"));\n    m_somethingElseButton->setEnabled(m_isEfi);\n    m_eraseButton->setIcon(QIcon());\n    m_somethingElseButton->setIcon(QIcon());\n    updateChoiceButtonsTr();', 'keep bounded manual option')
+        '    m_somethingElseButton->show();\n    m_somethingElseButton->setObjectName(QStringLiteral("coreInstallMethodAdvanced"));\n    m_eraseButton->setObjectName(QStringLiteral("coreInstallMethodErase"));\n    m_somethingElseButton->setMinimumHeight(54);\n    m_eraseButton->setMinimumHeight(54);\n    m_somethingElseButton->setEnabled(m_isEfi);\n    m_eraseButton->setIcon(QIcon());\n    m_somethingElseButton->setIcon(QIcon());\n    updateChoiceButtonsTr();', 'keep bounded manual option')
     s=b.replace_function(s,'ChoicePage::updateChoiceButtonsTr()',r'''    if(m_somethingElseButton) m_somethingElseButton->setText(m_isEfi
         ? tr("<strong>Advanced partitioning</strong><br/>Choose a partition or create a layout with reserved space.")
         : tr("<strong>Advanced partitioning</strong><br/>Restart this USB in UEFI mode to use this option."));
