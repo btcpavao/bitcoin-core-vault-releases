@@ -182,6 +182,11 @@ class ReservationPreparationTests(unittest.TestCase):
             with patch.object(B,'confirmed_plan',return_value=plan), patch.object(B.disk_safety,'probe',return_value=after), patch.object(B.subprocess,'run') as run:
                 with self.assertRaises(P.PlanError):B.prepare_reservations()
                 run.assert_not_called()
+    def test_missing_gpt_reservation_name_stops_before_signature_clear(self):
+        plan,identity=created_layout();after=self.after(plan,identity);after['partitions'][3]['label']=''
+        with patch.object(B,'confirmed_plan',return_value=plan), patch.object(B.disk_safety,'probe',return_value=after), patch.object(B.subprocess,'run') as run:
+            with self.assertRaises(P.PlanError):B.prepare_reservations()
+            run.assert_not_called()
     def test_mounted_or_live_target_stops_before_wipe(self):
         plan,identity=created_layout()
         with patch.object(B,'confirmed_plan',return_value=plan), patch.object(B.disk_safety,'probe',side_effect=B.disk_safety.UnsafeDisk('Mounted')), patch.object(B.subprocess,'run') as run:
@@ -222,6 +227,7 @@ class MetadataTests(unittest.TestCase):
     def test_grub_script_does_not_inject_untrusted_names_or_paths(self):
         text=B.grub_peer_script([dict(product='vault',uuid='1234-ABCD',path='/ignored')])
         self.assertIn('/EFI/BitcoinCoreVault/grubx64.efi',text);self.assertNotIn('/ignored',text)
+        self.assertLess(text.index('insmod fat'),text.index('if search'))
         for value in ("';reboot;#",'$(id)','UUID/path'):
             with self.assertRaises(P.PlanError):B.grub_peer_script([dict(product='node',uuid=value)])
     def test_other_owned_fallback_is_preserved_byte_for_byte(self):

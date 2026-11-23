@@ -138,6 +138,7 @@ def discover_peers(product, own_identity):
 def grub_peer_script(peers):
     """Data is restricted to fixed product paths and validated FAT UUIDs."""
     text='#!/bin/sh\nexec tail -n +3 "$0"\n# Bitcoin Core: chainload only explicit EFI paths. No OS filesystem probing.\n'
+    if peers:text+='insmod part_gpt\ninsmod fat\ninsmod search_fs_uuid\n'
     for peer in peers:
         require(peer.get('product') in PRODUCTS and re.fullmatch(r'[0-9A-Fa-f-]{4,64}',peer.get('uuid','')),'Unsafe boot entry.')
         name='Bitcoin Core '+peer['product'].title();path='/EFI/'+PRODUCTS[peer['product']]+'/grubx64.efi'
