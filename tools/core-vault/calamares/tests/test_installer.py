@@ -145,7 +145,8 @@ class SourceTests(unittest.TestCase):
     def test_guard_before_writes(self):
         s=(ROOT/'tools/core-vault/calamares/base_patch.py').read_text();self.assertIn('new CoreOfflineDiskGuard',s);self.assertIn('device filtering',s)
     def test_guard_validates_identity(self):
-        s=(ROOT/'tools/core-vault/calamares/CoreOfflineGuard.h').read_text();self.assertIn('current != m_expected.value(n)',s);self.assertIn('m_nodes.size() != 1',s)
+        s=(ROOT/'tools/core-vault/calamares/shared/CoreOfflineGuard.h').read_text();self.assertIn('coreOfflineValidate(m_plan,true)',s);self.assertIn('validate-plan',s)
+        policy=(INC/'usr/lib/core-vault-installer/install_plan.py').read_text();self.assertIn('expected == current',policy);self.assertIn("job.get('device') == target",policy)
     def test_ack_reset(self):
         s=(ROOT/'tools/core-vault/calamares/patch_calamares_source.py').read_text();self.assertIn('consent->setChecked(false)',s);self.assertIn('return consent && consent->isChecked()',s)
     def test_no_renamed_service_fiction(self):

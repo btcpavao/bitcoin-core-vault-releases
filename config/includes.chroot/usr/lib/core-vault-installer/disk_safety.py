@@ -69,7 +69,7 @@ def probe(device):
     st = os.stat(device)
     if not stat.S_ISBLK(st.st_mode): raise UnsafeDisk('Not a block device.')
     p=subprocess.run(['/usr/bin/lsblk','--json','--bytes','--paths','--output',
-       'NAME,KNAME,TYPE,TRAN,RO,RM,SIZE,MOUNTPOINTS,SERIAL,WWN,MODEL,MAJ:MIN',device],
+       'NAME,KNAME,TYPE,TRAN,RO,RM,SIZE,MOUNTPOINTS,SERIAL,WWN,MODEL,MAJ:MIN,LOG-SEC,PTTYPE,PTUUID,FSTYPE,PARTUUID,PARTLABEL,PARTTYPE,UUID',device],
        check=True, capture_output=True, text=True, timeout=10,
        env={'PATH':'/usr/sbin:/usr/bin:/sbin:/bin','LC_ALL':'C'})
     nodes=json.loads(p.stdout)['blockdevices']
@@ -84,15 +84,62 @@ def probe(device):
         if any(h.iterdir()): holders.add(n['name'])
     swaps={line.split()[0] for line in Path('/proc/swaps').read_text().splitlines()[1:] if line.split()}
     result=validate_tree(node,syspath,holders,swaps)
+    # Bind the initial device identity to the complete on-disk partition layout.
+    # sysfs starts are expressed in 512-byte sectors, including on 4Kn disks.
+    result['logical_size']=int(node.get('log-sec') or 512)
+    result['pttype']=node.get('pttype') or ''
+    result['ptuuid']=node.get('ptuuid') or ''
+    parts=[]
+    for child in walk(node):
+        if child is node: continue
+        start=Path('/sys/class/block')/Path(child['name']).name/'start'
+        parts.append(dict(path=child['name'], first=int(start.read_text().strip())*512,
+            size=int(child['size']), fs=(child.get('fstype') or '').lower(),
+            partuuid=child.get('partuuid') or '', label=child.get('partlabel') or '',
+            parttype=child.get('parttype') or '', fsuuid=child.get('uuid') or ''))
+    result['partitions']=sorted(parts,key=lambda p:(p['first'],p['path']))
+
     if not Path('/sys/firmware/efi').is_dir() and result['size'] > 2 * 1024**4:
         raise UnsafeDisk('For a drive larger than 2 TiB, restart this installer in UEFI mode.')
     if result['major_minor'] != f'{os.major(st.st_rdev)}:{os.minor(st.st_rdev)}':
         raise UnsafeDisk('Device identity changed during inspection.')
     return result
 
+def main(argv):
+    if argv[1:]==['prepare-reservations']:
+        from boot_finalize import prepare_reservations
+        prepare_reservations()
+        print(json.dumps({'ok':True}))
+        return 0
+    if len(argv)==4 and argv[1]=='reservations':
+        from boot_finalize import verified_reservations
+        print(json.dumps(verified_reservations(argv[2],argv[3])))
+        return 0
+    if len(argv)==3 and argv[1]=='probe':
+        print(json.dumps(probe(argv[2]),sort_keys=True,separators=(',',':')))
+        return 0
+    if argv[1:] not in (['validate-plan'], ['validate-plan','--record']):
+        raise UnsafeDisk('Usage: disk_safety.py probe /dev/DISK | validate-plan [--record]')
+    from install_plan import validate_plan
+    raw=sys.stdin.buffer.read(1024*1024+1)
+    if len(raw)>1024*1024:raise UnsafeDisk('Installation plan is too large.')
+    plan=json.loads(raw)
+    current=probe(plan.get('target',''))
+    validate_plan(plan,current)
+    if argv[1:]==['validate-plan','--record']:
+        directory=Path('/run/core-installer')
+        directory.mkdir(mode=0o700,exist_ok=True)
+        st=directory.lstat()
+        if not stat.S_ISDIR(st.st_mode) or st.st_uid!=0 or st.st_mode&0o077:
+            raise UnsafeDisk('Unsafe installer runtime directory.')
+        target=directory/'confirmed-plan.json'
+        fd=os.open(target,os.O_WRONLY|os.O_CREAT|os.O_TRUNC|os.O_NOFOLLOW,0o600)
+        with os.fdopen(fd,'w') as f:json.dump(plan,f,sort_keys=True,separators=(',',':'))
+    print(json.dumps({'ok':True}))
+    return 0
+
 if __name__=='__main__':
     try:
-        if len(sys.argv)!=3 or sys.argv[1]!='probe': raise UnsafeDisk('Usage: disk_safety.py probe /dev/DISK')
-        print(json.dumps(probe(sys.argv[2]),sort_keys=True,separators=(',',':')))
-    except (OSError, ValueError, KeyError, subprocess.SubprocessError) as e:
-        print(f'Core Offline: {e}',file=sys.stderr);sys.exit(1)
+        sys.exit(main(sys.argv))
+    except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError) as e:
+        print(f'Installer: {e}',file=sys.stderr);sys.exit(1)

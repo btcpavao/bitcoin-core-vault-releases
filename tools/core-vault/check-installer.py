@@ -19,7 +19,7 @@ def source_check():
     if cfg.get('prompt-install') is not True: raise RuntimeError('Final install prompt was disabled.')
     for p in (INC/'etc/calamares').rglob('*.conf'): yaml.safe_load(p.read_text())
     part=yaml.safe_load((INC/'etc/calamares/modules/partition.conf').read_text())
-    if part['userSwapChoices']!=['none'] or part['enableLuksAutomatedPartitioning'] is not False or part['allowManualPartitioning'] is not False:
+    if part['userSwapChoices']!=['none'] or part['enableLuksAutomatedPartitioning'] is not False or part['allowManualPartitioning'] is not True:
         raise RuntimeError('Unexpected partition/FDE/swap choices.')
     if part['partitionLayout'][0]['mountPoint']!='/' or part['defaultFileSystemType']!='ext4':
         raise RuntimeError('Expected ext4 dedicated root.')

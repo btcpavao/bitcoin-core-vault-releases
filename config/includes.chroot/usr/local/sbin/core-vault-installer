@@ -148,7 +148,7 @@ def main():
         text=True,
     ).strip()
 
-    if version != "3.3.14-1+corevault5":
+    if version != "3.3.14-1+corevault6":
         raise RuntimeError(
             "The reviewed Bitcoin Core Vault Calamares package "
             "is not installed."

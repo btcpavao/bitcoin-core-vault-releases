@@ -53,7 +53,8 @@ with tempfile.TemporaryDirectory(prefix='vault-installer-iso-') as td:
         raise RuntimeError('Wrong Calamares package in ISO.')
     for path in ('usr/local/sbin/core-vault-installer','usr/local/bin/core-vault-installer-session',
                  'usr/local/bin/core-vault-storage-check','usr/local/bin/core-vault-install-check',
-                 'usr/lib/core-vault-installer/target.py','usr/lib/core-vault-installer/disk_safety.py'):
+                 'usr/lib/core-vault-installer/target.py','usr/lib/core-vault-installer/disk_safety.py',
+                 'usr/lib/core-vault-installer/install_plan.py','usr/lib/core-vault-installer/boot_finalize.py'):
         if cat(path)!=(root/'config/includes.chroot'/path).read_bytes():
             raise RuntimeError('Stale installer/runtime file in ISO: '+path)
     for name in ('stylesheet.qss','checkmark.svg','checkmark.png'):
