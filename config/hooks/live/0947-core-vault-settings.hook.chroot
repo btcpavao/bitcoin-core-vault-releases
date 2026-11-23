@@ -1,0 +1,14 @@
+#!/bin/sh
+# Runs only in the image chroot. The runtime timezone overlay is RAM-backed.
+set -eu
+if [ -L /etc/localtime ]; then
+    cp --dereference /etc/localtime /etc/core-vault-localtime.tmp
+    mv -f /etc/core-vault-localtime.tmp /etc/localtime
+fi
+test -f /etc/localtime
+test ! -L /etc/localtime
+chown root:root /etc/localtime /usr/local/libexec/core-vault-time
+chmod 0644 /etc/localtime
+chmod 0755 /usr/local/libexec/core-vault-time
+chown -R root:root /usr/lib/core-vault/settings
+/usr/bin/python3 -m compileall -q /usr/lib/core-vault/settings

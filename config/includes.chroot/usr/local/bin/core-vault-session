@@ -3,7 +3,10 @@
 set -eu
 # Resolve display density before any GUI starts; preserve the native video mode.
 if [ "${CORE_DISPLAY_READY:-}" != 1 ]; then
-    exec /usr/local/bin/core-display-scale -- "$0" "$@"
+    if /usr/local/bin/core-vault-storage-check --session >/dev/null 2>&1; then
+        /usr/local/bin/core-display-settings --product vault --restore || true
+    fi
+    exec /usr/local/bin/core-display-scale --product vault -- "$0" "$@"
 fi
 umask 077
 ulimit -c 0
@@ -84,8 +87,10 @@ PLACES_PID=$!
 HOME_PID=
 PANEL_PID=
 OPENBOX_PID=
+DISPLAY_PID=
+INPUT_PID=
 cleanup() {
-    for pid in "$HOME_PID" "$PANEL_PID" "$OPENBOX_PID" "$MEDIA_PID" "$PLACES_PID"; do
+    for pid in "$HOME_PID" "$PANEL_PID" "$OPENBOX_PID" "$MEDIA_PID" "$PLACES_PID" "$DISPLAY_PID" "$INPUT_PID"; do
         [ -z "$pid" ] || kill "$pid" 2>/dev/null || true
     done
 }
@@ -105,6 +110,13 @@ until xprop -root _NET_SUPPORTING_WM_CHECK 2>/dev/null | grep -Eq '0x[1-9a-fA-F]
     [ "$tries" -lt 100 ] || exit 1
     sleep 0.1
 done
+
+/usr/local/bin/core-display-settings --product vault --watch \
+    >"$XDG_RUNTIME_DIR/core-vault-display.log" 2>&1 &
+DISPLAY_PID=$!
+/usr/bin/python3 /usr/lib/core-vault/settings/vault_input.py --watch \
+    >"$XDG_RUNTIME_DIR/core-vault-input.log" 2>&1 &
+INPUT_PID=$!
 
 /usr/local/bin/core-vault-taskbar \
     >"$XDG_RUNTIME_DIR/core-vault-taskbar.log" 2>&1 &

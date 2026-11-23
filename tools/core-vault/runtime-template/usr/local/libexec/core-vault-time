@@ -1,0 +1,20 @@
+#!/usr/bin/python3 -I
+"""Fixed offline time helper, authorized only for the active local Vault account."""
+import json
+import os
+import pwd
+import sys
+
+sys.path.insert(0, '/usr/lib/core-vault/settings')
+from vault_time import TimeError, apply_settings, read_request
+
+try:
+    if sys.argv[1:] or os.geteuid() != 0:
+        raise TimeError('Please use Date & Time in the active Vault session.')
+    caller = os.environ.get('PKEXEC_UID', '')
+    if not caller.isdecimal() or int(caller) != pwd.getpwnam('vault').pw_uid:
+        raise TimeError('Date & Time requires the active local Vault account.')
+    print(json.dumps(apply_settings(read_request(sys.stdin.buffer))))
+except (TimeError, OSError, KeyError):
+    print('Date and time could not be applied. Please check the selected values and the local Vault session.', file=sys.stderr)
+    raise SystemExit(1)

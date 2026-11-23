@@ -1,0 +1,7 @@
+// The helper validates a bounded manual-time request. It has no NTP action.
+polkit.addRule(function(action, subject) {
+    if (action.id == "org.bitcoin-core-vault.time" &&
+        subject.user == "vault" && subject.local && subject.active) {
+        return polkit.Result.YES;
+    }
+});

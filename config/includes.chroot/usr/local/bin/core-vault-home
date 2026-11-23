@@ -72,12 +72,12 @@ QLabel#HoverText {
     background: transparent; color: #f0f0f0; font-size: 12px;
 }
 QLabel#Credit { font-size: 12px; color: #999999; }
-QPushButton#Shutdown, QPushButton#Restart {
+QPushButton#Shutdown, QPushButton#Restart, QPushButton#SettingsControl {
     background: transparent; border: 1px solid transparent;
     border-radius: 24px; padding: 0px;
 }
-QPushButton#Shutdown:hover, QPushButton#Restart:hover { background: #202020; }
-QPushButton#Shutdown:focus, QPushButton#Restart:focus { border-color: #b7dafa; }
+QPushButton#Shutdown:hover, QPushButton#Restart:hover, QPushButton#SettingsControl:hover { background: #202020; }
+QPushButton#Shutdown:focus, QPushButton#Restart:focus, QPushButton#SettingsControl:focus { border-color: #b7dafa; }
 /* VAULT_HOME_DARK_DIALOGS_V1: Home-owned dialogs inherit this scoped theme. */
 QMessageBox { background-color: #191919; color: #f0f0f0; }
 QMessageBox QLabel { background: transparent; color: #f0f0f0; }
@@ -382,6 +382,8 @@ class VaultHome(QWidget):
         self.build_hover_popup()
         self.screen_ref.geometryChanged.connect(self.fit_screen)
         self.screen_ref.availableGeometryChanged.connect(self.fit_screen)
+        QApplication.instance().primaryScreenChanged.connect(self.follow_screen)
+        QApplication.instance().screenRemoved.connect(self.follow_screen)
         self.fit_screen()
         self.reaper = QTimer(self)
         self.reaper.timeout.connect(self.reap)
@@ -514,6 +516,16 @@ class VaultHome(QWidget):
         )
         # VAULT_POWER_ICON_BUTTONS_V1: retain the existing confirmation/actions.
         power.addStretch(1)
+        settings_help = 'Settings: displays, keyboard and mouse, date and time, and wallet backups.'
+        self.settings_button = HintButton('', settings_help, self.show_card_help, self.hide_card_help)
+        self.settings_button.setObjectName('SettingsControl')
+        self.settings_button.setAccessibleName('Settings')
+        self.settings_button.setAccessibleDescription(settings_help)
+        self.settings_button.setIcon(QIcon(str(ASSETS / 'icons/settings.svg')))
+        self.settings_button.setIconSize(QSize(44, 44))
+        self.settings_button.setFixedSize(48, 48)
+        self.settings_button.clicked.connect(self.settings)
+        power.addWidget(self.settings_button)
         self.restart_button = HintButton(
             '', restart_help, self.show_card_help, self.hide_card_help)
         self.restart_button.setObjectName('Restart')
@@ -659,6 +671,44 @@ class VaultHome(QWidget):
             self.hover_popup.hide()
             self.hover_card = None
 
+    def follow_screen(self, *_):
+        app=QApplication.instance()
+        screen=app.primaryScreen() or next(iter(app.screens()),None)
+        if screen is None:return
+        previous=self.screen_ref
+        if previous is not screen:
+            for signal_name in ('geometryChanged','availableGeometryChanged'):
+                try:getattr(previous,signal_name).disconnect(self.fit_screen)
+                except (RuntimeError,TypeError):pass
+            self.screen_ref=screen
+            screen.geometryChanged.connect(self.fit_screen)
+            screen.availableGeometryChanged.connect(self.fit_screen)
+        self._layout_key=None
+        self.fit_screen()
+
+    def recover_windows(self, areas=None):
+        # A resolution change or unplug must keep the controls of our open
+        # Settings windows reachable, including ones on the removed screen.
+        app=QApplication.instance()
+        areas=areas or [s.availableGeometry() for s in app.screens()]
+        if not areas:return
+        for window in app.topLevelWidgets():
+            if window is self or not window.isVisible() or window.isMinimized():continue
+            if window.windowType() not in (Qt.Window,Qt.Dialog):continue
+            rect=window.frameGeometry()
+            if any(area.contains(rect) for area in areas):continue
+            def overlap(area):
+                intersection=area.intersected(rect)
+                return max(0,intersection.width())*max(0,intersection.height())
+            target=max(areas,key=overlap)
+            frame_width=max(0,rect.width()-window.width())
+            frame_height=max(0,rect.height()-window.height())
+            window.resize(min(window.width(),max(1,target.width()-frame_width)),
+                          min(window.height(),max(1,target.height()-frame_height)))
+            rect=window.frameGeometry()
+            window.move(max(target.x(),min(rect.x(),target.right()-rect.width()+1)),
+                        max(target.y(),min(rect.y(),target.bottom()-rect.height()+1)))
+
     def fit_screen(self, *_):
         if self._test_size:
             width, height = self._test_size
@@ -674,6 +724,7 @@ class VaultHome(QWidget):
         self.outer.setContentsMargins(24, 16, 24, panel + 12)
         self.hide_card_help()
         QTimer.singleShot(0, self.layout_cards)
+        if not self._test_size:QTimer.singleShot(0,self.recover_windows)
 
     def apply_home_density(self, level):
         # Compact only as much as the available height requires.
@@ -835,7 +886,19 @@ class VaultHome(QWidget):
         except OSError as exc:
             print(f'Geometry report unavailable: {exc}', file=sys.stderr)
 
+    def refresh_launch_environment(self):
+        directory = Path(__file__).resolve().parents[2] / 'share/core-desktop'
+        if str(directory) not in sys.path:sys.path.insert(0,str(directory))
+        try:
+            from core_display import launch_environment
+            environment=launch_environment()
+            for key in ('QT_SCALE_FACTOR','QT_SCREEN_SCALE_FACTORS','QT_FONT_DPI','QT_AUTO_SCREEN_SCALE_FACTOR','QT_USE_PHYSICAL_DPI'):
+                if key not in environment:os.environ.pop(key,None)
+            os.environ.update(environment)
+        except (ImportError,OSError,ValueError):pass
+
     def activate_tool(self, title, command):
+        if not (args.preview or args.self_test):self.refresh_launch_environment()
         self.hide_card_help()
         if args.preview or args.self_test:
             dialog = QWidget(None, Qt.Window)
@@ -865,6 +928,25 @@ class VaultHome(QWidget):
     def reap(self):
         self.children_started = [p for p in self.children_started if p.poll() is None]
 
+
+    def settings_module(self):
+        directory = Path(__file__).resolve().parents[2] / 'lib/core-vault/settings'
+        if str(directory) not in sys.path:sys.path.insert(0, str(directory))
+        import vault_settings
+        return vault_settings
+
+    def settings(self):
+        self.hide_card_help()
+        if args.preview or args.self_test:
+            return self.activate_tool('Settings', [])
+        module = self.settings_module()
+        return module.open_window(self, 'settings', lambda: module.VaultSettingsDialog(self))
+
+    def display_settings(self, imported_profile=None):
+        return self.settings_module().show_display(self, imported_profile)
+
+    def device_profiles(self, mode='export'):
+        return self.settings_module().show_profiles(self, mode)
 
     def power_question(self, title, message, button):
         home_was_active = self.isActiveWindow()
