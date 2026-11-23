@@ -45,6 +45,20 @@ def created_layout(product='node'):
     disk['jobs']=[job('CreatePartitionJob',root),job('CreatePartitionJob',reserve)]
     return plan,identity
 
+def automatic_node(firmware='efi'):
+    plan,identity=fixture();identity.update(size=64*GiB,pttype='',ptuuid='',partitions=[])
+    plan.update(mode='erase',firmware=firmware,expected=deepcopy(identity))
+    disk=plan['disks'][0];parts=[];first=MiB
+    if firmware=='efi':
+        esp=planned(oldpart(1,first,512*MiB,'fat32','EFI'),'/boot/efi',True,True)
+        parts.append(esp);first+=512*MiB
+    boot=planned(oldpart(len(parts)+1,first,GiB,'ext4','boot'),'/boot',True,True)
+    parts.append(boot);first+=GiB
+    parts.append(planned(oldpart(len(parts)+1,first,identity['size']-first-MiB,'ext4','core-node'),'/',True,True))
+    disk.update(table_before='none',table_after='gpt' if firmware=='efi' else 'other',partitions=parts,
+                jobs=[dict(type='CreatePartitionTableJob',device='/dev/sda')]+[job('CreatePartitionJob',p) for p in parts])
+    return plan,identity
+
 class PlanTests(unittest.TestCase):
     def test_explicit_partition_format_preserves_three_other_partitions(self):
         p,d=fixture();v=P.validate_plan(p,d);self.assertEqual(v['root']['path'],'/dev/sda3');self.assertFalse(v['esp']['format'])
@@ -132,6 +146,31 @@ class PlanTests(unittest.TestCase):
         p,d=fixture();p.update(mode='erase',firmware='bios');disk=p['disks'][0]
         root=disk['partitions'][2];disk['partitions']=[root];disk['jobs']=[dict(type='CreatePartitionTableJob',device='/dev/sda'),job('CreatePartitionJob',root),job('SetPartFlagsJob',root)]
         P.validate_plan(p,d)
+    def test_existing_automatic_node_boot_partition_is_supported_in_both_firmwares(self):
+        for firmware in ('efi','bios'):
+            with self.subTest(firmware=firmware):
+                plan,identity=automatic_node(firmware);P.validate_plan(plan,identity)
+                after=deepcopy(identity);after['pttype']='gpt' if firmware=='efi' else 'dos';after['ptuuid']='new-table'
+                after['partitions']=[oldpart(i,p['first'],p['size'],p['fs'],p['label'] if firmware=='efi' else '')
+                                     for i,p in enumerate(plan['disks'][0]['partitions'],1)]
+                P.validate_after(plan,after)
+    def test_separate_boot_is_not_enabled_for_advanced_or_vault(self):
+        for field,value in [('mode','advanced'),('mode','erase-layout'),('product','vault')]:
+            with self.subTest(field=field,value=value):
+                plan,identity=automatic_node();plan[field]=value
+                with self.assertRaisesRegex(P.PlanError,'separate /boot'):P.validate_plan(plan,identity)
+    def test_automatic_boot_requires_exact_new_formatted_ext4_layout(self):
+        for field,value in [('new',False),('format',False),('fs','fat32'),('size',512*MiB),('mount','/home')]:
+            with self.subTest(field=field,value=value):
+                plan,identity=automatic_node();plan['disks'][0]['partitions'][1][field]=value
+                with self.assertRaises(P.PlanError):P.validate_plan(plan,identity)
+    def test_automatic_boot_cannot_be_duplicated_or_target_another_disk(self):
+        for mutation in ('duplicate','device'):
+            with self.subTest(mutation=mutation):
+                plan,identity=automatic_node();disk=plan['disks'][0]
+                if mutation=='duplicate':disk['partitions'].append(deepcopy(disk['partitions'][1]))
+                else:disk['partitions'][1]['device']='/dev/sdb'
+                with self.assertRaises(P.PlanError):P.validate_plan(plan,identity)
     def test_bios_msdos_readback_has_no_gpt_partition_name(self):
         for product in ('node','vault'):
             with self.subTest(product=product):

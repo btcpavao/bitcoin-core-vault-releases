@@ -72,6 +72,13 @@ def validate_plan(plan, current):
     root = roots[0]
     require(root.get('format') is True and fs(root) == 'ext4', 'The selected root must be explicitly formatted as ext4.')
     require(integer(root.get('size'), 'root size') >= MIN_ROOT[product], 'The selected root partition is too small.')
+    boot = [p for p in parts if p.get('mount') == '/boot']
+    require(not boot or (product == 'node' and mode == 'erase' and len(boot) == 1),
+            'A separate /boot is supported only by the automatic whole-disk Node layout.')
+    if boot:
+        require(boot[0].get('new') is True and boot[0].get('format') is True
+                and fs(boot[0]) == 'ext4' and integer(boot[0].get('size'), 'boot size') == GIB,
+                'Automatic Node /boot must be a new, explicitly formatted 1 GiB ext4 partition.')
     root_span = span(root)
     before = current.get('partitions', [])
     require(isinstance(before, list), 'The original partition table could not be verified.')
@@ -99,7 +106,8 @@ def validate_plan(plan, current):
                     'An existing partition path or identity differs from the original disk.')
         require(start >= MIB and end <= current['size'], 'A planned partition is outside the selected disk.')
         require(not any(overlaps((start,end), other) for other in planned_spans[i+1:]), 'Planned partitions overlap.')
-        require(p.get('mount') in ('', '/', '/boot/efi'), 'Only root and EFI mount assignments are supported.')
+        require(p.get('mount') in ('', '/', '/boot/efi') or (boot and p is boot[0]),
+                'Only root, EFI and the validated automatic Node /boot mount assignments are supported.')
         require(type(p.get('format')) is bool and type(p.get('new')) is bool, 'Invalid format state.')
     for job in jobs:
         require(isinstance(job, dict) and job.get('type') in JOBS,
