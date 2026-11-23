@@ -81,6 +81,31 @@ def prepare(directory, revision):
     runner = replace_assignment(runner, 'PROBE_BYTES', len(probe_bytes))
     controller = replace_assignment(original['ci-vm-acceptance.py'], 'RESET_PROBE_SHA256', probe_hash)
     controller = replace_assignment(controller, 'RESET_RUNNER_SHA256', digest(runner.encode()))
+    # The candidate requires an explicit installation method and reviews its
+    # partition operations before consent. Continue exercising the native GUI;
+    # do not preseed the erase choice or bypass either confirmation.
+    old = "    stage['installation_target'] = {'path': '/dev/vda', 'serial': 'CV_RAM_TEST_INTERNAL', 'virtual_bytes': 24*1024**3}\n    vm.click_word('Continue', rows, image)"
+    new = "    stage['installation_target'] = {'path': '/dev/vda', 'serial': 'CV_RAM_TEST_INTERNAL', 'virtual_bytes': 24*1024**3}\n" \
+        "    vm.click_phrase('Install to disk', rows, image)\n" \
+        "    image, rows, text = vm.words('installer-method-selected')\n" \
+        "    require(selected_test_disk(text), 'The selected fixture disk changed after the method choice.')\n" \
+        "    stage['method_selection_screenshot'] = image.name\n" \
+        "    vm.click_word('Continue', rows, image)"
+    changes = (
+        (old, new),
+        ("'ready to install' in s.lower() and 'understand' in s.lower() and 'erase drive and install' in s.lower()",
+         "'ready to install' in s.lower() and 'confirm these changes' in s.lower() and 'install bitcoin core vault' in s.lower()"),
+        ("    vm.click_word('understand', rows, image)", "    vm.click_word('reviewed', rows, image)"),
+        ("    vm.click_phrase('Erase drive and install', rows, image)",
+         "    from PIL import Image\n"
+         "    with Image.open(image) as frame:\n"
+         "        footer_rows = [row for row in rows if row[2] > frame.height * .78]\n"
+         "    vm.click_phrase('Install Bitcoin Core Vault', footer_rows, image)"),
+    )
+    for old, new in changes:
+        if controller.count(old) != 1:
+            raise ValueError('Unexpected archived native installation flow')
+        controller = controller.replace(old, new)
     updates = {'ci-vm-guest-probe.py': probe, 'ci-vm-reset-runner.py': runner,
                'ci-vm-acceptance.py': controller}
     for name, text in updates.items():
