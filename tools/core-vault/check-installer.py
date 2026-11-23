@@ -46,8 +46,18 @@ def source_check():
     for unit in ('core-signer-offline.service','core-signer-no-swap.service'):
         if not (INC/'etc/systemd/system'/unit).is_file(): raise RuntimeError('Missing actual inherited unit '+unit)
     body=(INC/'usr/local/bin/core-vault-session').read_text()
-    if body.count('core-vault.install=1')!=1 or body.count('core-vault-storage-check --session')!=1:
+    if body.count('core-vault.install=1')!=1 or body.count('core-vault-storage-check --session')!=2:
         raise RuntimeError('Installer routing or storage gate missing/duplicated.')
+    restore_gate='''    if /usr/local/bin/core-vault-storage-check --session >/dev/null 2>&1; then
+        /usr/local/bin/core-display-settings --product vault --restore || true
+    fi'''
+    mandatory_gate='''if ! /usr/local/bin/core-vault-storage-check --session >"$XDG_RUNTIME_DIR/core-vault-storage.log" 2>&1; then
+    /usr/bin/zenity --error --no-markup --title="Bitcoin Core Vault — Storage check" \\
+        --text="Private Workspace or storage policy is not ready. The Vault desktop will not open. See core-vault-storage.log in the runtime directory." || true
+    exit 1
+fi'''
+    if body.count(restore_gate)!=1 or body.count(mandatory_gate)!=1:
+        raise RuntimeError('Display restore or mandatory fail-closed RAM storage guard changed.')
     template=ROOT/'tools/core-vault/runtime-template/usr/local/bin'
     for name in ('core-vault-session','core-vault-storage-check','core-vault-install-check'):
         if (INC/'usr/local/bin'/name).read_bytes()!=(template/name).read_bytes():
