@@ -30,8 +30,11 @@ def patch_tree(root, product='vault'):
     start=s.index('    // CORE_OFFLINE_INTEGRATION: validate selected disk immediately before writes.')
     end=s.index('\n#ifdef DEBUG_PARTITION_UNSAFE',start)
     s=s[:start]+'    // Re-check identity, every affected partition and the actual queued jobs.\n    lst << Calamares::job_ptr(new CoreOfflineDiskGuard(installPlan(config)));\n'+s[end:]
+    s=b.once(s,'    lst << Calamares::job_ptr( new FillGlobalStorageJob( config, devices, m_bootLoaderInstallPath ) );',
+        '    lst << Calamares::job_ptr(new CoreReservedSpaceJob());\n    lst << Calamares::job_ptr( new FillGlobalStorageJob( config, devices, m_bootLoaderInstallPath ) );', 'prepare only reviewed reservations')
     s+=read('PlanMethods.cpp.inc');path.write_text(s)
     path=root/'src/modules/partition/gui/ChoicePage.cpp';s=path.read_text()
+    s=s.replace('m_drivesCombo = new QComboBox( this );','m_drivesCombo = new QComboBox( this );\n    m_drivesCombo->setObjectName(QStringLiteral("coreInstallDrive"));')
     s=s.replace('Select one internal drive. The selected drive will be completely erased and dedicated to Bitcoin Core Vault.',
         'Select an internal drive and choose how to install Bitcoin Core Vault.')
     s=s.replace('Everything currently stored on the selected drive will be permanently erased.',
@@ -40,7 +43,7 @@ def patch_tree(root, product='vault'):
     s=b.once(s,'        m_config->setInstallChoice( InstallChoice::Erase ); // CORE_OFFLINE_INTEGRATION\n        checkInstallChoiceRadioButton( InstallChoice::Erase );',
         '        m_config->setInstallChoice( InstallChoice::NoChoice );\n        checkInstallChoiceRadioButton( InstallChoice::NoChoice );','no automatic erase selection')
     s=b.once(s,'    force_uncheck(m_grp, m_somethingElseButton);',
-        '    m_somethingElseButton->show();\n    m_somethingElseButton->setEnabled(m_isEfi);\n    m_eraseButton->setIcon(QIcon());\n    m_somethingElseButton->setIcon(QIcon());\n    updateChoiceButtonsTr();', 'keep bounded manual option')
+        '    m_somethingElseButton->show();\n    m_somethingElseButton->setObjectName(QStringLiteral("coreInstallMethodAdvanced"));\n    m_eraseButton->setObjectName(QStringLiteral("coreInstallMethodErase"));\n    m_somethingElseButton->setEnabled(m_isEfi);\n    m_eraseButton->setIcon(QIcon());\n    m_somethingElseButton->setIcon(QIcon());\n    updateChoiceButtonsTr();', 'keep bounded manual option')
     s=b.replace_function(s,'ChoicePage::updateChoiceButtonsTr()',r'''    if(m_somethingElseButton) m_somethingElseButton->setText(m_isEfi
         ? tr("<strong>Advanced partitioning</strong><br/>Choose a partition or create a layout with reserved space.")
         : tr("<strong>Advanced partitioning</strong><br/>Restart this USB in UEFI mode to use this option."));

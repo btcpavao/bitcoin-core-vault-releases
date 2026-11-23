@@ -20,6 +20,10 @@
 #include <QFormLayout>
 #include <QHeaderView>
 #include <QLabel>
+#include <QProcess>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QSignalBlocker>
@@ -58,9 +62,9 @@ PartitionPage::PartitionPage(PartitionCoreModule* core, const Config& config, QW
     subtitle->setAlignment(Qt::AlignCenter); subtitle->setWordWrap(true); layout->addWidget(subtitle);
     auto* row = new QHBoxLayout;
     row->addWidget(new QLabel(tr("Installation drive:"),this));
-    m_drive = new QComboBox(this); m_drive->setModel(core->deviceModel()); row->addWidget(m_drive,1);
+    m_drive = new QComboBox(this); m_drive->setObjectName(QStringLiteral("corePartitionDrive")); m_drive->setModel(core->deviceModel()); row->addWidget(m_drive,1);
     layout->addLayout(row);
-    m_table = new QTreeWidget(this);
+    m_table = new QTreeWidget(this); m_table->setObjectName(QStringLiteral("corePartitionTable"));
     m_table->setHeaderLabels({tr("Partition"),tr("Size"),tr("Filesystem"),tr("Mount point"),tr("Format")});
     m_table->setRootIsDecorated(false); m_table->setSelectionMode(QAbstractItemView::SingleSelection);
     m_table->setMinimumHeight(150); m_table->header()->setSectionResizeMode(QHeaderView::ResizeToContents);
@@ -70,6 +74,8 @@ PartitionPage::PartitionPage(PartitionCoreModule* core, const Config& config, QW
     m_edit = new QPushButton(tr("Edit…"),this);
     m_erase = new QPushButton(tr("Erase selected disk…"),this);
     auto* revert = new QPushButton(tr("Revert changes"),this);
+    m_create->setObjectName(QStringLiteral("coreCreateLayout")); m_edit->setObjectName(QStringLiteral("coreEditPartition"));
+    m_erase->setObjectName(QStringLiteral("coreEraseDisk")); revert->setObjectName(QStringLiteral("coreRevertPartitions"));
     buttons->addWidget(m_create); buttons->addWidget(m_edit); buttons->addStretch();
     buttons->addWidget(m_erase); buttons->addWidget(revert); layout->addLayout(buttons);
     m_status = new QLabel(this); m_status->setWordWrap(true);
@@ -81,7 +87,7 @@ PartitionPage::PartitionPage(PartitionCoreModule* core, const Config& config, QW
     connect(m_table,&QTreeWidget::itemDoubleClicked,this,[this] { edit(); });
     connect(m_table,&QTreeWidget::itemSelectionChanged,this,[this] {
         auto* p=selection(); const bool enabled=PartUtils::isEfiSystem() && device();
-        m_create->setEnabled(enabled && p && isPartitionFreeSpace(p) && !m_core->hasRootMountPoint());
+        m_create->setEnabled(enabled && p && isPartitionFreeSpace(p) && (!m_core->hasRootMountPoint() || !m_core->findPartitionByMountPoint(QStringLiteral("/boot/efi"))));
         m_edit->setEnabled(enabled && p && !isPartitionFreeSpace(p) && !isPartitionNew(p));
     });
     connect(m_drive,QOverload<int>::of(&QComboBox::currentIndexChanged),this,[this](int) {
@@ -119,15 +125,26 @@ void PartitionPage::refresh()
     m_erase->setEnabled(d && PartUtils::isEfiSystem());
     if(!d) { m_status->setText(tr("No eligible internal drive is available.")); return; }
     m_core->setBootLoaderInstallPath(d->deviceNode());
+    QString reservedPath;
+    if(PartUtils::isEfiSystem() && !m_core->isDirty()) {
+        QProcess probe;
+        probe.start(QStringLiteral("/usr/bin/python3"),{QStringLiteral("/usr/lib/core-vault-installer/disk_safety.py"),QStringLiteral("reservations"),d->deviceNode(),isNode?QStringLiteral("node"):QStringLiteral("vault")});
+        if(probe.waitForStarted(3000) && probe.waitForFinished(12000) && probe.exitCode()==0) {
+            const auto slots=QJsonDocument::fromJson(probe.readAllStandardOutput()).array();
+            if(slots.size()==1) reservedPath=slots.first().toObject().value("path").toString();
+        } else {probe.kill();probe.waitForFinished(1000);}
+    }
     if(d->partitionTable()) for(auto it=PartitionIterator::begin(d);it!=PartitionIterator::end(d);++it) {
         auto* p=*it; const bool free=isPartitionFreeSpace(p);
         QString name=free ? tr("Unallocated space") : p->partitionPath();
         if(name.isEmpty()) name=tr("New partition");
+        if(!reservedPath.isEmpty() && p->partitionPath()==reservedPath) name+=tr(" — verified reserved space");
         if(!free && !p->label().isEmpty()) name += QStringLiteral(" — ")+p->label();
         auto* item=new QTreeWidgetItem(m_table,{name,sizeText(p->capacity()),
             free ? QStringLiteral("—") : FileSystem::nameForType(p->fileSystem().type()),
             PartitionInfo::mountPoint(p),PartitionInfo::format(p) ? tr("Yes") : tr("No")});
         item->setData(0,Qt::UserRole,QVariant::fromValue<quintptr>(reinterpret_cast<quintptr>(p)));
+        if(!reservedPath.isEmpty() && p->partitionPath()==reservedPath) m_table->setCurrentItem(item);
     }
     if(!PartUtils::isEfiSystem()) {
         m_status->setText(tr("Advanced partitioning requires UEFI mode. Restart this USB in UEFI mode, or go Back and use Install to disk for a whole-disk BIOS installation.")); return;
@@ -137,7 +154,10 @@ void PartitionPage::refresh()
     }
     if(m_core->hasRootMountPoint()) {
         auto error=m_core->validateInstallPlan(&m_config);
-        m_status->setText(error.isEmpty() ? tr("The selected root will be formatted as ext4. The existing EFI partition is reused without formatting; every other existing partition and physical disk is preserved. Review shows the exact operations.") : error);
+        const bool erase=m_core->installPlan(&m_config).value("mode").toString()==QStringLiteral("erase-layout");
+        m_status->setText(!error.isEmpty() ? error : erase
+            ? tr("Every existing partition on the selected physical disk will be erased and replaced by this layout. Other physical disks are preserved. Review lists the exact operations.")
+            : tr("The selected root will be formatted as ext4. Existing EFI is reused without formatting; a new EFI partition, if needed, uses only unallocated space. Every other existing partition and physical disk is preserved."));
     } else m_status->setText(tr("Select a partition and choose Edit to install there. Select unallocated space and choose Create layout to optionally reserve space for %1. Existing partitions are never shrunk or moved.").arg(QString::fromLatin1(companionName)));
 }
 bool PartitionPage::assignEsp()
@@ -182,13 +202,13 @@ void PartitionPage::edit()
     }
     if(m_core->hasRootMountPoint()) { QMessageBox::information(this,tr("Root already selected"),tr("Choose Revert changes before selecting a different root partition.")); return; }
     if(p->capacity()<rootMinimum*GiB) { QMessageBox::warning(this,tr("Partition too small"),tr("The installation needs at least %1 GiB.").arg(rootMinimum)); return; }
-    QDialog dialog(this); dialog.setWindowTitle(tr("Edit partition"));
+    QDialog dialog(this); dialog.setObjectName(QStringLiteral("corePartitionEditDialog")); dialog.setWindowTitle(tr("Edit partition"));
     auto* form=new QFormLayout(&dialog);
     form->addRow(tr("Partition:"),new QLabel(p->partitionPath(),&dialog));
     form->addRow(tr("Size:"),new QLabel(sizeText(p->capacity()),&dialog));
     form->addRow(tr("Filesystem:"),new QLabel(QStringLiteral("ext4"),&dialog));
     form->addRow(tr("Mount point:"),new QLabel(QStringLiteral("/"),&dialog));
-    auto* format=new QCheckBox(tr("Format this partition. Its current files will be erased."),&dialog); form->addRow(format);
+    auto* format=new QCheckBox(tr("Format this partition. Its current files will be erased."),&dialog); format->setObjectName(QStringLiteral("coreFormatRootConsent")); form->addRow(format);
     auto* buttons=new QDialogButtonBox(QDialogButtonBox::Ok|QDialogButtonBox::Cancel,&dialog); form->addRow(buttons);
     buttons->button(QDialogButtonBox::Ok)->setEnabled(false);
     connect(format,&QCheckBox::toggled,buttons->button(QDialogButtonBox::Ok),&QPushButton::setEnabled);
@@ -199,21 +219,31 @@ void PartitionPage::edit()
 void PartitionPage::createLayout()
 {
     auto* free=selection(); auto* d=device();
-    if(!PartUtils::isEfiSystem() || !d || !free || !isPartitionFreeSpace(free) || m_core->hasRootMountPoint()) return;
+    if(!PartUtils::isEfiSystem() || !d || !free || !isPartitionFreeSpace(free) ) return;
     if(!d->partitionTable() || d->partitionTable()->type()!=PartitionTable::gpt) return;
     bool hasEsp=false;
     for(auto it=PartitionIterator::begin(d);it!=PartitionIterator::end(d);++it) if(espCandidate(*it)) hasEsp=true;
     const qint64 unit=MiB/d->logicalSize();
     const qint64 first=((free->firstSector()+unit-1)/unit)*unit;
     const qint64 end=((free->lastSector()+1)/unit)*unit;
+    if(m_core->hasRootMountPoint()) {
+        if(hasEsp || m_core->findPartitionByMountPoint(QStringLiteral("/boot/efi"))) {
+            QMessageBox::information(this,tr("EFI partition available"),tr("Select an existing EFI partition and choose Edit to reuse it without formatting."));return;
+        }
+        if((end-first)/unit<512) {QMessageBox::warning(this,tr("Not enough space"),tr("Creating EFI requires 512 MiB of unallocated space."));return;}
+        if(QMessageBox::question(this,tr("Create EFI partition"),tr("Create a 512 MiB FAT32 EFI partition in this unallocated area? The selected root and all other partitions keep their boundaries."))!=QMessageBox::Yes)return;
+        auto* esp=KPMHelpers::createNewPartition(d->partitionTable(),*d,PartitionRole(PartitionRole::Primary),FileSystem::Type::Fat32,QString(),first,first+512*unit-1,KPM_PARTITION_FLAG(Boot));
+        esp->setLabel(QStringLiteral("EFI System Partition"));PartitionInfo::setMountPoint(esp,QStringLiteral("/boot/efi"));PartitionInfo::setFormat(esp,true);m_core->createPartition(d,esp,KPM_PARTITION_FLAG(Boot));refresh();return;
+    }
     const qint64 availableMiB=(end-first)/unit-(hasEsp?0:512);
     if(availableMiB<rootMinimum*1024) { QMessageBox::warning(this,tr("Not enough unallocated space"),tr("This unallocated area is too small for root and EFI.")); return; }
-    QDialog dialog(this); dialog.setWindowTitle(tr("Create layout")); auto* form=new QFormLayout(&dialog);
+    QDialog dialog(this); dialog.setObjectName(QStringLiteral("coreCreateLayoutDialog")); dialog.setWindowTitle(tr("Create layout")); auto* form=new QFormLayout(&dialog);
     auto* note=new QLabel(tr("Only this unallocated area is used. Existing partitions keep their boundaries and files."),&dialog); note->setWordWrap(true); form->addRow(note);
-    auto* root=new QDoubleSpinBox(&dialog); root->setDecimals(2); root->setRange(rootMinimum,double(availableMiB)/1024); root->setSuffix(QStringLiteral(" GiB")); root->setValue(double(availableMiB)/1024);
+    auto* root=new QDoubleSpinBox(&dialog); root->setDecimals(2); root->setRange(rootMinimum,double(availableMiB)/1024); root->setSuffix(QStringLiteral(" GiB")); root->setValue(qFloor(double(availableMiB)/1024*100)/100.0);
+    root->setObjectName(QStringLiteral("coreRootSizeGiB"));
     form->addRow(tr("Bitcoin Core Vault root:"),root);
-    auto* reserve=new QCheckBox(tr("Reserve unformatted space for %1").arg(QString::fromLatin1(companionName)),&dialog); form->addRow(reserve);
-    auto* other=new QDoubleSpinBox(&dialog); other->setDecimals(2); other->setRange(companionMinimum,qMax(double(companionMinimum),double(availableMiB)/1024-rootMinimum)); other->setSuffix(QStringLiteral(" GiB")); other->setEnabled(false); form->addRow(tr("Reserved size:"),other);
+    auto* reserve=new QCheckBox(tr("Reserve unformatted space for %1").arg(QString::fromLatin1(companionName)),&dialog); reserve->setObjectName(QStringLiteral("coreReserveCompanion")); form->addRow(reserve);
+    auto* other=new QDoubleSpinBox(&dialog); other->setDecimals(2); other->setRange(companionMinimum,qMax(double(companionMinimum),double(availableMiB)/1024-rootMinimum)); other->setSuffix(QStringLiteral(" GiB")); other->setEnabled(false); other->setObjectName(QStringLiteral("coreReservedSizeGiB")); form->addRow(tr("Reserved size:"),other);
     auto* status=new QLabel(&dialog); status->setWordWrap(true); form->addRow(status);
     auto* buttons=new QDialogButtonBox(QDialogButtonBox::Ok|QDialogButtonBox::Cancel,&dialog); form->addRow(buttons);
     auto validate=[=] {
@@ -227,8 +257,8 @@ void PartitionPage::createLayout()
         if(checked) {
             const double maxOther=double(availableMiB)/1024-rootMinimum;
             const double wanted=isNode ? qMin(32.0,maxOther) : qMax(double(companionMinimum),double(availableMiB)/1024-32.0);
-            other->setValue(wanted); root->setValue(double(availableMiB)/1024-other->value());
-        } else root->setValue(double(availableMiB)/1024);
+            other->setValue(wanted); root->setValue(qFloor((double(availableMiB)/1024-other->value())*100)/100.0);
+        } else root->setValue(qFloor(double(availableMiB)/1024*100)/100.0);
         validate();
     });
     connect(root,QOverload<double>::of(&QDoubleSpinBox::valueChanged),&dialog,[=](double){validate();});
@@ -241,7 +271,7 @@ void PartitionPage::createLayout()
         cursor+=mib*unit; p->setLabel(label); PartitionInfo::setMountPoint(p,mount); PartitionInfo::setFormat(p,fs!=FileSystem::Type::Unformatted); m_core->createPartition(d,p,flags);
     };
     if(!hasEsp) add(512,FileSystem::Type::Fat32,QStringLiteral("/boot/efi"),QStringLiteral("EFI System Partition"),KPM_PARTITION_FLAG(Boot));
-    add(qRound64(root->value()*1024),FileSystem::Type::Ext4,QStringLiteral("/"),QStringLiteral("BitcoinCoreVault"),KPM_PARTITION_FLAG(None));
+    add(qRound64(root->value()*1024),FileSystem::Type::Ext4,QStringLiteral("/"),isNode?QStringLiteral("BitcoinCoreNode"):QStringLiteral("BitcoinCoreVault"),KPM_PARTITION_FLAG(None));
     if(reserve->isChecked()) add(qRound64(other->value()*1024),FileSystem::Type::Unformatted,QString(),QString::fromLatin1(companionLabel),KPM_PARTITION_FLAG(None));
     assignEsp(); refresh();
 }
