@@ -130,8 +130,8 @@ void PartitionPage::refresh()
         QProcess probe;
         probe.start(QStringLiteral("/usr/bin/python3"),{QStringLiteral("/usr/lib/core-vault-installer/disk_safety.py"),QStringLiteral("reservations"),d->deviceNode(),isNode?QStringLiteral("node"):QStringLiteral("vault")});
         if(probe.waitForStarted(3000) && probe.waitForFinished(12000) && probe.exitCode()==0) {
-            const auto slots=QJsonDocument::fromJson(probe.readAllStandardOutput()).array();
-            if(slots.size()==1) reservedPath=slots.first().toObject().value("path").toString();
+            const auto reservationEntries=QJsonDocument::fromJson(probe.readAllStandardOutput()).array();
+            if(reservationEntries.size()==1) reservedPath=reservationEntries.first().toObject().value("path").toString();
         } else {probe.kill();probe.waitForFinished(1000);}
     }
     if(d->partitionTable()) for(auto it=PartitionIterator::begin(d);it!=PartitionIterator::end(d);++it) {
