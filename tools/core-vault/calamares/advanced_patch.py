@@ -8,11 +8,21 @@ from pathlib import Path
 import base_patch as b
 ADDITIONAL = ['src/modules/partition/gui/PartitionPage.h',
               'src/modules/partition/gui/PartitionPage.cpp',
-              'src/modules/partition/core/PartitionCoreModule.h']
+              'src/modules/partition/core/PartitionCoreModule.h',
+              'src/modules/partition/jobs/SetPartitionFlagsJob.h',
+              'src/modules/partition/jobs/ChangeFilesystemLabelJob.h']
 
 def patch_tree(root, product='vault'):
     assert product in ('node','vault')
     root=Path(root); templates=Path(__file__).with_name('shared')
+    # Upstream declares these accessors without defining them. The plan guard
+    # must inspect the actual device stored by each job, including flag/label
+    # operations, rather than infer it from the surrounding device model.
+    for name in ('SetPartitionFlagsJob.h','ChangeFilesystemLabelJob.h'):
+        path=root/'src/modules/partition/jobs'/name
+        path.write_text(b.once(path.read_text(), '    Device* device() const;',
+            '    Device* device() const { return m_device; }',
+            'bind actual job device: '+name))
     def read(name):
         return (templates/name).read_text().replace('CORE_PRODUCT_NODE','true' if product=='node' else 'false').replace('CORE_PRODUCT_KEY',product)
     for name in ('PartitionPage.h','PartitionPage.cpp'):
