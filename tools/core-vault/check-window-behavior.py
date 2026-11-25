@@ -33,7 +33,7 @@ panel = (INC / 'usr/local/bin/core-vault-taskbar').read_text()
 compile(panel, 'core-vault-taskbar', 'exec')
 for token in ('WA_X11NetWmWindowTypeDock', '_NET_WM_STRUT_PARTIAL', '_NET_CLOSE_WINDOW',
               'Qt.MiddleButton', 'Minimize', 'Close', 'debian-white.png',
-              'VAULT_TASKBAR_VISIBILITY_V2', 'VAULT_TASKBAR_NATURAL_WIDTH_V2', 'self.hide()',
+              'VAULT_TASKBAR_VISIBILITY_V2', 'taskbar-controls-v4-compact-tasks', 'self.hide()',
               'XDeleteProperty', 'text-align: center;'):
     if token not in panel:
         raise RuntimeError('Missing taskbar integration: ' + token)
