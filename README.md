@@ -16,6 +16,8 @@ RAM. Export the files you want to keep before ending the session.
 
 The published ISO is the exact locally built image approved after testing. Its source and retained build evidence are supplied. An independent byte-identical rebuild of **v0.9.0** has not been established; the earlier v0.8.0 reproducibility results remain specific to that release.
 
+The publication source includes one [documented review-metadata correction](docs/REBUILD.md#known-metadata-difference) made after ISO assembly. The accepted ISO retains its original metadata; a complete current source-to-ISO payload-gate pass is not claimed.
+
 A single valid Bitcoin Core SQLite
 `wallet.dat` is encrypted directly using standard AES-256 CFB+MDC OpenPGP,
 without TAR. With two separate passphrases, decryption is

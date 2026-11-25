@@ -29,8 +29,8 @@ def fixture(product='node'):
         oldpart(4,513*MiB+124*GiB,32*GiB,'','BitcoinCoreVaultReserved')]
     identity=dict(name='/dev/sda',size=200*GiB,major_minor='8:0',serial='FIXTURE_ONLY',wwn='w-fixture',model='Fixture',sysfs='/fixtures/sda',logical_size=512,
         pttype='gpt',ptuuid='aaaaaaaa-0000-0000-0000-000000000001',partitions=deepcopy(before))
-    parts=[planned(before[0],'/boot/efi'),planned(before[1]),planned(before[2],'/',True,True,'ext4'),planned(before[3])]
-    disk=dict(path='/dev/sda',logical_size=512,table_before='gpt',table_after='gpt',partitions=parts,jobs=[job('DeletePartitionJob',before[2]),job('CreatePartitionJob',parts[2])])
+    parts=[planned(before[0],'/boot/efi'),planned(before[1]),planned(before[2],'/',True,False,'ext4'),planned(before[3])]
+    disk=dict(path='/dev/sda',logical_size=512,table_before='gpt',table_after='gpt',partitions=parts,jobs=[job('FormatPartitionJob',parts[2])])
     plan=dict(schema=1,product=product,mode='advanced',firmware='efi',target='/dev/sda',boot_target='/dev/sda',expected=deepcopy(identity),disks=[disk])
     return plan,identity
 
@@ -38,11 +38,21 @@ def created_layout(product='node'):
     plan,identity=fixture(product)
     identity['partitions']=identity['partitions'][:2]
     plan['expected']=deepcopy(identity);disk=plan['disks'][0];disk['partitions']=disk['partitions'][:3]
-    root=disk['partitions'][2];root['size']=32*GiB if product=='node' else 16*GiB
+    root=disk['partitions'][2];root.update(size=32*GiB if product=='node' else 16*GiB,new=True,uuid='')
     other='vault' if product=='node' else 'node'
     reserve=planned(oldpart(4,root['first']+root['size'],32*GiB,'',P.RESERVED_LABEL[other]),new=True)
     reserve['uuid']='';disk['partitions'].append(reserve)
     disk['jobs']=[job('CreatePartitionJob',root),job('CreatePartitionJob',reserve)]
+    return plan,identity
+
+def erased_layout(product='node'):
+    plan,identity=created_layout(product);plan['mode']='erase-layout';disk=plan['disks'][0]
+    # Explicit whole-disk erase creates only the reviewed ESP, root and reservation.
+    disk['partitions']=[disk['partitions'][0],*disk['partitions'][2:]]
+    for i,part in enumerate(disk['partitions'],1):
+        part.update(path='/dev/sda'+str(i),new=True,uuid='')
+        if part['mount']=='/boot/efi':part['format']=True
+    disk['jobs']=[dict(type='CreatePartitionTableJob',device='/dev/sda')]+[job('CreatePartitionJob',part) for part in disk['partitions']]
     return plan,identity
 
 def automatic_node(firmware='efi'):
@@ -55,7 +65,7 @@ def automatic_node(firmware='efi'):
     boot=planned(oldpart(len(parts)+1,first,GiB,'ext4','boot'),'/boot',True,True)
     parts.append(boot);first+=GiB
     parts.append(planned(oldpart(len(parts)+1,first,identity['size']-first-MiB,'ext4','core-node'),'/',True,True))
-    disk.update(table_before='none',table_after='gpt' if firmware=='efi' else 'other',partitions=parts,
+    disk.update(table_before='none',table_after='gpt' if firmware=='efi' else 'dos',partitions=parts,
                 jobs=[dict(type='CreatePartitionTableJob',device='/dev/sda')]+[job('CreatePartitionJob',p) for p in parts])
     return plan,identity
 
@@ -65,6 +75,9 @@ class PlanTests(unittest.TestCase):
     def test_existing_ext4_is_formatted_without_delete_recreate(self):
         p,d=fixture();d['partitions'][2]['fs']='ext4';p['expected']=deepcopy(d);p['disks'][0]['partitions'][2]['new']=False
         p['disks'][0]['jobs']=[job('FormatPartitionJob',p['disks'][0]['partitions'][2])];P.validate_plan(p,d)
+        root=p['disks'][0]['partitions'][2];root['new']=True
+        p['disks'][0]['jobs']=[job('DeletePartitionJob',d['partitions'][2]),job('CreatePartitionJob',root)]
+        with self.assertRaisesRegex(P.PlanError,'formats the selected root in place'):P.validate_plan(p,d)
     def test_both_reciprocal_reservations(self):
         for product in ('node','vault'):
             with self.subTest(product=product):
@@ -139,12 +152,20 @@ class PlanTests(unittest.TestCase):
         for i,v in enumerate(disk['partitions'],1):
             after['partitions'].append(oldpart(i,v['first'],v['size'],v['fs'],v['label']))
         P.validate_after(p,after)
-    def test_legacy_bios_advanced_is_explicitly_rejected(self):
-        p,d=fixture();p['firmware']='bios'
-        with self.assertRaisesRegex(P.PlanError,'UEFI'):P.validate_plan(p,d)
+    def test_legacy_bios_advanced_requires_appropriate_boot_layout(self):
+        p,d=fixture();p['firmware']='bios';disk=p['disks'][0]
+        with self.assertRaisesRegex(P.PlanError,'Unexpected EFI mount'):P.validate_plan(p,d)
+        disk['partitions'][0].update(mount='',efi=False)
+        with self.assertRaisesRegex(P.PlanError,'BIOS boot partition'):P.validate_plan(p,d)
+        first=d['partitions'][-1]['first']+d['partitions'][-1]['size']+MiB
+        bios=planned(oldpart(5,first,2*MiB,''),new=True);bios.update(bios_grub=True,uuid='')
+        disk['partitions'].append(bios);disk['jobs'] += [job('CreatePartitionJob',bios),job('SetPartFlagsJob',bios)]
+        self.assertIs(P.validate_plan(p,d)['bios_grub'],bios)
+        bios['format']=True
+        with self.assertRaisesRegex(P.PlanError,'unformatted'):P.validate_plan(p,d)
     def test_existing_whole_disk_bios_mode_still_accepts_standard_jobs(self):
         p,d=fixture();p.update(mode='erase',firmware='bios');disk=p['disks'][0]
-        root=disk['partitions'][2];disk['partitions']=[root];disk['jobs']=[dict(type='CreatePartitionTableJob',device='/dev/sda'),job('CreatePartitionJob',root),job('SetPartFlagsJob',root)]
+        root=disk['partitions'][2];root.update(new=True,uuid='');disk['table_after']='dos';disk['partitions']=[root];disk['jobs']=[dict(type='CreatePartitionTableJob',device='/dev/sda'),job('CreatePartitionJob',root),job('SetPartFlagsJob',root)]
         P.validate_plan(p,d)
     def test_existing_automatic_node_boot_partition_is_supported_in_both_firmwares(self):
         for firmware in ('efi','bios'):
@@ -175,8 +196,8 @@ class PlanTests(unittest.TestCase):
         for product in ('node','vault'):
             with self.subTest(product=product):
                 p,d=fixture(product);p.update(mode='erase',firmware='bios');disk=p['disks'][0]
-                root=disk['partitions'][2];root.update(path='/dev/sda1',label='core-'+product,uuid='')
-                disk.update(table_after='other',partitions=[root],jobs=[dict(type='CreatePartitionTableJob',device='/dev/sda'),job('CreatePartitionJob',root),job('SetPartFlagsJob',root)])
+                root=disk['partitions'][2];root.update(path='/dev/sda1',label='core-'+product,uuid='',new=True)
+                disk.update(table_after='dos',partitions=[root],jobs=[dict(type='CreatePartitionTableJob',device='/dev/sda'),job('CreatePartitionJob',root),job('SetPartFlagsJob',root)])
                 after=deepcopy(d);after.update(pttype='dos',ptuuid='12345678')
                 actual=oldpart(1,root['first'],root['size'],'ext4','')
                 actual.update(partuuid='12345678-01',parttype='0x83',fsuuid='new-root')
@@ -184,19 +205,21 @@ class PlanTests(unittest.TestCase):
                 self.assertEqual(P.validate_after(p,after)['root']['path'],'/dev/sda1')
                 actual['fs']='ntfs'
                 with self.assertRaisesRegex(P.PlanError,'filesystem differs'):P.validate_after(p,after)
-                actual['fs']='ext4';disk['table_after']='gpt'
+                actual['fs']='ext4';disk['table_after']='gpt';after['pttype']='gpt'
+                bios=planned(oldpart(2,MiB,MiB,''),new=True);bios.update(bios_grub=True,uuid='')
+                disk['partitions'].append(bios);disk['jobs'] += [job('CreatePartitionJob',bios),job('SetPartFlagsJob',bios)]
+                actual_bios=oldpart(2,MiB,MiB,'');actual_bios.update(bios_grub=True,parttype=P.BIOS_GRUB_TYPE)
+                after['partitions'].append(actual_bios)
                 with self.assertRaisesRegex(P.PlanError,'GPT partition label'):P.validate_after(p,after)
     def test_whole_disk_uefi_erase_requires_explicit_table_job(self):
-        p,d=created_layout();p['mode']='erase-layout'
-        for part in p['disks'][0]['partitions']:part['new']=True
-        with self.assertRaises(P.PlanError):P.validate_plan(p,d)
-        p['disks'][0]['jobs'].insert(0,dict(type='CreatePartitionTableJob',device='/dev/sda'));P.validate_plan(p,d)
+        p,d=erased_layout();P.validate_plan(p,d)
+        table_job=p['disks'][0]['jobs'].pop(0)
+        with self.assertRaisesRegex(P.PlanError,'must create the reviewed partition table'):P.validate_plan(p,d)
+        p['disks'][0]['jobs'].insert(0,table_job);P.validate_plan(p,d)
     def test_whole_disk_reservations_are_validated_before_writes(self):
         for field,value in [('size',MiB),('new',False),('format',True),('fs','ext4')]:
-            p,d=created_layout();p['mode']='erase-layout'
-            for part in p['disks'][0]['partitions']:part['new']=True
-            p['disks'][0]['jobs'].insert(0,dict(type='CreatePartitionTableJob',device='/dev/sda'))
-            p['disks'][0]['partitions'][3][field]=value
+            p,d=erased_layout();P.validate_plan(p,d)
+            p['disks'][0]['partitions'][-1][field]=value
             with self.assertRaises(P.PlanError):P.validate_plan(p,d)
     def test_no_root_consent_no_plan(self):
         p,d=fixture();p['disks'][0]['partitions'][2]['format']=False
@@ -262,7 +285,7 @@ class MetadataTests(unittest.TestCase):
         r,d,p=self.record();p['fs']='ext4'
         with self.assertRaises(P.PlanError):P.verify_reservation(r,'vault',d,p)
     def test_oversized_or_wrong_schema_metadata_rejected(self):
-        for raw in (b' '*(B.MAX_RECORD+1),b'[]',b'{"schema":2}',b'{"schema":true}',b'{"schema":1,"schema":1}'):
+        for raw in (b' '*(B.MAX_RECORD+1),b'[]',b'{"schema":3}',b'{"schema":true}',b'{"schema":1,"schema":1}'):
             with self.assertRaises((P.PlanError,ValueError)):B.bounded_json(raw)
     def test_metadata_types_and_exact_schema_fail_cleanly(self):
         r,d,p=self.record()

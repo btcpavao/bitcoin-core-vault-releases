@@ -56,6 +56,12 @@ git diff v0.8.0 v0.9.0 -- config tools docs .github
 
 The runtime files in `config/includes.chroot/` are copied into Vault. The paired files under `tools/core-vault/runtime-template/` are the maintained templates. Inspect the installer model/guards, device-settings persistence, time helpers, Home and taskbar together with their package manifests.
 
+### Known metadata difference
+
+The publication source corrects the Home entry in `usr/share/core-vault/shred-policy.json` after the desktop clock addition. The accepted ISO keeps the original review metadata. This JSON is used by source/build verification tools; installed Home and shred applications do not read it. The Home executable and the other seven reviewed programs are unchanged.
+
+The release records both metadata hashes in `BUILD-PROVENANCE.json` and `source-runtime-verification.json`. The existing strict payload checker requires metadata equality and would reject this known difference. It has not been relaxed or bypassed, and no complete current source-to-ISO payload-gate pass is claimed. The separate comparison of 70 recorded inputs, including 60 installed custom files, remains exact for those listed files.
+
 ## 3. Understand the release inputs
 
 | Input | Authoritative record |
@@ -102,7 +108,7 @@ The entry point prepares the pinned KeePassXC and T2 inputs, checks the reviewed
 
 This complete fresh build was **not executed as part of v0.9.0 publication**. This section documents the functional source-build entry point; it does not certify a successful clean rebuild or equality with the released file. Preserve failures and logs instead of disabling a failing gate. Changes in Debian inputs, packaging metadata, filesystem layout and timestamps can change the output bytes.
 
-`tools/rebuild/build-release.sh` and the earlier native wrapper are historical recipes. Their v0.8.0/corevault6 assumptions do not produce the published v0.9.0 image; the native compiler wrapper refuses unsupported package versions before starting Docker. Use the [v0.8.0 tag](https://github.com/btcpavao/bitcoin-core-vault-releases/blob/v0.8.0/docs/REBUILD.md) when following that historical recipe. Preserved documentation is also under [history/v0.8.0](history/v0.8.0/INDEX.md).
+`tools/rebuild/build-release.sh` and the earlier native wrapper are historical recipes. Their v0.8.0/corevault6 assumptions do not produce the published v0.9.0 image. Original binary comparison gates remain intact; matching current native package bytes have not been demonstrated with this recipe. Use the [v0.8.0 tag](https://github.com/btcpavao/bitcoin-core-vault-releases/blob/v0.8.0/docs/REBUILD.md) when following that historical recipe. Preserved documentation is also under [history/v0.8.0](history/v0.8.0/INDEX.md).
 
 ## 5. Compare without assuming the result
 

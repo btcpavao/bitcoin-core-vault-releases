@@ -70,8 +70,9 @@ before publication.
 For a published version, follow the build entry point and limitations in its
 tagged [build instructions](docs/REBUILD.md). v0.9.0 exposes
 `tools/core-vault/build-live-iso.sh` for a new functional image build. The older
-`tools/rebuild/build.sh` native path is not a proven v10/v0.9.0 recipe; its
-compiler wrapper refuses unsupported package versions before starting Docker.
+`tools/rebuild/build.sh` native path retains corevault6 packaging assumptions
+and is not a proven v10/v0.9.0 recipe. Its original binary comparison gates
+remain intact; no new native binary equality is claimed.
 Record the actual release packaging inputs and compare the completed artifact
 with the image approved for publication. Do not describe a new source build as
 byte-identical until the complete-file comparison has passed.

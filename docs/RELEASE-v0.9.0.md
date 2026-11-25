@@ -44,6 +44,8 @@ On **25 November 2026**, Pavao confirmed that Vault was working correctly and ap
 
 The release contains the matching project source snapshot and retained Calamares source companion, input/provenance records, package inventory and checksums. The ISO was assembled locally by repacking an existing Vault base with reviewed inputs. **An independent byte-identical rebuild of the complete v0.9.0 image has not been demonstrated.** The previous v0.8.0 matching-build result remains attached to v0.8.0.
 
+One review-metadata file differs between the publication source and the accepted ISO: `usr/share/core-vault/shred-policy.json`. Its Home digest was still from before the desktop clock change. The source correction records the actual accepted Home hash; the other seven reviewed runtime hashes are unchanged. Installed applications do not consume this review metadata. The ISO is kept byte-for-byte as accepted, including the old metadata, so the current strict source-to-ISO payload gate would reject that difference. `BUILD-PROVENANCE.json` and `source-runtime-verification.json` identify both metadata hashes; focused archive/source checks are not presented as a complete payload-gate pass.
+
 The T2 kernel binary is exactly pinned and was authenticated through signed repository metadata. Its upstream build used a mutable patch-branch `HEAD`; an exact historical patch commit and a matching T2 source-to-binary rebuild are not invented. The Calamares companion provides the actual retained patched source and original incremental-build evidence; a new clean binary equality result is not claimed.
 
 [Inspect the release and source-build entry point](REBUILD.md) · [Native source companion](NATIVE-REBUILD.md) · [Component notices](../THIRD_PARTY_NOTICES.md)
