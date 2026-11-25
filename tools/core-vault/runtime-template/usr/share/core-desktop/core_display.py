@@ -3,7 +3,8 @@
 
 The GUI sends only a bounded declarative layout. An independent child process
 owns each change and restores the old state if its input closes or confirmation
-does not arrive. This module never runs a shell or asks for administrative access.
+does not arrive. This module never runs a shell. Installed Vault preferences
+use only the fixed, allowlisted device-settings helper.
 """
 # SPDX-License-Identifier: GPL-3.0-or-later
 from __future__ import annotations
@@ -241,6 +242,16 @@ def atomic_write(path, raw):
             pass
 
 
+def vault_device_state():
+    directory = Path('/usr/lib/core-vault/settings')
+    if not directory.is_dir():
+        directory = Path(__file__).resolve().parents[2] / 'lib/core-vault/settings'
+    if str(directory) not in sys.path:
+        sys.path.insert(0, str(directory))
+    import vault_device_state as state
+    return state
+
+
 def save_profile(product, value):
     value = validate_profile(value)
     value['product'] = product_name(product)
@@ -248,6 +259,11 @@ def save_profile(product, value):
     if product == 'vault':
         _assert_vault_profile_path(path)
     atomic_write(path, json.dumps(value, indent=2, sort_keys=True) + '\n')
+    if product == 'vault':
+        try:
+            vault_device_state().persist_component('display', value)
+        except ValueError as exc:
+            raise DisplayError(str(exc)) from exc
     return value
 
 
@@ -861,6 +877,11 @@ def _recover_pending_locked(product, backend):
                 profile_path(product).unlink()
             except FileNotFoundError:
                 pass
+            if product == 'vault':
+                try:
+                    vault_device_state().persist_component('display', None)
+                except ValueError as exc:
+                    raise DisplayError(str(exc)) from exc
     _clear_pending()
     return True
 
@@ -919,7 +940,7 @@ def transaction(product, backend=None, timeout=CONFIRM_SECONDS):
                     _clear_pending()
                     kept = True
                     _emit(dict(state='kept', message='Display settings applied and saved.' if product == 'node'
-                               else 'Display settings applied for this private session.'))
+                               else vault_device_state().applied_message('Display settings')))
                     return 0
                 if action is None or action == b'revert':
                     break

@@ -10,6 +10,74 @@ def module(path):
     spec=importlib.util.spec_from_file_location('vault_target_check',path)
     m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m);return m
 
+
+def launcher_manifest_contract(tree):
+    """Inspect the launcher contract without importing or executing the launcher."""
+    functions={node.name:node for node in tree.body if isinstance(node,ast.FunctionDef)}
+    if not {'main','reviewed_calamares_version'}.issubset(functions):
+        raise RuntimeError('Installer launcher must read the image manifest package pin.')
+    main=functions['main'];reader=functions['reviewed_calamares_version']
+
+    def signature(node):
+        return ast.dump(node,include_attributes=False)
+
+    def expression(text):
+        return signature(ast.parse(text,mode='eval').body)
+
+    def contains(function,text):
+        expected=expression(text)
+        return any(signature(node)==expected for node in ast.walk(function))
+
+    def guarded(function,text):
+        expected=expression(text)
+        for node in ast.walk(function):
+            if isinstance(node,ast.If) and signature(node.test)==expected:
+                if any(isinstance(child,ast.Raise) for statement in node.body for child in ast.walk(statement)):
+                    return True
+        return False
+
+    main_guards=(
+        'os.geteuid() != 0 or len(sys.argv) != 1',
+        '"boot=live" not in cmdline or "core-vault.install=1" not in cmdline',
+        'not squashfs.is_file()',
+        'pathlib.Path("/etc/core-vault/installation.json").exists()',
+        'len(mount_info) != 2 or "ro" not in mount_info[1].split(",")',
+        'package.returncode != 0 or len(fields) != 2 or status != "install ok installed" or version != expected_version',
+    )
+    if not all(guarded(main,text) for text in main_guards):
+        raise RuntimeError('Installer launcher root, Live-medium or installed-package guard changed.')
+    if not any(isinstance(node,ast.Assign) and len(node.targets)==1
+               and isinstance(node.targets[0],ast.Name) and node.targets[0].id=='expected_version'
+               and signature(node.value)==expression('reviewed_calamares_version()') for node in main.body):
+        raise RuntimeError('Installer launcher version must come from the reviewed image manifest.')
+    queries=[node for node in ast.walk(main) if isinstance(node,ast.Call)
+             and isinstance(node.func,ast.Attribute) and isinstance(node.func.value,ast.Name)
+             and node.func.value.id=='subprocess' and node.func.attr=='run' and node.args
+             and isinstance(node.args[0],ast.List)
+             and any(isinstance(item,ast.Constant) and item.value=='/usr/bin/dpkg-query' for item in node.args[0].elts)]
+    expected_query=['/usr/bin/dpkg-query','-W','-f=${Status}\n${Version}\n','calamares']
+    if len(queries)!=1 or ast.literal_eval(queries[0].args[0])!=expected_query:
+        raise RuntimeError('Installer launcher must query both Calamares status and exact version.')
+    reader_guards=(
+        'not stat.S_ISDIR(info.st_mode) or info.st_uid != 0 or info.st_mode & 0o022',
+        'not stat.S_ISREG(info.st_mode) or info.st_uid != 0 or info.st_mode & 0o022 or not 0 < info.st_size <= limit',
+        'len(raw) > limit',
+        'not isinstance(payload, dict) or type(payload.get("schema")) is not int or payload["schema"] != 1',
+    )
+    reader_expressions=(
+        'pathlib.Path("/etc/core-vault/installer-payload.json")',
+        'os.open(path, os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW)',
+        'os.fstat(source.fileno())', 'source.read(limit + 1)',
+        'payload.get("calamares_version")',
+    )
+    if (not all(guarded(reader,text) for text in reader_guards)
+            or not all(contains(reader,text) for text in reader_expressions)
+            or not any(isinstance(node,ast.Assign) and len(node.targets)==1
+                       and isinstance(node.targets[0],ast.Name) and node.targets[0].id=='limit'
+                       and isinstance(node.value,ast.Constant) and node.value.value==1048576 for node in reader.body)):
+        raise RuntimeError('Installer manifest reader must remain bounded and controlled by root.')
+
+
 def source_check():
     cfg=yaml.safe_load((INC/'etc/calamares/settings.conf').read_text())
     expected=['partition','mount','unpackfs','machineid','keyboard','fstab',
@@ -70,13 +138,11 @@ fi'''
                    stdout=subprocess.DEVNULL)
     # All executable package-version gates must agree before the expensive ISO build.
     expected_version=module(ROOT/'tools/core-vault/calamares/package_state.py').VERSION
-    wrapper=ast.parse((INC/'usr/local/sbin/core-vault-installer').read_text())
-    guarded_versions=[node.comparators[0].value for node in ast.walk(wrapper)
-        if isinstance(node,ast.Compare) and isinstance(node.left,ast.Name)
-        and node.left.id=='version' and len(node.ops)==1 and isinstance(node.ops[0],ast.NotEq)
-        and len(node.comparators)==1 and isinstance(node.comparators[0],ast.Constant)]
-    if guarded_versions!=[expected_version]:
-        raise RuntimeError('Installer launcher package-version guard differs from reviewed package.')
+    launcher=INC/'usr/local/sbin/core-vault-installer'
+    launcher_manifest_contract(ast.parse(launcher.read_text(),str(launcher)))
+    for relative in ('usr/local/sbin/core-vault-installer','usr/local/bin/core-vault-installer-session'):
+        if (INC/relative).read_bytes()!=(ROOT/'tools/core-vault/runtime-template'/relative).read_bytes():
+            raise RuntimeError('Installer launcher/session template mismatch: '+relative)
     hook=(ROOT/'config/hooks/live/0950-core-vault-installer-check.hook.chroot').read_text()
     import re
     hook_versions=re.findall(r"^test .*dpkg-query.* calamares\)\" = '([^']+)'$",hook,re.M)

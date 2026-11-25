@@ -304,7 +304,7 @@ class DisplaySettingsDialog(QDialog):
         title_row.addWidget(self.refresh_button)
         box.addLayout(title_row)
         note = ('Choose a resolution and arrange your displays. Confirm changes before they are saved.' if product == 'node'
-                else 'Choose a resolution and arrange your displays. Preferences stay in this private session unless exported.')
+                else 'Choose a resolution and arrange your displays. Confirm changes before they are saved. ' + display.vault_device_state().notice())
         box.addWidget(label(note, True))
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)

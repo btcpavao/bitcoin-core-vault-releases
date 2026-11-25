@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "theme": "elementary-xfce-hidpi",
+  "package": "elementary-xfce-icon-theme",
+  "version": "0.21-1",
+  "source_file": "/usr/share/icons/elementary-xfce-hidpi/categories/48/preferences-system.svg",
+  "upstream": "https://github.com/shimmerproject/elementary-xfce",
+  "render_size": 44,
+  "button_size": 48,
+  "license": "GPL-3.0-or-later",
+  "artwork_modified": false,
+  "files": {
+    "icons/settings.svg": "b7afdc1a48daacd9298f32a1647f656aecb0ce7bf4928b531c9673954d5200ef",
+    "licenses/elementary-xfce/SETTINGS-NOTICE.txt": "75fa2f00c036925c2506a4ca9bb4b4e9cb89b3b774e02eb26d1e1d27055a43fc",
+    "licenses/elementary-xfce/copyright": "0d8480ec725c5e7817126e09aced20c5854586b1a783156e78278e060109f1f5",
+    "licenses/elementary-xfce/GPL-3.txt": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+  }
+}

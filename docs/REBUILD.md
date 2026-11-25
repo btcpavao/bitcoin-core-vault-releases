@@ -1,90 +1,116 @@
-# Build Vault v0.8.0 and compare it with the signed download
+# Inspect and build Vault v0.9.0
 
-The release ISO is `bitcoin-core-vault-v0.8.0-amd64.iso` (714,407,936 bytes). Its SHA-256 is:
+The release file is `bitcoin-core-vault-v0.9.0-amd64.iso`, **1,133,379,584 bytes**, with SHA-256:
 
 ```text
-0bc142508a35172ea92f645decc31be1373b05956e9a17d0ad01cee9bab84857
+615067c09f573a4476c7039adc90e58f75a46bdf20a028fd3c58f3e300c832fe
 ```
 
-Use these instructions to rebuild the exact file that Pavao tested on the ThinkPad T530. You can also verify the download separately by following step 4.
+This is the exact locally assembled image approved for publication after testing. The tagged source, matching native source companion, pinned input manifests and retained build evidence support inspection and further builds. **A fresh independent build producing this complete v0.9.0 ISO byte for byte has not been demonstrated.** The v0.8.0 identical-build results apply to v0.8.0 only.
 
-## 1. Get the release source
+## 1. Authenticate the release files
 
-Use an amd64 Linux computer or disposable Linux VM with Git, Docker Engine and internet access. Allow at least 40 GiB of free working space. Test that the build account can run `git --version` and `docker run --rm hello-world`. Use a computer without wallets or signing keys.
+Download the ISO, `SHA256SUMS`, `SHA256SUMS.asc`, `btcpavao-pgp.asc` and `SOURCE-COMMIT.txt` from the [v0.9.0 release](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/tag/v0.9.0) into one directory. The project source snapshot is `bitcoin-core-vault-v0.9.0-source.tar.gz`; the patched installer source is `bitcoin-core-vault-v0.9.0-calamares-source.tar.xz`. Both companions are covered by the same checksum list.
 
-```bash
-git clone https://github.com/btcpavao/bitcoin-core-vault-releases.git vault-source
-cd vault-source
-git switch --detach v0.8.0
-git rev-parse HEAD
-```
-
-Compare the printed revision with `SOURCE-COMMIT.txt` from the [v0.8.0 release](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/tag/v0.8.0). Keep the Git history. The release build uses earlier commits as well as the final tagged source. The source tarball contains the tagged files for offline inspection.
-
-## 2. Inspect the changes
-
-```bash
-git diff --stat v0.7.0 v0.8.0
-git diff v0.7.0 v0.8.0 -- config tools .github
-```
-
-Press **Space** to advance and **q** to leave the pager. Under `config/`, the desktop settings, offline-session scripts and installer files become part of Vault. Under `tools/`, the repository records how to build and check them. For the USB watch-only changes, inspect `config/includes.chroot/usr/lib/core-vault/public_export.py` and `export_view.py`.
-
-`tools/rebuild/inputs.env` identifies the builder image by its immutable digest, the Debian archive snapshot, and the timestamp used to assemble the system. `tools/rebuild/InRelease.sha256` pins the signed Debian archive metadata. The builder verifies Bitcoin Core and KeePassXC against their upstream release records. It compiles the project-patched Calamares installer and Thunar file manager, and rebuilds the Vault Backup package. [Native package sources and build instructions](NATIVE-REBUILD.md)
-
-## 3. Build the release
-
-From `vault-source`, choose an output directory that does not already exist:
-
-```bash
-bash tools/rebuild/build-release.sh ../vault-result
-```
-
-If Docker on that machine requires `sudo`, run `bash tools/rebuild/build-release.sh --sudo-docker ../vault-result` instead.
-
-The output to compare is `../vault-result/bitcoin-core-vault-amd64.iso`. The build leaves your USB drives untouched.
-
-Vault v0.8.0 was tested after two small USB export changes were applied to a clean Vault build. To reproduce the exact ISO layout, the release recipe starts with the clean build from `8bbb8b76b98c7b879b7fe1a62bb51e1568d82a10` and packages the runtime changes through `0103f0fde7695156a50ebf2c2ee5966aafc5101e`. The source updates are visible in `git diff 8bbb8b7 0103f0f`. The builder checks the base before using it. [The clean base workflow run](https://github.com/btcpavao/bitcoin-core-vault-releases/actions/runs/44326522554) shows both builder jobs for that revision. [The release workflow](https://github.com/btcpavao/bitcoin-core-vault-releases/actions/workflows/vault-rebuild.yml?query=branch%3Av0.8.0) builds the final ISO twice, compares both files against the release hash and tests installation in a UEFI virtual machine. Each job reports its own result.
-
-## 4. Verify the signed download and compare the build
-
-Create a directory named `release` next to `vault-source`. Download `bitcoin-core-vault-v0.8.0-amd64.iso`, `SHA256SUMS`, `SHA256SUMS.asc` and `btcpavao-pgp.asc` into it from the [v0.8.0 release](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/tag/v0.8.0). To authenticate `SOURCE-COMMIT.txt`, place it in the same directory.
-
-Run `gpg --show-keys --with-fingerprint btcpavao-pgp.asc` in the download directory. Compare the full fingerprint with a value you have confirmed independently for BTC Pavao:
+Inspect the signing key with `gpg --show-keys --with-fingerprint btcpavao-pgp.asc` and confirm all 40 characters through a separate channel you trust:
 
 ```text
 787A 2AAF B0D1 19CA 0522 B2A5 B9C9 9AF8 5788 96D0
 ```
 
-In Bash, using GnuPG 2.4.7 or later, check the signature before checking the downloaded files:
+In Bash with GnuPG 2.4.7 or newer, run the following from the download directory:
 
 ```bash
 (
   set -euo pipefail
-  keyring=$(mktemp -d)
-  trap 'rm -rf -- "$keyring"' EXIT
-  gpg --homedir "$keyring" --batch --import btcpavao-pgp.asc
-  gpg --homedir "$keyring" --batch --assert-signer 787A2AAFB0D119CA0522B2A5B9C99AF8578896D0 \
+  vault_keyring=$(mktemp -d)
+  trap 'rm -rf -- "$vault_keyring"' EXIT
+  gpg --no-options --homedir "$vault_keyring" --batch --import btcpavao-pgp.asc
+  gpg --no-options --homedir "$vault_keyring" --batch --no-auto-key-retrieve \
+    --assert-signer 787A2AAFB0D119CA0522B2A5B9C99AF8578896D0 \
     --verify SHA256SUMS.asc SHA256SUMS
-  iso=bitcoin-core-vault-v0.8.0-amd64.iso
-  awk -v name="$iso" '$2 == name || $2 == "*" name {print; n++} END {if (n != 1) exit 1}' SHA256SUMS |
-    sha256sum --strict --check -
-  if [[ -f SOURCE-COMMIT.txt ]]; then
-    awk '$2 == "SOURCE-COMMIT.txt" || $2 == "*SOURCE-COMMIT.txt" {print; n++} END {if (n != 1) exit 1}' SHA256SUMS |
+  for file in bitcoin-core-vault-v0.9.0-amd64.iso SOURCE-COMMIT.txt; do
+    awk -v name="$file" '$2 == name || $2 == "*" name {print; n++} END {if (n != 1) exit 1}' SHA256SUMS |
       sha256sum --strict --check -
-  fi
+  done
 )
 ```
 
-After `sha256sum` reports `OK` for the ISO, compare the downloaded file with your rebuild:
+The signature must match the confirmed key and both files must report `OK`. To verify an optional companion or provenance file, apply the same filename-specific check to its exact name in the signed list. Checksums identify the bytes; source review, reproducibility and hardware testing answer separate questions.
+
+## 2. Get the exact project source
 
 ```bash
-cmp -- bitcoin-core-vault-v0.8.0-amd64.iso ../vault-result/bitcoin-core-vault-amd64.iso &&
-  echo 'The complete rebuilt ISO matches the signed download byte for byte.'
+git clone https://github.com/btcpavao/bitcoin-core-vault-releases.git vault-source
+cd vault-source
+git switch --detach v0.9.0
+git rev-parse HEAD
 ```
 
-If a check fails, keep the two hashes, your source revision, the Debian package list, and the first failing command from the build log. `diffoscope --html vault-difference.html first.iso second.iso` compares two local files. Please include the public logs when reporting a difference.
+Compare the printed revision with the authenticated `SOURCE-COMMIT.txt`. The source tarball contains the tagged files; a Git checkout also preserves the published history for reviewing changes.
 
-### Getting help from an LLM
+```bash
+git diff --stat v0.8.0 v0.9.0
+git diff v0.8.0 v0.9.0 -- config tools docs .github
+```
 
-Paste the relevant public command and its output, and ask: “What does this command check? Which files change the installed Vault? What should I inspect next?” A rebuild needs only the public source and dependencies. Keep personal wallet files, passphrases and private signing keys out of the conversation.
+The runtime files in `config/includes.chroot/` are copied into Vault. The paired files under `tools/core-vault/runtime-template/` are the maintained templates. Inspect the installer model/guards, device-settings persistence, time helpers, Home and taskbar together with their package manifests.
+
+## 3. Understand the release inputs
+
+| Input | Authoritative record |
+| --- | --- |
+| Approved ISO, original local candidate identity and release validation scope | Release `BUILD-PROVENANCE.json`, `build-inputs.txt` and [release notes](RELEASE-v0.9.0.md) |
+| Recorded source inputs compared with the accepted ISO | Release `source-runtime-verification.json` |
+| Runtime overlays and original local assembly | `tools/local-build/assemble-t2-candidate.py` and `pack-t2-desktop-tuning-v2.sh` |
+| Calamares `3.3.14-1+corevault10localrolesfix1` | `build-assets/core-vault-calamares-v1/package.json`, the committed `.deb`, and the release's matching Calamares source companion |
+| T2 kernel and Intel/AMD graphics firmware | `tools/core-vault/manifests/t2-hardware-release.json` and its archived signed metadata under `build-assets/core-vault-t2-v1/` |
+| Unmodified Bitcoin Core and KeePassXC releases | Project release/provenance records and `prepare-keepassxc.py` / `check-core-release.py` |
+| Complete installed package inventory | Release `image-packages.tsv` |
+
+The local packaging script records the actual maintainer assembly, including historical absolute paths and intermediate ISO inputs. It cannot be run unchanged on another computer. It is not a portable exact-rebuild recipe.
+
+The T2 helper fetches only the three named packages and checks their exact sizes and hashes. It first verifies the archived metadata listed in the manifest. Those records preserve the repository-signature validation performed when the pins were recorded; no T2 repository is enabled in the offline Vault system. The T2 binary is pinned, but the upstream build used a mutable patch-branch `HEAD`; a matching source-to-binary rebuild and an exact historical patch commit are not claimed.
+
+## 4. Make a new functional source build
+
+Use a disposable **Debian 13 amd64** build VM with internet access and at least 40 GiB of working space. The image builder needs root privileges inside that disposable environment. A build from current source is a new candidate and requires its own content, boot, installation and wallet-workflow checks before use.
+
+The builder prerequisites used by the project are listed in `tools/rebuild/inside.sh`. For a direct live-build environment, install them along with Git and curl:
+
+```bash
+sudo apt-get update
+sudo apt-get install --no-install-recommends \
+  git curl sudo live-build debootstrap debian-archive-keyring \
+  apt-utils ca-certificates wget rsync xorriso squashfs-tools isolinux \
+  syslinux-common syslinux-utils grub-pc-bin grub-efi-amd64-bin mtools \
+  dosfstools cpio file xz-utils python3 python3-pil python3-yaml \
+  python3-pyside6.qtcore python3-pyside6.qtgui python3-pyside6.qtwidgets \
+  fonts-dejavu-core xvfb xauth gpg gpgv libusb-1.0-0 libgl1 \
+  libxcb-cursor0 libxkbcommon-x11-0 libfuse2t64
+```
+
+From the clean `v0.9.0` checkout:
+
+```bash
+export QT_QPA_PLATFORM=offscreen
+export PYTHONDONTWRITEBYTECODE=1
+bash tools/core-vault/build-live-iso.sh
+```
+
+The entry point prepares the pinned KeePassXC and T2 inputs, checks the reviewed project packages and runtime, invokes `live-build`, and then runs its image-content gates. Its output is `live-image-amd64.hybrid.iso`. Required locally modified package inputs, including the reviewed Calamares v10 package, remain in the release source; the large upstream T2 kernel and two firmware packages are fetched using their manifests. Previously downloaded T2 packages can be staged with `python3 tools/core-vault/prepare-t2-hardware.py --input-dir /path/to/verified-downloads`.
+
+This complete fresh build was **not executed as part of v0.9.0 publication**. This section documents the functional source-build entry point; it does not certify a successful clean rebuild or equality with the released file. Preserve failures and logs instead of disabling a failing gate. Changes in Debian inputs, packaging metadata, filesystem layout and timestamps can change the output bytes.
+
+`tools/rebuild/build-release.sh` and the earlier native wrapper are historical recipes. Their v0.8.0/corevault6 assumptions do not produce the published v0.9.0 image; the native compiler wrapper refuses unsupported package versions before starting Docker. Use the [v0.8.0 tag](https://github.com/btcpavao/bitcoin-core-vault-releases/blob/v0.8.0/docs/REBUILD.md) when following that historical recipe. Preserved documentation is also under [history/v0.8.0](history/v0.8.0/INDEX.md).
+
+## 5. Compare without assuming the result
+
+After authenticating the download, an independently built image can be compared with it:
+
+```bash
+sha256sum live-image-amd64.hybrid.iso /path/to/bitcoin-core-vault-v0.9.0-amd64.iso
+cmp -- live-image-amd64.hybrid.iso /path/to/bitcoin-core-vault-v0.9.0-amd64.iso
+```
+
+`cmp` succeeds only if every byte matches. No such successful comparison is asserted for v0.9.0. Retain the source revision, package list, build log, hashes and first failing check when reporting a difference. [Native-package source details](NATIVE-REBUILD.md) distinguish inspecting or compiling a patched application from reproducing the entire ISO.

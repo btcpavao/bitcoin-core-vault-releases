@@ -1,4 +1,4 @@
-# Calamares V1 dedicated whole-disk installer; no compiler in image.
+# Calamares whole-disk and Advanced installer; no compiler in image.
 calamares
 python3-yaml
 sudo
@@ -17,3 +17,13 @@ squashfs-tools
 util-linux
 kmod
 initramfs-tools
+fdisk
+
+# Qt6 modules imported by the shipped Calamares slideshow (including transitive imports).
+qml6-module-qtquick-window
+qml6-module-qtquick
+qml6-module-qtqml
+qml6-module-qtqml-models
+qml6-module-qtqml-workerscript
+# On-demand storage diagnostics; smartd services are masked in the image overlay.
+smartmontools

@@ -150,7 +150,8 @@ class VaultSettingsDialog(QDialog):
         box.addStretch(1)
         title = QLabel('Settings'); title.setObjectName('Title'); title.setAlignment(Qt.AlignCenter)
         box.addWidget(title)
-        subtitle = QLabel('Configure displays, local devices, date and time, and wallet backups.\nDevice preferences stay in RAM for this private session.')
+        from vault_device_state import notice
+        subtitle = QLabel('Configure displays, local devices, date and time, and wallet backups.\n' + notice())
         subtitle.setWordWrap(True); subtitle.setObjectName('Muted'); subtitle.setAlignment(Qt.AlignCenter)
         box.addWidget(subtitle); box.addSpacing(24)
         self.scroll = QScrollArea(); self.scroll.setWidgetResizable(True)

@@ -1,0 +1,41 @@
+#!/usr/bin/python3
+"""Calamares grub-install entry point with automatic Apple T2 handling.
+
+T2 firmware may reject EFI variable writes. Install the normal product loader
+without NVRAM updates on those machines; boot_finalize.py owns the removable
+path and never replaces another system's fallback. Keep grub-install's exit
+status and diagnostics intact, including all non-NVRAM failures.
+"""
+from __future__ import annotations
+import os
+import sys
+
+
+def argument_value(arguments, name):
+    value=None
+    index=0
+    while index<len(arguments):
+        argument=arguments[index]
+        if argument=='--':
+            break
+        if argument.startswith(name+'='):
+            value=argument.split('=',1)[1]
+        elif argument==name and index+1<len(arguments):
+            index+=1
+            value=arguments[index]
+        index+=1
+    return value
+
+
+def main():
+    arguments=sys.argv[1:]
+    if argument_value(arguments,'--target')=='x86_64-efi':
+        sys.path.insert(0,'/usr/lib/core-vault')
+        from t2_hardware import detect_t2
+        if detect_t2() and '--no-nvram' not in arguments:
+            arguments.insert(0,'--no-nvram')
+    os.execv('/usr/sbin/grub-install',['grub-install',*arguments])
+
+
+if __name__=='__main__':
+    main()

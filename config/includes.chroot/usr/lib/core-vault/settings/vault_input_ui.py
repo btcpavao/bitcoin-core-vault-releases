@@ -4,6 +4,7 @@ from PySide6.QtWidgets import (QApplication,QCheckBox,QComboBox,QDialog,QFormLay
  QPlainTextEdit,QPushButton,QScrollArea,QSlider,QSpinBox,QTabWidget,QVBoxLayout,QWidget)
 import vault_input as inputs
 import vault_pointer as pointer
+from vault_device_state import installed_mode, notice, applied_message
 
 class KeyboardMouseDialog(QDialog):
     def __init__(self,parent=None):
@@ -24,7 +25,7 @@ class KeyboardMouseDialog(QDialog):
         self.keyboard_tab=self.page('Keyboard');self.mouse_tab=self.page('Mouse and Touchpad')
         self.build_keyboard();self.build_mouse()
         self.status=QLabel('');self.status.setWordWrap(True);self.status.setTextFormat(Qt.PlainText);box.addWidget(self.status)
-        row=QHBoxLayout();self.save=QPushButton('Apply for this session');self.save.clicked.connect(self.apply)
+        row=QHBoxLayout();self.save=QPushButton('Apply and Save' if installed_mode() else 'Apply for this session');self.save.clicked.connect(self.apply)
         row.addWidget(self.save);row.addStretch(1)
         self.close_button=QPushButton('Back to Settings');self.close_button.clicked.connect(self.accept);row.addWidget(self.close_button)
         box.addLayout(row)
@@ -45,7 +46,7 @@ class KeyboardMouseDialog(QDialog):
 
     def build_keyboard(self):
         layout=self.keyboard_tab
-        self.explanation(layout,'Choose how the keys on your keyboard behave. The layout decides which letters and symbols are typed. Changes apply to this desktop and remain in RAM for this session.')
+        self.explanation(layout,'Choose how the keys on your keyboard behave. The layout decides which letters and symbols are typed. ' + notice())
         form=QFormLayout();self.model=QComboBox();self.model.setAccessibleName('Keyboard model')
         for code,description in sorted(self.models.items(),key=lambda x:x[1] or x[0]):self.model.addItem(description or code,code)
         self.model.setCurrentIndex(max(0,self.model.findData(self.system['model'])))
@@ -64,8 +65,8 @@ class KeyboardMouseDialog(QDialog):
         repeat_form.addRow('Wait before repeating',self.delay);repeat_form.addRow('Repeat speed',self.rate);layout.addLayout(repeat_form)
         self.repeat.toggled.connect(lambda value:(self.delay.setEnabled(value),self.rate.setEnabled(value)))
         self.delay.setEnabled(self.repeat.isChecked());self.rate.setEnabled(self.repeat.isChecked())
-        self.numlock=QCheckBox('Turn Num Lock on for this session');self.numlock.setChecked(self.data['keyboard']['numlock']);layout.addWidget(self.numlock)
-        self.explanation(layout,'Num Lock makes a number pad type digits. You can still turn it on or off with the key during a session. These preferences stay in RAM. They are cleared when the Vault session ends. Export device settings to USB if you want to import them in another session.')
+        self.numlock=QCheckBox('Turn Num Lock on at session start');self.numlock.setChecked(self.data['keyboard']['numlock']);layout.addWidget(self.numlock)
+        self.explanation(layout,'Num Lock makes a number pad type digits. You can still turn it on or off with the key during a session. ' + notice() + ' Export device settings to USB to transfer them to another Vault.')
         self.test=QPlainTextEdit();self.test.setPlaceholderText('After applying, type here to test letters, symbols and repeated keys. Do not enter passwords.');self.test.setAccessibleName('Test keyboard typing');self.test.setMaximumHeight(82);layout.addWidget(self.test)
         layout.addStretch(1)
 
@@ -140,7 +141,7 @@ class KeyboardMouseDialog(QDialog):
                 settings={k:(c.isChecked() if isinstance(c,QCheckBox) else c.currentData()) for k,c in self.controls.items() if c.isEnabled()}
                 speed=self.slider.value()/100;pointer.set_speed(device['id'],speed);inputs.apply_device(device['id'],settings)
                 pointer.save_preference(device['name'],speed);data=inputs.load();data['devices'][device['name']]=settings;inputs.save(data)
-                self.status.setText('Mouse settings applied for this session: '+device['name']+'.')
+                self.status.setText(applied_message('Mouse settings')+' '+device['name']+'.')
             except (OSError,ValueError) as exc:self.status.setText(str(exc))
             return
         try:
@@ -155,7 +156,7 @@ class KeyboardMouseDialog(QDialog):
     @Slot(object)
     def keyboard_saved(self,result):
         self.system=self.pending_layout
-        self.status.setText('Keyboard settings applied for this session. Please test the keys above.')
+        self.status.setText(applied_message('Keyboard settings')+' Please test the keys above.')
 
     @Slot(str)
     def failed(self,message):self.status.setText(message)

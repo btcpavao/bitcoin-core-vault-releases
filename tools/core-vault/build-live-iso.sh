@@ -16,6 +16,9 @@ cd "$ROOT"
 # Fetch and verify the pinned KeePassXC release in the disposable builder.
 python3 tools/core-vault/prepare-keepassxc.py
 
+# Stage the exact reviewed T2 kernel and graphics firmware before local APT setup.
+python3 tools/core-vault/prepare-t2-hardware.py
+
 # Verify the two official Core executables and retired export removal.
 python3 tools/core-vault/check-core-release.py
 

@@ -10,9 +10,11 @@ Run Vault as a Live RAM session or install its operating system on an internal
 disk. In both modes, the Vault account's home and private working data stay in
 RAM. Export the files you want to keep before ending the session.
 
-**[Download Bitcoin Core Vault v0.8.0 for amd64](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/download/v0.8.0/bitcoin-core-vault-v0.8.0-amd64.iso).** This release updates watch-only USB export, backup recovery, and the offline desktop. KeePassXC clears copied passphrases after 10 seconds by default.
+**[Download Bitcoin Core Vault v0.9.0 for amd64](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/download/v0.9.0/bitcoin-core-vault-v0.9.0-amd64.iso).** This release adds Legacy BIOS and UEFI advanced installation, automatic Apple T2 kernel selection, installed device preferences, corrected Date & Time controls, a desktop clock and a compact application taskbar.
 
-[Verify the signed download](#release-verification-and-status) · [Build the same ISO from source](docs/REBUILD.md) · [Release notes](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/download/v0.8.0/RELEASE-NOTES.md)
+[Verify the signed download](#release-verification-and-status) · [Inspect the source and build status](docs/REBUILD.md) · [Release notes](docs/RELEASE-v0.9.0.md)
+
+The published ISO is the exact locally built image approved after testing. Its source and retained build evidence are supplied. An independent byte-identical rebuild of **v0.9.0** has not been established; the earlier v0.8.0 reproducibility results remain specific to that release.
 
 A single valid Bitcoin Core SQLite
 `wallet.dat` is encrypted directly using standard AES-256 CFB+MDC OpenPGP,
@@ -50,14 +52,22 @@ Open **Save to** and choose your mounted backup drive to keep the encrypted file
 ## Use Vault
 
 The boot configuration provides **Start Bitcoin Core Vault (Live RAM)** and
-**Install Bitcoin Core Vault**. The first uses `toram`; the second opens the
-Calamares installer.
+**Install Bitcoin Core Vault**. The installer offers **Install to disk** and
+**Advanced partitioning**. Compatible Apple T2 models select the included T2
+kernel automatically; other machines use the standard Debian kernel. The image
+is for 64-bit Intel/AMD computers. Apple Silicon and 32-bit-only EFI are outside
+this image. See [installation and hardware details](docs/ADVANCED-INSTALLATION.md).
 
 Home contains ten launchers: Bitcoin Core, Wallet Backup, Decrypt Backup,
 KeePassXC, Editor, Brasero, Print & Labels, Files, Terminal and Vault Guide.
 Applications and resizable file dialogs open maximized; fixed-size dialogs keep
 their native size. Num Lock is enabled at startup. KeePassXC opens its stock
 passphrase generator with six words as the initial default.
+
+Settings, Restart and Shutdown are grouped at the bottom right. The date and
+time appear above them; clicking the clock opens Date & Time. When open-window
+names no longer fit the bottom taskbar, they collapse to icons with full-title
+hover text. Closing enough windows restores the names automatically.
 
 Keep the signing computer disconnected from networks. Vault disables network
 interfaces and radios, and Core runs with peer networking inactive. Helper RPC
@@ -85,15 +95,20 @@ Keep the original signing wallet offline. See [the native workflow](docs/WATCH-O
 ## RAM session and installation
 
 `/home/vault` is backed by `/run/core-vault/home` on a protected RAM filesystem.
-Wallets, settings, logs, application state, temporary files and verification
-records are volatile. Storage checks run before the desktop and Core start;
+Wallets, normal application state, logs, temporary files and verification
+records are volatile. An installed Vault separately saves validated display,
+keyboard, mouse and time-zone preferences as device configuration; a Live RAM
+session keeps those changes only for the session. Storage checks run before the desktop and Core start;
 swap, persistent crash dumps and suspend/hibernate are disabled by policy.
 
-An installation persists Debian, program binaries and immutable defaults,
-while user session files remain volatile. Calamares erases the selected whole
-internal disk after review and confirmations. Keep backup media disconnected
-while installing. This profile has no dual boot, manual partitioning or full-disk
-encryption. Secure Boot is disabled in the build configuration. Someone with
+An installation persists Debian, program binaries, immutable defaults and the
+limited device preferences described above, while private session files remain
+volatile. **Install to disk** replaces the selected eligible internal disk after
+review and confirmation. **Advanced partitioning** can format an explicitly
+selected root partition, create a layout in unallocated space and reserve space
+for Node. It does not shrink or move existing filesystems. Review identifies the
+selected disk and all planned changes. Full-disk encryption and Secure Boot are
+not included. Keep backup media disconnected while installing. Someone with
 access to the installed disk between sessions can alter programs that will
 handle the next wallet. Keep the computer under physical control. If the disk
 may have been altered, start from a freshly verified image on write-protected
@@ -157,18 +172,32 @@ for direct single-wallet backups. TAR is additionally needed for grouped
 backups; old OCB archives require a GnuPG implementation with OCB support.
 Test recovery on the actual target operating system before relying on it.
 
-## Rebuild and compare the ISO
+## Source, build inputs and reproducibility
 
-[Follow the build guide](docs/REBUILD.md) to inspect the changes since v0.7.0, rebuild the release using its pinned dependencies, and compare the result with the signed ISO. The [v0.8.0 tag](https://github.com/btcpavao/bitcoin-core-vault-releases/tree/v0.8.0) includes the runtime source and release build tools. The [native package guide](docs/NATIVE-REBUILD.md) covers the Calamares installer and the Thunar file manager.
+[The v0.9.0 build guide](docs/REBUILD.md) explains how to verify the released
+bytes, inspect the tagged source and prepare a new functional source build.
+The [native package guide](docs/NATIVE-REBUILD.md) describes the exact retained
+Calamares source companion, the packaged Thunar sources and the T2 input pins.
+
+This ISO was assembled locally from an existing Vault base and reviewed
+runtime/native/kernel inputs. The recorded local packaging scripts include
+historical paths and intermediate-image dependencies. They are provenance,
+not a claim that a fresh checkout currently recreates the complete ISO byte for
+byte. The T2 binary is exactly pinned, but the upstream T2 build references a
+mutable patch branch; the unknown patch commit is not invented.
+
+The previous successful v0.8.0 rebuild instructions and comparison evidence
+are preserved at the [v0.8.0 tag](https://github.com/btcpavao/bitcoin-core-vault-releases/blob/v0.8.0/docs/REBUILD.md)
+and in [historical documentation](docs/history/v0.8.0/INDEX.md).
 
 ## Release verification and status
 
-Download `bitcoin-core-vault-v0.8.0-amd64.iso`, `SHA256SUMS`,
+Download `bitcoin-core-vault-v0.9.0-amd64.iso`, `SHA256SUMS`,
 `SHA256SUMS.asc` and `btcpavao-pgp.asc` from the
-[v0.8.0 release](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/tag/v0.8.0). The ISO is **714,407,936 bytes** and its SHA-256 is
+[v0.9.0 release](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/tag/v0.9.0). The ISO is **1,133,379,584 bytes** and its SHA-256 is
 
 ```text
-0bc142508a35172ea92f645decc31be1373b05956e9a17d0ad01cee9bab84857
+615067c09f573a4476c7039adc90e58f75a46bdf20a028fd3c58f3e300c832fe
 ```
 
 Inspect the public key with `gpg --show-keys --with-fingerprint btcpavao-pgp.asc`
@@ -190,14 +219,18 @@ personal keys.
   trap 'rm -rf -- "$keyring"' EXIT
   gpg --homedir "$keyring" --batch --import btcpavao-pgp.asc
   gpg --homedir "$keyring" --batch --assert-signer 787A2AAFB0D119CA0522B2A5B9C99AF8578896D0 --verify SHA256SUMS.asc SHA256SUMS
-  iso=bitcoin-core-vault-v0.8.0-amd64.iso
+  iso=bitcoin-core-vault-v0.9.0-amd64.iso
   awk -v name="$iso" '$2 == name || $2 == "*" name {print; n++} END {if (n != 1) exit 1}' SHA256SUMS |
     sha256sum --strict --check -
 )
 ```
 
 GnuPG should report a good signature from the confirmed key. The following
-line should name the v0.8.0 ISO and report `OK`. The [v0.8.0 acceptance record](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/download/v0.8.0/ACCEPTANCE.json) lists the tests on the approved image. Pavao tested the release image on a ThinkPad T530. The acceptance record distinguishes physical tests from virtual-machine and image-content checks.
+line should name the v0.9.0 ISO and report `OK`. The [build provenance](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/download/v0.9.0/BUILD-PROVENANCE.json)
+and [release notes](docs/RELEASE-v0.9.0.md) distinguish final-ISO content/UI checks,
+earlier installer/settings checks and Pavao's physical-machine acceptance.
+A successful checksum check authenticates the selected release bytes; it does
+not replace hardware testing or a security review.
 
 ### Historical v0.4.0 tests
 
@@ -218,17 +251,17 @@ to their original releases, not automatically to this ISO.
 
 ## Source and licenses
 
-The public release repository contains a standalone snapshot of tracked
-Vault sources, build scripts, patches, notices and reviewed package inputs.
-The separate private development repository and its historical Git commit
-tree are not exposed. The ISO belongs to GitHub Release assets, not Git.
-The [v0.8.0 source snapshot](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/download/v0.8.0/bitcoin-core-vault-v0.8.0-source.tar.gz)
-contains the tagged files for inspection. The build guide uses a Git checkout
-so the builder can archive the exact committed tree. The [earlier native
-candidate record](docs/rebuilds/71242344618b.md) and [assembly candidate
-record](docs/rebuilds/9f466c5df912.md) preserve the results for those revisions.
+The public repository preserves the published Git history. The
+[v0.9.0 source snapshot](https://github.com/btcpavao/bitcoin-core-vault-releases/releases/download/v0.9.0/bitcoin-core-vault-v0.9.0-source.tar.gz)
+contains the tagged Vault files for inspection; `SOURCE-COMMIT.txt` identifies
+that revision and is covered by the release's checksum list. Large upstream
+T2 inputs are fetched by exact size/hash pins instead of being stored in Git.
+The matching Calamares companion supplies its retained application sources,
+licenses, Debian packaging and original build evidence. The ISO is a GitHub
+Release asset.
 
 Original Vault integration is licensed under the scoped [MIT license](LICENSE).
 Upstream programs, patches, libraries and artwork retain their own licenses.
-See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and
-[the test record](docs/TESTING.md).
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md),
+[the current release scope](docs/RELEASE-v0.9.0.md) and the
+[historical test record](docs/TESTING.md).

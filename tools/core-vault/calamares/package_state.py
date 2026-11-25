@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 from pathlib import Path
 import hashlib,json,subprocess
-VERSION='3.3.14-1+corevault6'
+VERSION='3.3.14-1+corevault10localrolesfix1'
 INPUTS = (
     'tools/rebuild/inputs.env', 'tools/rebuild/InRelease.sha256', 'tools/rebuild/apt-pin-config.sh',
     'tools/rebuild/packages/build.sh', 'tools/rebuild/packages/compiler-entry.sh',
@@ -9,7 +9,7 @@ INPUTS = (
 )
 # These patch records and assets feed the native Qt geometry and styling test.
 PATCH_INPUTS = ('base_patch.py', 'patch_calamares_source.py', 'CoreOfflineGuard.h',
-                'package_state.py', 'visual_polish.py', 'advanced_patch.py', 'native_ui_test.py',
+                'package_state.py', 'visual_polish.py', 'advanced_patch.py', 'lifecycle_patch.py', 'native_ui_test.py',
                 'shared/PartitionPage.h', 'shared/PartitionPage.cpp',
                 'shared/CoreOfflineGuard.h', 'shared/PlanMethods.cpp.inc', 'shared/Review.cpp.inc')
 BRANDING = ('stylesheet.qss', 'checkmark.svg', 'checkmark.png', 'bitcoin.png', 'debian.png',

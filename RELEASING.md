@@ -5,6 +5,24 @@ This procedure publishes the Debian Vault project in
 Preserve this repository’s published Git history. The separate
 `btcpavao/core-vault` Tauri application is a different project.
 
+## Current v0.9.0 publication
+
+The accepted v0.9.0 image is the unchanged local desktop-tuning-v2 candidate,
+SHA-256 `615067c09f573a4476c7039adc90e58f75a46bdf20a028fd3c58f3e300c832fe`,
+1,133,379,584 bytes. Use the versioned asset name
+`bitcoin-core-vault-v0.9.0-amd64.iso` and retain its original build identity in
+`BUILD-PROVENANCE.json`. The [current guide](docs/REBUILD.md) separates a
+functional source-build entry point from the missing independent byte-identical
+rebuild evidence. Older v0.8.0 compiler/repacking commands and successful
+comparisons remain tied to the [v0.8.0 tag](https://github.com/btcpavao/bitcoin-core-vault-releases/tree/v0.8.0).
+
+The public manifest must cover the final ISO name, tagged source archive,
+`SOURCE-COMMIT.txt`, matching Calamares source companion and provenance/evidence
+files. Upload and verify the draft assets before the maintainer signs that exact
+manifest. Publish the finished signature and release before switching the public
+website's signed-download links. Keep unrun checks and historical tests clearly
+separated from final-image results.
+
 ## 1. Freeze the authoritative source
 
 Use the project on the build computer. Preserve its existing Git history and
@@ -46,13 +64,17 @@ superseded kiosk or persistent-home design.
 Document all host packages and preparation steps. Check that a fresh checkout
 obtains every required build input and matching manifest. Keep package versions
 aligned with the current gates: Core 32.1, backup 0.7.6, Calamares
-3.3.14-1+corevault5 and Thunar 4.20.2-1+deb13u1+corevault2. Confirm these versions against the authoritative tree
+3.3.14-1+corevault10localrolesfix1 and Thunar 4.20.2-1+deb13u1+corevault2. Confirm these versions against the authoritative tree
 before publication.
 
-For a published version, use the release build entry point in the tagged
-[build instructions](docs/REBUILD.md). `tools/rebuild/build.sh` runs the
-underlying clean Debian build. Record the release packaging steps and check
-the completed ISO against the SHA-256 of the image approved for publication.
+For a published version, follow the build entry point and limitations in its
+tagged [build instructions](docs/REBUILD.md). v0.9.0 exposes
+`tools/core-vault/build-live-iso.sh` for a new functional image build. The older
+`tools/rebuild/build.sh` native path is not a proven v10/v0.9.0 recipe; its
+compiler wrapper refuses unsupported package versions before starting Docker.
+Record the actual release packaging inputs and compare the completed artifact
+with the image approved for publication. Do not describe a new source build as
+byte-identical until the complete-file comparison has passed.
 
 The builder runs source/package gates and then ISO content gates. A successful
 content check is separate from boot, installation and wallet recovery testing.
@@ -91,6 +113,12 @@ build-assets/core-vault-calamares-v1/source-artifacts/
 ```
 
 Retain those artifacts even though the builder workspace is excluded from Git.
+v0.9.0 additionally publishes `bitcoin-core-vault-v0.9.0-calamares-source.tar.xz`,
+an export of the complete retained as-used v10 source and original incremental
+build evidence. Its provenance explicitly distinguishes it from a fresh clean
+binary rebuild or a pristine Debian source package. The pinned T2 binary and
+its signed repository metadata remain recorded separately, including the
+upstream mutable patch-reference limitation.
 For v0.1.0, the available old source-artifact folder belonged to an earlier
 package. Its replacement companion was reconstructed from the verified Debian
 source and recorded inputs matching the current package. It includes a

@@ -1,6 +1,7 @@
 """Bounded local X11 input preferences in Vault's validated RAM home.
 
-No root operations, networking, system keyboard files or persistent OS writes.
+Installed Vault also saves only validated device values through its fixed helper.
+Private home and current-session preference files remain in RAM.
 """
 from __future__ import annotations
 import copy
@@ -127,6 +128,9 @@ def load(path=None):
 def save(data,path=None):
     data=validate(data);path=PREFS if path is None else Path(path)
     atomic(path,(json.dumps(data,sort_keys=True)+'\n').encode())
+    if path == PREFS:
+        from vault_device_state import persist_component
+        persist_component('input', data)
 
 
 def run(command):
@@ -207,7 +211,10 @@ def load_layout():
 
 
 def save_layout(layout):
-    atomic(LAYOUT,(json.dumps(validate_layout(layout),sort_keys=True)+'\n').encode())
+    layout=validate_layout(layout)
+    atomic(LAYOUT,(json.dumps(layout,sort_keys=True)+'\n').encode())
+    from vault_device_state import persist_component
+    persist_component('layout', layout)
 
 
 def apply_local_layout(layout,keyboard):

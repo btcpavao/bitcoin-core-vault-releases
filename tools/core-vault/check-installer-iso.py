@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 """Inspect final ISO contents, without booting/installing it."""
 from pathlib import Path
-import hashlib,json,runpy,subprocess,sys,tempfile
+import hashlib,json,re,runpy,subprocess,sys,tempfile
 iso=Path(sys.argv[1]).resolve()
 root=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(root/'tools/core-vault/calamares'))
@@ -17,9 +17,30 @@ with tempfile.TemporaryDirectory(prefix='vault-installer-iso-') as td:
         text=(d/name).read_text()
         if text.count('Install Bitcoin Core Vault')!=1 or 'Start Bitcoin Core Vault (Live RAM)' not in text:
             raise RuntimeError('Expected exactly one Live and one Install entry.')
-        boot=[l for l in text.splitlines() if 'boot=live' in l]
-        if len(boot)!=2 or 'toram' not in boot[0] or 'toram' in boot[1] or 'core-vault.install=1' not in boot[1]:
-            raise RuntimeError('Live/installer flags are not separated.')
+        boot=[line.split() for line in text.splitlines() if 'boot=live' in line]
+        if name=='bios':
+            if len(boot)!=2:
+                raise RuntimeError('Expected one standard BIOS boot path for each visible entry.')
+            groups=[[boot[0]],[boot[1]]]
+        else:
+            # Automatic T2 selection adds a T2 and a standard-kernel branch
+            # inside each visible entry; it does not add another menu choice.
+            entries=re.split(r'(?m)^menuentry\s+',text)[1:]
+            groups=[[line.split() for line in entry.splitlines() if 'boot=live' in line]
+                    for entry in entries]
+            if len(entries)!=2 or len(boot)!=4 or any(len(group)!=2 for group in groups):
+                raise RuntimeError('Expected two UEFI entries, each with T2 and standard boot paths.')
+            for entry,group in zip(entries,groups):
+                if ([args[:2] for args in group] != [
+                        ['linux','/live/t2/vmlinuz'],['linux','/live/vmlinuz']]
+                        or [line.split() for line in entry.splitlines() if line.strip().startswith('initrd ')] != [
+                            ['initrd','/live/t2/initrd.img'],['initrd','/live/initrd.img']]):
+                    raise RuntimeError('UEFI kernel/initramfs branch pairs are missing or differ.')
+        for index,group in enumerate(groups):
+            for args in group:
+                if ('boot=live' not in args or ('toram' in args)!=(index==0)
+                        or ('core-vault.install=1' in args)!=(index==1)):
+                    raise RuntimeError('Live/installer flags are not separated in every boot branch.')
     def cat(path):
         return subprocess.check_output(['unsquashfs','-no-wildcards','-cat',str(d/'root.squashfs'),path],stderr=subprocess.PIPE)
     # Pin the exact verified archive bytes before extraction (same-version cache guard).

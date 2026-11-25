@@ -1,0 +1,23 @@
+#!/bin/sh
+# Build only: add T2 input and graphics drivers to that kernel's initramfs.
+set -eu
+case "${1:-}" in
+    prereqs) exit 0 ;;
+esac
+. /usr/share/initramfs-tools/hook-functions
+case "${version:-}" in
+    *-t2-*) ;;
+    *) exit 0 ;;
+esac
+
+# The virtual USB host has no modalias. Loading it explicitly also loads its
+# t2bce_core and t2bce_dma dependencies before the live/installed root is mounted.
+force_load t2bce_vhci
+
+# Include hotplug drivers and their declared firmware. These have device aliases
+# and are loaded for actual hardware; no networking drivers are enabled here.
+for module in usbhid hid_generic hid_apple hid_magicmouse \
+    hid_appletb_bl hid_appletb_kbd appletbdrm i915 amdgpu
+do
+    manual_add_modules "$module"
+done

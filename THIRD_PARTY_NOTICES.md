@@ -6,7 +6,28 @@ its stated original-code scope. It does not change upstream copyrights,
 copyleft obligations, resource licenses or trademarks. Preserve the exact
 component notices and source headers when redistributing their files.
 
-## Current local Core 32.1 candidate
+## Current v0.9.0 component records
+
+The v0.9.0 ISO has SHA-256
+`615067c09f573a4476c7039adc90e58f75a46bdf20a028fd3c58f3e300c832fe`.
+The release package inventory and `BUILD-PROVENANCE.json` identify this image;
+the historical component inventories below retain their original version scope.
+
+| Component changed or carried forward | v0.9.0 record |
+| --- | --- |
+| Bitcoin Core | Unmodified upstream 32.1 executables and existing release-verification records under `provenance/32.1/`. The older 31.1/Qt companion list below is historical. |
+| Patched Calamares | `3.3.14-1+corevault10localrolesfix1`, with the complete retained source, upstream/third-party notices, Debian packaging and original build evidence in `bitcoin-core-vault-v0.9.0-calamares-source.tar.xz`. Existing upstream license terms and source headers apply. |
+| Patched Thunar | `4.20.2-1+deb13u1+corevault2`; its package carries the matching source archive, patch, README and copyright described below. |
+| Vault Backup | `0.7.6`; original source, build recipe and MIT notice remain under `tools/core-vault/backup-src/`. |
+| T2 kernel and graphics firmware | Exact versions, binary hashes, signed repository metadata, upstream source/build references and the unknown historical T2 patch-commit boundary are in `tools/core-vault/manifests/t2-hardware-release.json`. Their upstream code/firmware licenses remain applicable; they are outside the integration MIT grant. |
+| Settings artwork | Unchanged elementary-xfce `preferences-system.svg` from 0.21-1, GPL-3.0-or-later; see the Settings icon notice below. |
+
+The [native source guide](docs/NATIVE-REBUILD.md) explains the new companion and
+its limits. Source availability, binary authentication and byte-identical
+reproduction are distinct records. The older archives below do not establish
+corresponding-source completeness for newer versions merely by being present.
+
+## Historical local Core 32.1 preparation note (29 October 2026)
 
 The local 29 October 2026 candidate upgrades the unmodified official Core
 executables to 32.1 (Qt 6.8.4). Download hashes and eight verified release
@@ -141,6 +162,17 @@ The source companion preserves these notices and source assets; repository
 license copies are under [LICENSES/elementary-xfce/](LICENSES/elementary-xfce/).
 
 Primary reference: [elementary-xfce Debian copyright](https://metadata.ftp-master.debian.org/changelogs/main/e/elementary-xfce/elementary-xfce_0.21-1_copyright).
+
+### elementary-xfce Settings icon
+
+The unchanged `preferences-system.svg` from elementary-xfce-icon-theme 0.21-1,
+`elementary-xfce-hidpi/categories/48/`, is installed as `icons/settings.svg`.
+It retains GPL-3.0-or-later, copyright 2007–2013 Daniel Foré and 2010–2022
+Simon Steinbeiß. Its existing copyright and full GPL text accompany the image.
+The exact source path and hashes are recorded in
+`config/includes.chroot/usr/share/core-vault/icons/settings-icon.json`;
+`usr/share/core-vault/licenses/elementary-xfce/SETTINGS-NOTICE.txt` records the
+unmodified artwork in both the installed overlay and runtime template.
 
 ### elementary-xfce Guide icons
 

@@ -17,6 +17,8 @@ private:
     Device* device() const;
     Partition* selection() const;
     void refresh();
+    void updateSelectionActions();
+    void revertToDevicePath(const QString&);
     void edit();
     void createLayout();
     void eraseDisk();

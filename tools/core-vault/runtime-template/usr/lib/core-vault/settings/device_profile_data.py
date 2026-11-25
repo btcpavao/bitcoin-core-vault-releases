@@ -128,6 +128,9 @@ def apply_input(value, product):
         inputs.apply_local_layout(request['layout'], request['preferences']['keyboard'])
     inputs.save(request['preferences'])
     inputs.atomic(pointer.PREFS, (json.dumps(request['pointer'], sort_keys=True) + '\n').encode())
+    if product == 'vault':
+        from vault_device_state import persist_component
+        persist_component('pointer', request['pointer'])
     matched = 0
     for device in pointer.get_devices():
         name = device['name']

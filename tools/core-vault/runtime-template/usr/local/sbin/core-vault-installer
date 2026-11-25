@@ -1,9 +1,13 @@
 #!/usr/bin/python3
 
+import json
 import os
 import pathlib
 import pwd
+import re
 import shutil
+import signal
+import stat
 import subprocess
 import sys
 
@@ -33,6 +37,62 @@ def print_log_tail(log_path, lines=120):
             f"Could not read Calamares log: {exc}",
             file=sys.stderr
         )
+
+
+
+def reviewed_calamares_version():
+    """Read the image's exact package pin without trusting user-writable data."""
+    path = pathlib.Path("/etc/core-vault/installer-payload.json")
+    limit = 1048576
+
+    # The fixed path and all parent directories must remain controlled by root.
+    for directory in path.parents:
+        info = directory.lstat()
+        if (
+            not stat.S_ISDIR(info.st_mode)
+            or info.st_uid != 0
+            or info.st_mode & 0o022
+        ):
+            raise RuntimeError("Unsafe installer payload manifest directory.")
+
+    descriptor = os.open(path, os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW)
+    with os.fdopen(descriptor, "rb") as source:
+        info = os.fstat(source.fileno())
+        if (
+            not stat.S_ISREG(info.st_mode)
+            or info.st_uid != 0
+            or info.st_mode & 0o022
+            or not 0 < info.st_size <= limit
+        ):
+            raise RuntimeError(
+                "Installer payload manifest must be a bounded, root-owned "
+                "regular file without group or other write permission."
+            )
+        raw = source.read(limit + 1)
+        if len(raw) > limit:
+            raise RuntimeError("Installer payload manifest is too large.")
+
+    payload = json.loads(raw.decode("utf-8"))
+    if (
+        not isinstance(payload, dict)
+        or type(payload.get("schema")) is not int
+        or payload["schema"] != 1
+    ):
+        raise RuntimeError("Unsupported installer payload manifest schema.")
+
+    expected = payload.get("calamares_version")
+    if (
+        not isinstance(expected, str)
+        or len(expected) > 128
+        or re.fullmatch(
+            r"[0-9][A-Za-z0-9.+:~_-]*\+corevault[0-9][A-Za-z0-9.+~_-]*",
+            expected,
+        ) is None
+    ):
+        raise RuntimeError(
+            "Installer payload manifest does not pin a reviewed corevault package."
+        )
+    return expected
 
 
 def main():
@@ -138,20 +198,38 @@ def main():
 
     newauth.chmod(0o600)
 
-    version = subprocess.check_output(
+    expected_version = reviewed_calamares_version()
+    package = subprocess.run(
         [
             "/usr/bin/dpkg-query",
             "-W",
-            "-f=${Version}",
+            "-f=${Status}\n${Version}\n",
             "calamares",
         ],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
         text=True,
-    ).strip()
+        check=False,
+        timeout=10,
+    )
+    fields = package.stdout.splitlines()
+    status = fields[0].strip() if fields else "(unavailable)"
+    version = fields[1].strip() if len(fields) >= 2 else "(unavailable)"
 
-    if version != "3.3.14-1+corevault6":
+    if (
+        package.returncode != 0
+        or len(fields) != 2
+        or status != "install ok installed"
+        or version != expected_version
+    ):
+        detail = package.stderr.strip()[-2048:]
         raise RuntimeError(
-            "The reviewed Bitcoin Core Vault Calamares package "
-            "is not installed."
+            "The reviewed Bitcoin Core Vault Calamares package is not installed.\n"
+            f"Expected version: {expected_version}\n"
+            f"Installed version: {version}\n"
+            f"Package status: {status}"
+            + (f"\ndpkg-query: {detail}" if detail else "")
         )
 
     env = {
@@ -187,6 +265,18 @@ def main():
         )
 
     if result.returncode != 0:
+        detail = ""
+        if result.returncode < 0:
+            number = -result.returncode
+            try:
+                name = signal.Signals(number).name
+            except ValueError:
+                name = "unknown signal"
+            detail = f" (terminated by signal {number}: {name})"
+        print(
+            f"Calamares process return code: {result.returncode}{detail}",
+            file=sys.stderr,
+        )
         print_log_tail(log)
 
     return result.returncode

@@ -1,0 +1,7 @@
+// Only bounded device values can be saved; the helper rejects all live boots.
+polkit.addRule(function(action, subject) {
+    if (action.id == "org.bitcoin-core-vault.device-settings" &&
+        subject.user == "vault" && subject.local && subject.active) {
+        return polkit.Result.YES;
+    }
+});

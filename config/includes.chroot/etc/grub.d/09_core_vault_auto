@@ -1,0 +1,4 @@
+#!/bin/sh
+# The Python helper emits a persistent menu, never an installation action.
+set -eu
+exec /usr/bin/python3 /usr/lib/core-vault/t2_grub.py

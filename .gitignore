@@ -61,3 +61,20 @@ __pycache__/
 # Verified upstream software is fetched from the pinned build manifest.
 /config/includes.chroot/opt/keepassxc/
 /config/includes.chroot/usr/share/icons/hicolor/256x256/apps/keepassxc.png
+
+# Generated release evidence and verified upstream T2 inputs.
+/output/
+/config/packages.chroot/linux-image-6.18.64-1-t2-trixie_6.18.64-1_amd64.deb
+/config/packages.chroot/firmware-intel-graphics_20250410-2_all.deb
+/config/packages.chroot/firmware-amd-graphics_20250410-2_all.deb
+
+# Pinned public signed repository metadata required by T2 preparation.
+!/build-assets/core-vault-t2-v1/
+/build-assets/core-vault-t2-v1/*
+!/build-assets/core-vault-t2-v1/KEY.gpg
+!/build-assets/core-vault-t2-v1/maintainer-keyring.gpg
+!/build-assets/core-vault-t2-v1/trixie-InRelease
+!/build-assets/core-vault-t2-v1/trixie-Packages.gz
+!/build-assets/core-vault-t2-v1/debian-trixie-InRelease
+!/build-assets/core-vault-t2-v1/debian-trixie-firmware-Packages.xz
+!/build-assets/core-vault-t2-v1/upstream-sha256-trixie

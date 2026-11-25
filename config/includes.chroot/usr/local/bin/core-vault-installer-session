@@ -117,53 +117,58 @@ while :; do
     # RETRY / POWER OFF
     ##########################################################################
 
-    if /usr/bin/zenity \
-        --question \
-        --no-markup \
-        --width=620 \
-        --title="Bitcoin Core Vault Installer" \
-        --ok-label="Open installer again" \
-        --cancel-label="Power off" \
-        --text="The installer has closed (status $RC).
+    # Only an explicit Open choice returns to the installer launch above.
+    # A failed shutdown request keeps the current diagnostic log and this menu.
+    while :; do
+
+        if /usr/bin/zenity \
+            --question \
+            --no-markup \
+            --width=620 \
+            --title="Bitcoin Core Vault Installer" \
+            --ok-label="Open installer again" \
+            --cancel-label="Power off" \
+            --text="The installer has closed (status $RC).
 
 No installation is restarted automatically.
 
 If the installer failed, inspect the diagnostic log before retrying."
 
-    then
+        then
 
-        continue
+            break
 
-    fi
+        fi
 
 
-    ##########################################################################
-    # POWER OFF
-    ##########################################################################
+        ######################################################################
+        # POWER OFF — EXISTING EXACT SESSION-TEARDOWN PERMISSION
+        ######################################################################
 
-    if /usr/bin/sudo \
-        -n \
-        -- \
-        /usr/bin/systemctl \
-        --no-block \
-        poweroff \
-        >>"$LOG" 2>&1
+        if /usr/bin/sudo \
+            -n \
+            -- \
+            /usr/local/sbin/core-vault-end-session \
+            poweroff \
+            >>"$LOG" 2>&1
 
-    then
+        then
 
-        while :; do
-            sleep 60
-        done
+            while :; do
+                sleep 60
+            done
 
-    fi
+        fi
 
-    /usr/bin/zenity \
-        --error \
-        --no-markup \
-        --text="Power-off request failed.
+        /usr/bin/zenity \
+            --error \
+            --no-markup \
+            --text="Power-off request failed.
 
 See:
 $LOG" \
-        || true
+            || true
+
+    done
 
 done

@@ -87,6 +87,8 @@ class TimeValidation(unittest.TestCase):
                         self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o644)
                     with patch.object(vault_time.os, 'geteuid', return_value=0), \
                             patch.object(vault_time, '_prepare_timezone'), \
+                            patch.object(vault_time, '_prepare_zone_name'), \
+                            patch('vault_device_state.installed_mode', return_value=False), \
                             patch.object(vault_time.time, 'clock_settime'):
                         vault_time.apply_settings({'timezone': 'Etc/UTC', 'local_time': '2026-11-23 12:30:00'})
                     self.assertEqual(stat.S_IMODE((state/'lock').stat().st_mode), 0o600)

@@ -13,11 +13,12 @@ PartitionCoreModule::installPlan(const Config* config) const
         const auto prior=QJsonDocument::fromJson(coreOfflineDiskIdentity.value(d->deviceNode())).object();
         if(d->partitionTable()) for(auto it=PartitionIterator::begin(d);it!=PartitionIterator::end(d);++it) {
             auto* p=*it; if(isPartitionFreeSpace(p)) continue;
-            QString oldPath,filesystem=FileSystem::nameForType(p->fileSystem().type()).toLower();
+            QString oldPath,partUuid=p->uuid(),filesystem=FileSystem::nameForType(p->fileSystem().type()).toLower();
             for(const auto& old:prior.value("partitions").toArray()) {
                 const auto initial=old.toObject();
                 if(initial.value("first").toDouble()==double(p->firstSector()*d->logicalSize()) && initial.value("size").toDouble()==double(p->capacity())) {
                     oldPath=initial.value("path").toString();
+                    if(partUuid.isEmpty()) partUuid=initial.value("partuuid").toString();
                     // A preserved partition may use a filesystem KPM cannot name.
                     // Its independently probed signature is authoritative; no job
                     // or mount may target this partition under the guard policy.
@@ -26,8 +27,10 @@ PartitionCoreModule::installPlan(const Config* config) const
             }
             parts.append(QJsonObject{
                 {"path",p->partitionPath()},{"device",p->devicePath()},{"first",double(p->firstSector()*d->logicalSize())},{"size",double(p->capacity())},
-                {"fs",filesystem},{"label",p->label()},{"original_path",oldPath},{"efi",PartUtils::isEfiBootable(p)},
-                {"uuid",p->uuid()},{"mount",PartitionInfo::mountPoint(p)},
+                {"fs",filesystem},{"label",p->label()},{"original_path",oldPath},{"efi",d->partitionTable()->type()==PartitionTable::gpt && PartUtils::isEfiBootable(p)},
+                {"bios_grub",PartitionInfo::flags(p).testFlag(KPM_PARTITION_FLAG(BiosGrub))},
+                {"extended",p->roles().has(PartitionRole::Extended)},{"logical",p->roles().has(PartitionRole::Logical)},
+                {"uuid",partUuid},{"mount",PartitionInfo::mountPoint(p)},
                 {"format",PartitionInfo::format(p)},{"new",isPartitionNew(p)}});
         }
         for(const auto& job:info->jobs()) {
@@ -50,7 +53,7 @@ PartitionCoreModule::installPlan(const Config* config) const
         }
         disks.append(QJsonObject{{"path",d->deviceNode()},{"name",d->name()},
             {"logical_size",double(d->logicalSize())},{"table_before",prior.value("pttype").toString().isEmpty()?QStringLiteral("none"):prior.value("pttype").toString()},
-            {"table_after",d->partitionTable() && d->partitionTable()->type()==PartitionTable::gpt?QStringLiteral("gpt"):QStringLiteral("other")},
+            {"table_after",!d->partitionTable()?QStringLiteral("none"):d->partitionTable()->type()==PartitionTable::gpt?QStringLiteral("gpt"):KPMHelpers::isMSDOSPartition(d->partitionTable()->type())?QStringLiteral("dos"):QStringLiteral("other")},
             {"partitions",parts},{"jobs",operations}});
     }
     return QJsonObject{{"schema",1},{"product",QStringLiteral("CORE_PRODUCT_KEY")},{"mode",mode},

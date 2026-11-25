@@ -1,0 +1,24 @@
+#!/usr/bin/python3 -I
+"""Persist only validated device preferences for the active installed Vault."""
+import json
+import os
+import pwd
+import sys
+
+sys.path.insert(0, '/usr/lib/core-vault/settings')
+from vault_device_state import DeviceStateError, read_request, save_component
+
+try:
+    if sys.argv[1:] or os.geteuid() != 0:
+        raise DeviceStateError('Please use Device Settings in the active Vault session.')
+    account = pwd.getpwnam('vault')
+    caller = os.environ.get('PKEXEC_UID', '')
+    if ((account.pw_uid, account.pw_gid, account.pw_dir) != (1000, 1000, '/home/vault')
+            or not caller.isdecimal() or int(caller) != account.pw_uid):
+        raise DeviceStateError('Device Settings requires the active local Vault account.')
+    name, value = read_request(sys.stdin.buffer)
+    save_component(name, value)
+    print(json.dumps({'ok': True, 'persistent': True}))
+except (DeviceStateError, OSError, ValueError, TypeError, KeyError):
+    print('Device preferences could not be saved for restart. Please check the local installed Vault session and try Apply again.', file=sys.stderr)
+    raise SystemExit(1)

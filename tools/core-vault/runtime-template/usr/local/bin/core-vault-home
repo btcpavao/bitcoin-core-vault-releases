@@ -8,6 +8,7 @@ Upstream applications are launched, never modified.
 from __future__ import annotations
 
 import argparse
+from datetime import datetime
 import fcntl
 import json
 import math
@@ -42,14 +43,15 @@ PRIVATE = Path.home() / 'Private Workspace'
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'lib/core-vault'))
 from ram_notice import NOTICE, UNCERTAIN, session_files
 TITLE = 'Bitcoin Core Vault'
-VERSION = 'home-suite-v1'
+VERSION = 'home-suite-v2-node-clock'
 HOVER_DELAY_MS = 800
 
 STYLE = '''
 QWidget#VaultSurface { background-color: #000000; }
 QLabel { background: transparent; border: none; color: #ffffff; }
 QWidget#CenterBody, QWidget#Header, QWidget#CardGrid, QWidget#Footer,
-QWidget#CreditBox, QWidget#FooterSpacer { background: transparent; }
+QWidget#CreditBox, QWidget#FooterSpacer, QWidget#PowerControls,
+QWidget#PowerInfo, QWidget#PowerIconRow { background: transparent; }
 QScrollArea#CenterScroll { background: transparent; border: none; }
 QLabel#MainTitle { font-size: 28px; font-weight: 700; }
 QLabel#MainSubtitle { font-size: 14px; color: #a8a8a8; }
@@ -343,6 +345,58 @@ class HintButton(QPushButton):
         super().mousePressEvent(event)
 
 
+class ClockButton(HintButton):
+    def __init__(self, home):
+        super().__init__('', 'Date & Time: set the offline system clock and time zone.',
+                         home.show_card_help, home.hide_card_help)
+        self.setObjectName('SystemClock')
+        self.setAccessibleName('Date & Time')
+        self.compact=False
+        self.home = home
+        home.settings_module()
+        from vault_time import snapshot, zone
+        self.time_snapshot, self.time_zone = snapshot, zone
+        self.zone_name, self.zone_info = None, None
+        self.setIcon(QIcon(str(ASSETS / 'icons/clock.svg')))
+        self.setIconSize(QSize(18, 18))
+        self.setCursor(Qt.PointingHandCursor)
+        self.setStyleSheet('''QPushButton#SystemClock {
+            background:transparent; color:#b5b5b5; border:1px solid transparent;
+            border-radius:7px; padding:2px 7px; font-size:12px;
+        } QPushButton#SystemClock:hover { background:#202020; border-color:#555; }
+          QPushButton#SystemClock:focus { border-color:#f7931a; color:#f2f2f2; }''')
+        self.clicked.connect(home.date_time)
+        self.timer = QTimer(self)
+        self.timer.setInterval(1000)
+        self.timer.timeout.connect(self.refresh)
+        self.timer.start()
+        self.refresh()
+
+    def refresh(self):
+        # Vault applies the zone with RAM binds while Home remains open. Read
+        # its validated active zone directly, avoiding Qt/libc startup caches.
+        # The display never calls privileged helpers, changes a clock, or uses
+        # network time. A manual clock correction is visible on the next tick.
+        try:
+            name = self.time_snapshot()['timezone']
+            if name != self.zone_name:
+                self.zone_info = self.time_zone(name)
+                self.zone_name = name
+            now = datetime.now(self.zone_info)
+            text = now.strftime('%d.%m.%Y. · %H:%M')
+            description = now.strftime('%d.%m.%Y. %H:%M %Z') + '. Open Date & Time settings.'
+        except (OSError, ValueError, KeyError):
+            self.zone_name, self.zone_info = None, None
+            text = 'Date & Time'
+            description = 'The local time zone is unavailable. Open Date & Time settings.'
+        if self.text() != text:
+            self.setText(text)
+            if getattr(self.home, 'clock', None) is self:
+                self.home.layout_footer()
+                QTimer.singleShot(0, self.home.write_geometry)
+        self.setAccessibleDescription(description)
+
+
 class RamNoticeWorker(QThread):
     received = Signal(str)
 
@@ -480,7 +534,8 @@ class VaultHome(QWidget):
 
         self.footer = QWidget()
         self.footer.setObjectName('Footer')
-        self.footer.setFixedHeight(60)
+        # Node clock/control stack, with its peer-status row omitted.
+        self.footer.setFixedHeight(86)
         footer = QHBoxLayout(self.footer)
         footer.setContentsMargins(0, 0, 0, 0)
         footer.setSpacing(0)
@@ -488,7 +543,8 @@ class VaultHome(QWidget):
         # Equal-width left/right footer zones keep Powered by Debian GNU/Linux centered.
         left = QWidget()
         left.setObjectName('FooterSpacer')
-        left.setFixedWidth(256)
+        self.info_box = left
+        left.setFixedWidth(248)
         footer.addWidget(left)
         self.credit_box = QWidget()
         self.credit_box.setObjectName('CreditBox')
@@ -504,11 +560,27 @@ class VaultHome(QWidget):
         footer.addWidget(self.credit_box, 1)
 
         power_box = QWidget()
+        self.power_box = power_box
         power_box.setObjectName('PowerControls')
-        power_box.setFixedWidth(256)
-        power = QHBoxLayout(power_box)
+        power_box.setFixedSize(248, 84)
+        power_stack = QVBoxLayout(power_box)
+        power_stack.setContentsMargins(0, 0, 0, 0)
+        power_stack.setSpacing(1)
+        self.power_info = QWidget(power_box)
+        self.power_info.setObjectName('PowerInfo')
+        self.power_info.setFixedHeight(29)
+        self.power_info_layout = QVBoxLayout(self.power_info)
+        self.power_info_layout.setContentsMargins(0, 0, 0, 0)
+        self.power_info_layout.setSpacing(1)
+        self.clock = ClockButton(self)
+        self.power_info_layout.addWidget(self.clock, 0, Qt.AlignHCenter)
+        power_stack.addWidget(self.power_info)
+        self.power_icon_row = QWidget(power_box)
+        self.power_icon_row.setObjectName('PowerIconRow')
+        power = QHBoxLayout(self.power_icon_row)
         power.setContentsMargins(0, 0, 0, 0)
         power.setSpacing(8)
+        power_stack.addWidget(self.power_icon_row)
 
         restart_help = (
             'Confirm saved files and RAM data loss, then start a five-minute restart countdown. '
@@ -550,8 +622,33 @@ class VaultHome(QWidget):
         self.shutdown_button.setFixedSize(48, 48)
         self.shutdown_button.clicked.connect(self.shutdown)
         power.addWidget(self.shutdown_button)
-        footer.addWidget(power_box, 0, Qt.AlignVCenter)
+        power.addStretch(1)
+        footer.addWidget(power_box, 0, Qt.AlignBottom)
         self.outer.addWidget(self.footer)
+        self.layout_footer()
+
+    def layout_footer(self):
+        if not all(hasattr(self, name) for name in ('clock', 'power_box', 'info_box')):
+            return
+        width = self._test_size[0] if self._test_size else self.screen_ref.geometry().width()
+        self.clock.ensurePolished()
+        # Match the tuned Node spacing: include icon, borders and button padding
+        # so the last clock digit remains visible at laptop sizes/font scales.
+        text_width = max(self.clock.fontMetrics().horizontalAdvance(line)
+                         for line in self.clock.text().splitlines())
+        button_width = max(218, self.clock.sizeHint().width() + 12,
+                           text_width + self.clock.iconSize().width() + 48)
+        zone = max(248, button_width + 12)
+        key = (width, text_width, self.clock.fontMetrics().height(),
+               self.credit_box.minimumSizeHint().width(),
+               self.outer.contentsMargins().left(), self.outer.contentsMargins().right(), zone)
+        if getattr(self, '_footer_key', None) == key:
+            return
+        self._footer_key = key
+        self.clock.setFixedSize(button_width, 26)
+        self.power_box.setFixedWidth(zone)
+        self.info_box.setFixedWidth(zone)
+        self.outer.invalidate()
 
     def build_ram_notice(self):
         # Reserve room even while hidden, so showing the reminder cannot move
@@ -710,6 +807,8 @@ class VaultHome(QWidget):
                         max(target.y(),min(rect.y(),target.bottom()-rect.height()+1)))
 
     def fit_screen(self, *_):
+        self.layout_footer()
+        self.outer.activate()
         if self._test_size:
             width, height = self._test_size
             geometry = QRect(0, 0, width, height)
@@ -774,6 +873,7 @@ class VaultHome(QWidget):
         self.body_layout.invalidate()
 
     def layout_cards(self):
+        self.layout_footer()
         viewport = self.scroll.viewport()
         width = max(360, min(1120, viewport.width() - 8))
         columns = 5 if width >= 680 else 2
@@ -872,6 +972,10 @@ class VaultHome(QWidget):
                'card_sizes': [[c.width(), c.height()] for c in self.cards],
                'card_titles': [c.tool['title'] for c in self.cards]}
         obj['window_behavior'] = 'background-click-v1.2'
+        if hasattr(self, 'clock'):
+            point = self.clock.mapTo(self, QPoint())
+            obj['clock'] = dict(text=self.clock.text(), timezone=self.clock.zone_name,
+                                rect=[point.x(), point.y(), self.clock.width(), self.clock.height()])
         if hasattr(self, 'ram_notice'):
             # Only display state and rectangles; never filenames or file counts.
             obj['private_ram_notice'] = dict(state=self.ram_notice_state,
@@ -941,6 +1045,14 @@ class VaultHome(QWidget):
             return self.activate_tool('Settings', [])
         module = self.settings_module()
         return module.open_window(self, 'settings', lambda: module.VaultSettingsDialog(self))
+
+    def date_time(self):
+        self.hide_card_help()
+        if args.preview or args.self_test:
+            return self.activate_tool('Date & Time', [])
+        module = self.settings_module()
+        from vault_time_ui import VaultDateTimeDialog
+        return module.open_window(self, 'date_time', lambda: VaultDateTimeDialog(self))
 
     def display_settings(self, imported_profile=None):
         return self.settings_module().show_display(self, imported_profile)

@@ -1,6 +1,6 @@
 {
-  "filename": "calamares_3.3.14-1+corevault6_amd64.deb",
-  "version": "3.3.14-1+corevault6",
-  "sha256": "c2c16d18f2bf3d5070158bf26103a7cdb059d0de42e64799f0c9be95d9cf0c08",
-  "input_sha256": "ed9fc56dbb64c7760c8daff36faedb43e4c44b83b2ffe7991883040c4ba4db36"
+  "filename": "calamares_3.3.14-1+corevault10localrolesfix1_amd64.deb",
+  "version": "3.3.14-1+corevault10localrolesfix1",
+  "sha256": "e46bb7e6006c973fd85775b454f059d83a77a99692d6d8d2f2a9c606998dd9c6",
+  "input_sha256": "741f76aa55ca2431493cd1b4219ac3934daff9a54e8a89e88f7f50229b87eb22"
 }

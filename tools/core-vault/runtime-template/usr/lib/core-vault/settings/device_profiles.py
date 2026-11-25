@@ -19,8 +19,12 @@ class DeviceProfilesDialog(QDialog):
         heading = QLabel('Device Settings'); heading.setObjectName('Title'); box.addWidget(heading)
         info = QLabel('Transfer keyboard, mouse and saved display preferences using a JSON file. Wallets, passwords, network settings and clock timestamps are excluded.')
         info.setWordWrap(True); info.setObjectName('Muted'); box.addWidget(info)
-        note = QLabel('On Vault, imported preferences stay in RAM for this session.' if product == 'vault'
-                      else 'On the installed Node, imported input preferences are saved locally.')
+        if product == 'vault':
+            from vault_device_state import notice
+            persistence_note = notice()
+        else:
+            persistence_note = 'On the installed Node, imported input preferences are saved locally.'
+        note = QLabel(persistence_note)
         note.setWordWrap(True); box.addWidget(note)
         row = QHBoxLayout()
         self.export_button = QPushButton('Export device settings…'); self.export_button.clicked.connect(self.export_file)

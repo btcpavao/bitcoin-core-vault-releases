@@ -1,0 +1,57 @@
+#!/bin/sh
+# Runs only inside live-build's image chroot, after includes and packages.
+set -eu
+/usr/bin/python3 - <<'PY'
+import json
+from pathlib import Path
+import re
+import subprocess
+
+manifest = json.loads(Path('/usr/share/core-vault/t2-hardware-release.json').read_text())
+profile_path = Path('/etc/core-vault/kernel-profile.json')
+profile = json.loads(profile_path.read_text())
+t2_release = manifest.get('kernel_release')
+parameters = manifest.get('t2_parameters')
+if (manifest.get('schema') != 1 or profile.get('schema') != 1
+        or not isinstance(t2_release, str)
+        or re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9.+_~-]{0,159}', t2_release) is None
+        or '-t2-' not in t2_release
+        or profile.get('t2_release') != t2_release
+        or parameters != ['intel_iommu=on', 'iommu=pt', 'pm_async=off']
+        or profile.get('t2_parameters') != parameters):
+    raise SystemExit('The pinned T2 hardware manifest and kernel profile disagree.')
+
+# Select from image contents, never uname or the build computer's DMI.
+releases = []
+for image in sorted(Path('/boot').glob('vmlinuz-*')):
+    release = image.name.removeprefix('vmlinuz-')
+    if (re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9.+_~-]{0,159}', release) is None
+            or image.is_symlink() or not image.is_file() or image.stat().st_size <= 1024
+            or not (Path('/lib/modules') / release).is_dir()):
+        raise SystemExit('Invalid kernel/module pair in the build image: ' + str(image))
+    releases.append(release)
+generic = [release for release in releases if re.search(r'-t2(?:-|$)', release) is None]
+t2 = [release for release in releases if re.search(r'-t2(?:-|$)', release) is not None]
+if len(generic) != 1 or t2 != [t2_release]:
+    raise SystemExit('The build image must contain one standard kernel and the exact pinned T2 kernel.')
+
+for release in [generic[0], t2_release]:
+    subprocess.run(['/usr/sbin/depmod', '-a', release], check=True)
+    initrd = Path('/boot') / ('initrd.img-' + release)
+    if initrd.is_symlink() or (initrd.exists() and (not initrd.is_file() or initrd.stat().st_size == 0)):
+        raise SystemExit('Invalid image initramfs: ' + str(initrd))
+    mode = '-u' if initrd.exists() else '-c'
+    subprocess.run(['/usr/sbin/update-initramfs', mode, '-k', release], check=True)
+
+# Includes and firmware are present before this hook. Rebuild both exact kernel
+# releases explicitly; failure aborts the image build. The later Plymouth hook
+# may refresh their theme, but T2 driver inclusion does not depend on that
+# wrapper's exit-status handling or update-initramfs's tracked-version list.
+profile = dict(schema=1, generic_release=generic[0], t2_release=t2_release,
+               t2_parameters=parameters)
+if profile_path.is_symlink():
+    raise SystemExit('Unsafe kernel profile destination.')
+profile_path.write_text(json.dumps(profile, indent=2) + '\n')
+profile_path.chmod(0o644)
+print('Configured image kernel pair: ' + generic[0] + ' / ' + t2_release)
+PY

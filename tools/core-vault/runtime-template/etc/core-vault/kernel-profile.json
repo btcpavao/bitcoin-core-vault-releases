@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "generic_release": "6.12.116+deb13-amd64",
+  "t2_release": "6.18.64-1-t2-trixie",
+  "t2_parameters": [
+    "intel_iommu=on",
+    "iommu=pt",
+    "pm_async=off"
+  ]
+}

@@ -50,3 +50,13 @@ for source in sorted(seed.rglob('*')):
         shutil.copyfile(source, dest)
         dest.chmod(0o600)
     os.chown(dest, 1000, 1000)
+
+# Restore only validated device preferences, never a persisted private home.
+# The helper independently rejects live boots and requires the installed marker.
+import sys
+sys.path.insert(0, '/usr/lib/core-vault/settings')
+try:
+    from vault_device_state import restore_at_boot
+    restore_at_boot()
+except (OSError, ValueError, KeyError):
+    print('Saved device preferences could not be restored; using the image defaults.', file=sys.stderr)

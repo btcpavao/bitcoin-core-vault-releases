@@ -203,7 +203,7 @@ def configure(root):
         link(root,'etc/systemd/system/multi-user.target.wants/'+unit,'../'+unit)
     link(root,'etc/systemd/system/multi-user.target.wants/nftables.service','/usr/lib/systemd/system/nftables.service')
     put(root,'etc/default/grub.d/core-vault.cfg',
-        'GRUB_DISTRIBUTOR="Bitcoin Core Vault"\nGRUB_TIMEOUT_STYLE=hidden\nGRUB_TIMEOUT=0\n'
+        'GRUB_DISTRIBUTOR="Bitcoin Core Vault"\nGRUB_DEFAULT=core-vault-auto\nGRUB_TIMEOUT_STYLE=hidden\nGRUB_TIMEOUT=0\n'
         'GRUB_CMDLINE_LINUX_DEFAULT="quiet splash loglevel=3 systemd.show_status=false vt.global_cursor_default=0"\n'
         'GRUB_CMDLINE_LINUX="noresume"\nGRUB_DISABLE_OS_PROBER=true\n')
     # Drop only Calamares itself. Avoid risky dependency autoremove.
@@ -221,7 +221,7 @@ def configure(root):
         remove(root,name)
     report={'schema':1,'stage':'target-configured','keyboard':keyboard.read_text(),
             'payload_files':files,'storage':'persistent-os-with-ram-only-private-home-v1',
-            'runtime_acceptance':'PENDING: reboot without ISO and complete VM tests'}
+            'runtime_acceptance':'PENDING: manual hardware startup after removing the installation USB'}
     put(root,REPORT,json.dumps(report,indent=2)+'\n')
     verify_policy(root)
 

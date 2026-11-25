@@ -1,0 +1,5 @@
+# Exact locally staged inputs; prepare-t2-hardware.py authenticates the pinned bytes.
+# The normal Debian kernel remains installed for machines without T2.
+linux-image-6.18.64-1-t2-trixie=6.18.64-1
+firmware-amd-graphics=20250410-2
+firmware-intel-graphics=20250410-2

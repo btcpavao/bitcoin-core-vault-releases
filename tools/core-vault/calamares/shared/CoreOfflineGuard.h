@@ -46,21 +46,21 @@ private: QJsonObject m_plan;
 };
 
 // Runs after the native partition jobs, before mount/unpackfs. The runtime
-// helper derives fresh reservation spans only from the confirmed guarded plan.
+// helper derives fresh raw boot/reservation spans only from the confirmed guarded plan.
 class CoreReservedSpaceJob : public Calamares::Job
 {
 public:
-    QString prettyName() const override {return QStringLiteral("Prepare the reviewed unformatted reservation");}
+    QString prettyName() const override {return QStringLiteral("Prepare the reviewed unformatted partitions");}
     QString prettyStatusMessage() const override {return prettyName();}
     Calamares::JobResult exec() override {
         QProcess p;
         p.start(QStringLiteral("/usr/bin/python3"),{QStringLiteral("/usr/lib/core-vault-installer/disk_safety.py"),QStringLiteral("prepare-reservations")});
         if(!p.waitForStarted(5000) || !p.waitForFinished(60000)) {
             p.kill();p.waitForFinished(1000);
-            return Calamares::JobResult::error(QStringLiteral("Reserved space could not be verified"),QStringLiteral("The reservation preparation did not finish. Installation stopped."));
+            return Calamares::JobResult::error(QStringLiteral("Unformatted partitions could not be verified"),QStringLiteral("The unformatted partition preparation did not finish. Installation stopped."));
         }
         if(p.exitStatus()!=QProcess::NormalExit || p.exitCode()!=0 || !QJsonDocument::fromJson(p.readAllStandardOutput()).object().value(QStringLiteral("ok")).toBool())
-            return Calamares::JobResult::error(QStringLiteral("Reserved space could not be prepared"),QString::fromUtf8(p.readAllStandardError()).trimmed());
+            return Calamares::JobResult::error(QStringLiteral("Unformatted partitions could not be prepared"),QString::fromUtf8(p.readAllStandardError()).trimmed());
         return Calamares::JobResult::ok();
     }
 };

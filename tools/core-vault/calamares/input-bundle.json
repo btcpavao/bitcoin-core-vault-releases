@@ -2,6 +2,6 @@
   "source_bundle": "bitcoin-core-vault-installer-input-20260930-143606-037001.zip",
   "sha256": "f3753c0c082e3a4d9b771d82ff862fef64235fb101e69874b75e43e3e77c15d0",
   "base_calamares": "3.3.14-1",
-  "local_version": "3.3.14-1+corevault6",
-  "native_source": "Debian signed snapshot 20261109T000000Z, calamares 3.3.14-1, current repository patch pipeline"
+  "local_version": "3.3.14-1+corevault10localrolesfix1",
+  "native_source": "Debian signed snapshot 20261109T000000Z, Calamares 3.3.14-1, local Vault BIOS/T2 candidate with GUI-thread partition resets and stable row identities; new partition flags written by native jobs and failure exit status preserved"
 }

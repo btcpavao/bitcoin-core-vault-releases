@@ -1,0 +1,16 @@
+elementary Xfce Settings icon
+
+Unmodified preferences-system.svg copied from Debian
+package elementary-xfce-icon-theme 0.21-1,
+theme elementary-xfce-hidpi, categories/48/preferences-system.svg.
+It is bundled as icons/settings.svg and rendered at 44 px in the
+existing 48 px Settings button beside Restart and Shutdown.
+
+Copyright 2007-2013 Daniel Foré <daniel@elementaryos.org>
+Copyright 2010-2022 Simon Steinbeiß <simon@xfce.org>
+License: GNU General Public License version 3 or later (GPL-3.0-or-later).
+The original Debian copyright file and complete GPL version 3 text
+accompany this SVG. No changes have been made to the artwork.
+
+Upstream source: https://github.com/shimmerproject/elementary-xfce
+Debian package: https://packages.debian.org/trixie/elementary-xfce-icon-theme

@@ -1,6 +1,7 @@
 """Unprivileged XInput/libinput mouse speed controls and hotplug persistence.
 
-No root permissions, shell invocation, or changes to Core; USB
+No shell invocation or changes to Core; installed-only preference saving uses
+the fixed device-settings helper. USB
 pointer devices are matched by the OS-provided XInput name at X session start.
 """
 import json
@@ -97,6 +98,8 @@ def save_preference(name,speed):
         os.replace(tmp,PREFS)
     finally:
         Path(tmp).unlink(missing_ok=True)
+    from vault_device_state import persist_component
+    persist_component('pointer', dict(schema=1,devices=data))
 
 def watch():
     # This runs as the regular desktop user, never as root. USB

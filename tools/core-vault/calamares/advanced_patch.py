@@ -6,11 +6,12 @@ No block devices are opened by this source transformer.
 """
 from pathlib import Path
 import base_patch as b
+import lifecycle_patch
 ADDITIONAL = ['src/modules/partition/gui/PartitionPage.h',
               'src/modules/partition/gui/PartitionPage.cpp',
               'src/modules/partition/core/PartitionCoreModule.h',
               'src/modules/partition/jobs/SetPartitionFlagsJob.h',
-              'src/modules/partition/jobs/ChangeFilesystemLabelJob.h']
+              'src/modules/partition/jobs/ChangeFilesystemLabelJob.h'] + lifecycle_patch.ADDITIONAL
 
 def patch_tree(root, product='vault'):
     assert product in ('node','vault')
@@ -45,6 +46,8 @@ def patch_tree(root, product='vault'):
     s+=read('PlanMethods.cpp.inc');path.write_text(s)
     path=root/'src/modules/partition/gui/ChoicePage.cpp';s=path.read_text()
     s=s.replace('m_drivesCombo = new QComboBox( this );','m_drivesCombo = new QComboBox( this );\n    m_drivesCombo->setObjectName(QStringLiteral("coreInstallDrive"));')
+    s=s.replace('CORE_OFFLINE_INTEGRATION: whole-disk erase is the only supported install operation.',
+        'CORE_OFFLINE_INTEGRATION: offer whole-disk installation and guarded manual partitioning.')
     s=s.replace('Select one internal drive. The selected drive will be completely erased and dedicated to Bitcoin Core Vault.',
         'Select an internal drive and choose how to install Bitcoin Core Vault.')
     s=s.replace('Everything currently stored on the selected drive will be permanently erased.',
@@ -53,10 +56,8 @@ def patch_tree(root, product='vault'):
     s=b.once(s,'        m_config->setInstallChoice( InstallChoice::Erase ); // CORE_OFFLINE_INTEGRATION\n        checkInstallChoiceRadioButton( InstallChoice::Erase );',
         '        m_config->setInstallChoice( InstallChoice::NoChoice );\n        checkInstallChoiceRadioButton( InstallChoice::NoChoice );','no automatic erase selection')
     s=b.once(s,'    force_uncheck(m_grp, m_somethingElseButton);',
-        '    m_somethingElseButton->show();\n    m_somethingElseButton->setObjectName(QStringLiteral("coreInstallMethodAdvanced"));\n    m_eraseButton->setObjectName(QStringLiteral("coreInstallMethodErase"));\n    m_somethingElseButton->setMinimumHeight(54);\n    m_eraseButton->setMinimumHeight(54);\n    m_somethingElseButton->setEnabled(m_isEfi);\n    m_eraseButton->setIcon(QIcon());\n    m_somethingElseButton->setIcon(QIcon());\n    updateChoiceButtonsTr();', 'keep bounded manual option')
-    s=b.replace_function(s,'ChoicePage::updateChoiceButtonsTr()',r'''    if(m_somethingElseButton) m_somethingElseButton->setText(m_isEfi
-        ? tr("<strong>Advanced partitioning</strong><br/>Choose a partition or create a layout with reserved space.")
-        : tr("<strong>Advanced partitioning</strong><br/>Restart this USB in UEFI mode to use this option."));
+        '    m_somethingElseButton->show();\n    m_somethingElseButton->setObjectName(QStringLiteral("coreInstallMethodAdvanced"));\n    m_eraseButton->setObjectName(QStringLiteral("coreInstallMethodErase"));\n    m_somethingElseButton->setMinimumHeight(54);\n    m_eraseButton->setMinimumHeight(54);\n    m_somethingElseButton->setEnabled(true);\n    m_eraseButton->setIcon(QIcon());\n    m_somethingElseButton->setIcon(QIcon());\n    updateChoiceButtonsTr();', 'keep bounded manual option')
+    s=b.replace_function(s,'ChoicePage::updateChoiceButtonsTr()',r'''    if(m_somethingElseButton) m_somethingElseButton->setText(tr("<strong>Advanced partitioning</strong><br/>Choose a partition or create a layout with reserved space."));
     if(m_eraseButton) m_eraseButton->setText(tr("<strong>Install to disk</strong><br/>Erase the selected physical disk and install Bitcoin Core Vault."));''')
     s=b.append_function(s,'ChoicePage::updateActionDescriptionsTr()',
         '    updateChoiceButtonsTr();\n    m_messageLabel->hide();')
@@ -75,7 +76,7 @@ def patch_tree(root, product='vault'):
     return tr("<b>Installation drive</b><br/>%1<br/>%2").arg(p.value("target").toString().toHtmlEscaped(),
         p.value("mode").toString()==QStringLiteral("advanced") ? tr("Install on the selected partition; preserve other partitions.") : tr("Erase the selected physical disk."));''')
     s=b.replace_function(s,'PartitionViewStep::createSummaryWidget() const',read('Review.cpp.inc'))
-    # The bounded editor validates EFI itself. Upstream warning-only generic checks
+    # The bounded editor validates firmware and boot space itself. Upstream warning-only generic checks
     # must not create an apparent override of a failed plan guard.
     s=b.replace_function(s,'PartitionViewStep::onLeave()',r'''    if(m_widget->currentWidget()==m_choicePage) m_choicePage->onLeave();''')
     path.write_text(s)
@@ -89,3 +90,5 @@ def patch_tree(root, product='vault'):
         consent->setEnabled(QCoreApplication::instance()->property("coreInstallPlanValid").toBool());''')
     path.write_text(s)
     path=root/'src/calamares/CalamaresWindow.cpp';s=path.read_text().replace('Erase drive and install','Install Bitcoin Core Vault');path.write_text(s)
+
+    lifecycle_patch.patch_tree(root)
