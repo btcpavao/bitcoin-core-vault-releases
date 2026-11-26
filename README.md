@@ -1,5 +1,7 @@
 # Bitcoin Core Vault
 
+Developer entry: [Vault & Node Development Reference](docs/development/README.md). Start there for current source/ISO identity, module boundaries, UI standards and the change/update workflow.
+
 Bitcoin Core Vault is a dedicated offline environment for creating and restoring
 Bitcoin Core wallets, signing PSBTs and exporting encrypted wallet backups. It
 uses Debian 13 Trixie on amd64 and the unmodified Bitcoin Core 32.1 application.

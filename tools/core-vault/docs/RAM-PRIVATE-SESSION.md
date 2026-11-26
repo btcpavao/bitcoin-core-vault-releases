@@ -1,15 +1,20 @@
 # RAM-only private session
 
-**GPG feature branch:** the source extends the existing verified export chain
-with symmetric `.gpg` backups beside default `.7z`. The published `v0.1.0` ISO
-is unchanged and contains the 7z workflow. A rebuilt candidate ISO, its GUI,
-real-wallet restoration and Finish acceptance still need their own evidence.
-The dated entries below remain historical records, not acceptance of this
-feature. See [the GPG profile](../../../docs/GPG-BACKUP.md) and
-[encryption security levels](../../../docs/ENCRYPTION-SECURITY-LEVELS.md).
+**Current scope: Vault v0.9.0.** Documentation reconciled on 2026-11-26 against
+publication source `58f873fa727054f262b2f99bf742aff251cc5672`. Read the
+[current baseline](../../../docs/development/CURRENT.md) and
+[product inventory](../../../docs/development/PRODUCT.md) first. Dated entries
+below are historical evidence for their own images. The historical wallet-export
+section is superseded by the current GPG direct-wallet/TAR implementation.
 
-The installed internal disk contains Debian, program binaries and immutable
-defaults. The Vault account home is a bind mount of `/run/core-vault/home`.
+The private home remains RAM-only in Live and installed modes. Installed mode
+additionally retains allowlisted device preferences in a protected root-owned
+record; it never restores a persisted private home. Explicit installed manual
+clock correction can update the UTC hardware-clock policy and RTC. See
+[SETTINGS.md](SETTINGS.md) for these narrow device/time boundaries.
+
+The installed internal disk contains Debian, program binaries, immutable
+defaults and the validated installed-device configuration described above. The Vault account home is a bind mount of `/run/core-vault/home`.
 Both this home and the entire private workspace are on one explicit tmpfs
 mounted with `noswap,nodev,nosuid,noexec`, mode 0700, UID/GID 1000 and a
 50% RAM size limit. A missing RAM mount prevents the desktop and Core from
@@ -19,6 +24,16 @@ This prevents new private session material from reaching the internal OS disk
 through the ordinary appliance workflow. It does not erase material that an
 older system previously wrote to that disk. Live memory acquisition, malicious
 firmware and an already compromised OS remain outside this boundary.
+
+## Historical October 2026 changes
+
+**GPG feature branch:** the source extends the existing verified export chain
+with symmetric `.gpg` backups beside default `.7z`. The published `v0.1.0` ISO
+is unchanged and contains the 7z workflow. A rebuilt candidate ISO, its GUI,
+real-wallet restoration and Finish acceptance still need their own evidence.
+The dated entries below remain historical records, not acceptance of this
+feature. See [the GPG profile](../../../docs/GPG-BACKUP.md) and
+[encryption security levels](../../../docs/ENCRYPTION-SECURITY-LEVELS.md).
 
 2026-10-05 — Live Core startup correction: the original Live ISO was reproduced
 with `/var/tmp` on overlay; the launcher refused to start Core with
@@ -65,7 +80,10 @@ wallet export for Finish. These are source changes; the ISO must be rebuilt.
 ## Lifecycle and paths
 
 `run-core\x2dvault.mount` provides the RAM filesystem. `core-vault-prepare.service`
-copies only immutable `/etc/skel` defaults and creates private directories.
+copies immutable `/etc/skel` defaults and creates private directories. In
+validated installed mode it then restores only the allowlisted device preference
+components into RAM and reapplies the saved time zone; it does not restore an old
+home or a saved clock timestamp.
 `home-vault.mount` binds the RAM home over the account's real passwd HOME before
 LightDM starts. Thus applications using either HOME or getpwuid() reach RAM.
 Live account provisioning completes before preparation; the installed account
@@ -83,6 +101,8 @@ already exists. Installer mode retains its dedicated Calamares session.
 | TMPDIR / TMP / TEMP | `/run/core-vault/tmp` | RAM session |
 | XDG config/cache/data/state | Subdirectories of the RAM home | RAM session |
 | Export receipts and archive hashes | `/run/core-vault/state` | RAM session |
+| Installed device preference record | `/var/lib/core-vault-device-settings/preferences.json` | Installed only; validated allowlist, restored into RAM at boot |
+| Runtime time-zone files | `/run/core-vault-time`, bound onto `/etc/localtime` and `/etc/timezone` | RAM runtime state; installed zone name saved separately |
 | Ordinary system scratch / print spools | tmpfs `/tmp`, `/var/tmp`, `/var/log`, `/var/spool/cups`, `/var/cache/cups` | Boot |
 | Intentional encrypted backups and approved public exports | Selected USB/external filesystem | Persistent on selected media |
 
@@ -113,10 +133,10 @@ in the RAM home, workspace (including export and Core's private runtime) and
 system scratch. The shared desktop runtime, including systemd's inaccessible
 placeholder, is outside Core's writable roots and the wallet scan.
 Loaded RPC names are matched to actual paths, including `../` and absolute names.
-An unrecognized loaded wallet stops normal finish. Root-only scratch directories
-that the Vault user can neither read nor write are skipped; unreadable directories
-owned by Vault fail closed. Helpers remove their temporary backup/read-back files
-before returning. Any residual wallet file remains subject to verification.
+The inventory and snapshot checks belong to wallet/export operations. Current
+Finish does not inventory wallets or verify backup receipts; the earlier
+receipt-gated shutdown rule is superseded. Helpers remain responsible for their
+temporary backup/read-back files. See the current Finish section below.
 
 Mount probes use `findmnt --uniq` to select visible mounts. Ordinary `findmnt`
 can return shadowed and active entries together inside the bind-mounted namespace;
@@ -143,7 +163,16 @@ external media remains an encrypted KeePass database there. Printer spool and
 cache storage are volatile. Networking restrictions and the verified official
 Bitcoin Core binary are preserved.
 
-## Wallet export
+## Historical wallet-export design (superseded)
+
+The following section preserves the earlier 7z/GPG and receipt-based export
+design. It is not the v0.9.0 creation or shutdown contract. Current new backups
+use AES-256 CFB+MDC; a supported single wallet is encrypted directly and grouped
+inputs use TAR. Shutdown has no passphrase or receipt gate. Use
+[PRODUCT.md](../../../docs/development/PRODUCT.md#backups-and-recovery-contract)
+and the actual backup source for current behavior; do not reintroduce the old
+7z default or forced-OCB creation path from this historical text.
+
 
 Wallet Backup and Thunar share the same consistent snapshot policy. Loaded
 wallets use Bitcoin Core's official `backupwallet` RPC, bound only to loopback

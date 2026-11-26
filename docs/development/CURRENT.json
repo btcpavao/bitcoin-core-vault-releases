@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "product": "Bitcoin Core Vault",
+  "observed_at_utc": "2026-11-26T09:20:25.203893+00:00",
+  "status_rule": "This is an observed reference, not a live dashboard. Reconcile HEAD, dirty files, artifact identity and the active handoff before editing.",
+  "published": {
+    "release": "v0.9.0",
+    "release_url": "https://github.com/btcpavao/bitcoin-core-vault-releases/releases/tag/v0.9.0",
+    "published_at": "2026-11-25T11:10:16Z",
+    "filename": "bitcoin-core-vault-v0.9.0-amd64.iso",
+    "bytes": 1133379584,
+    "sha256": "615067c09f573a4476c7039adc90e58f75a46bdf20a028fd3c58f3e300c832fe",
+    "download_url": "https://github.com/btcpavao/bitcoin-core-vault-releases/releases/download/v0.9.0/bitcoin-core-vault-v0.9.0-amd64.iso",
+    "channel": "published_standard",
+    "release_api_draft": false,
+    "release_api_prerelease": false,
+    "signature_observation": "Signed-checksum assets are published; signatures were not reverified in this documentation pass."
+  },
+  "checked_local_candidate": {
+    "status": "published_same_bytes",
+    "filename": "bitcoin-core-vault-v0.9.0-amd64.iso",
+    "path": "/home/pavao/vault-release-assets-v0.9.0/bitcoin-core-vault-v0.9.0-amd64.iso",
+    "sha256": "615067c09f573a4476c7039adc90e58f75a46bdf20a028fd3c58f3e300c832fe",
+    "bytes": 1133379584,
+    "original_candidate": "local-t2-auto-desktop-tuning-v2-20261124",
+    "checksum_observation": "SHA-256 recomputed on ThinkCentre during the 2026-11-26 initial reference audit; matched the published release digest.",
+    "source_identity": "58f873fa727054f262b2f99bf742aff251cc5672",
+    "source_role": "Publication freeze after accepted ISO; includes explicitly recorded review-metadata correction, not an exact clean build commit.",
+    "source_archive_sha256": "dd64079888a194693ee91bd103c5b27068ccc20f2131698a4526ed48dcb78ce6",
+    "build_method": "Local repacking of existing Vault base with reviewed native/runtime/kernel inputs",
+    "evidence": [
+      {
+        "path": "/home/pavao/vault-release-assets-v0.9.0/BUILD-PROVENANCE.json",
+        "sha256": "5f57ad423242a1a5234c2c68f9325657410c2d5e1ec1dbc0ed9d8690487c1afa"
+      },
+      {
+        "path": "/home/pavao/vault-release-assets-v0.9.0/ACCEPTANCE.json",
+        "sha256": "5dff461f588fa3e025f9d789196ed853308b81a2caea1185069a3d60e3e2da4d"
+      }
+    ],
+    "checks": {
+      "final_iso_live_ui": "Recorded PASS: Legacy BIOS QEMU, 1280x800 and 1024x768; no installation in this UI session.",
+      "maintainer_report": "Pavao accepted this candidate on 2026-11-25 in T530 context; do not infer all hardware modes.",
+      "prior_installed_settings": "Carried-forward evidence with original ISO hashes and unchanged-component comparisons in ACCEPTANCE.json.",
+      "strict_current_source_payload_gate": "NOT PASSED: accepted ISO retains old shred-policy review metadata; do not disable the gate.",
+      "independent_whole_iso_reproducibility": "NOT DEMONSTRATED for v0.9.0."
+    }
+  },
+  "development": {
+    "source_checkout": "/home/pavao/vault-release-v0.9.0-20261125",
+    "base_source_commit": "58f873fa727054f262b2f99bf742aff251cc5672",
+    "source_dirty_at_inspection": false,
+    "documentation_checkout": "/home/pavao/development-reference-20261126/vault",
+    "documentation_branch": "docs/development-reference-20261126",
+    "scope": "Development documentation and reconciled current module notes; no runtime or ISO changes."
+  },
+  "open_items": [
+    {
+      "id": "VAULT-PROVENANCE-001",
+      "status": "known_limitation",
+      "summary": "v0.9.0 whole-image independent byte equality is unestablished; preserve explicit metadata and T2/native source limitations."
+    },
+    {
+      "id": "VAULT-UPDATE-001",
+      "status": "not_implemented_as_general_capability",
+      "summary": "A general installed-Vault project-component updater is not established by this reference."
+    }
+  ]
+}

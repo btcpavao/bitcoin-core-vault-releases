@@ -1,0 +1,33 @@
+{
+  "source_iso_sha256": "615067c09f573a4476c7039adc90e58f75a46bdf20a028fd3c58f3e300c832fe",
+  "source_release": "v0.9.0",
+  "scope": "Existing exact-release desktop screenshots from recorded Legacy BIOS live QEMU UI checks. This documentation pass copies and inspects them; it does not rerun the VM or installation tests.",
+  "images": [
+    {
+      "name": "vault-desktop-1280.png",
+      "source_path": "/home/pavao/vault-release-assets-v0.9.0/vault-desktop-1280.png",
+      "sha256": "0e97100386cb9acfb00c664b42ca3b66f678c0bd04fe2368f0d36c9e9e7d701e",
+      "bytes": 99505,
+      "resolution_px": [
+        1280,
+        800
+      ],
+      "mode": "Live RAM",
+      "firmware": "Legacy BIOS (recorded QEMU evidence)",
+      "ui_scale": "Not independently remeasured in this documentation pass; retain original release evidence."
+    },
+    {
+      "name": "vault-desktop-1024.png",
+      "source_path": "/home/pavao/vault-release-assets-v0.9.0/vault-desktop-1024.png",
+      "sha256": "fdb3ce5321677acf577d9af0a2e8e3a7ab14099587be844817530ed39701bbf5",
+      "bytes": 98309,
+      "resolution_px": [
+        1024,
+        768
+      ],
+      "mode": "Live RAM",
+      "firmware": "Legacy BIOS (recorded QEMU evidence)",
+      "ui_scale": "Not independently remeasured in this documentation pass; retain original release evidence."
+    }
+  ]
+}

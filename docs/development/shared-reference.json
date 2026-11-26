@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "role": "canonical",
+  "edition": "2026-11-26.1",
+  "canonical_repository": "https://github.com/btcpavao/bitcoin-core-vault-releases",
+  "canonical_branch": "docs/development-reference-20261126",
+  "revision_binding": "The content SHA-256 values identify this shared edition. Node mirror gains the exact canonical documentation commit in the delivery step.",
+  "files": {
+    "docs/development/SHARED-WORKFLOW.md": {
+      "sha256": "6f8151f9ceb5cc8a08da10d44fd5c9a722e83e92e57d0836cbd859790f6cbfac",
+      "bytes": 9452
+    },
+    "docs/development/TEMPLATES.md": {
+      "sha256": "c3cf028780e85f712205caad9b5caf75783b85e018af0264f25706968710b83f",
+      "bytes": 3755
+    }
+  },
+  "maintenance": "Edit canonical Vault documents, update edition and hashes, copy unchanged bytes to Node, and verify both pairs. Product-specific documents are separate."
+}

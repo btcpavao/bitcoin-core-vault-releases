@@ -1,4 +1,6 @@
-# Bitcoin Core Vault — GPG/TAR backup and recovery
+# Bitcoin Core Vault — GPG backup and recovery
+
+**Current payload scope: Vault v0.9.0**, reviewed against publication source `58f873fa727054f262b2f99bf742aff251cc5672` on 2026-11-26. A supported single `wallet.dat` is encrypted directly; grouped inputs and other selected files use TAR. See [the product baseline](../../../docs/development/PRODUCT.md#backups-and-recovery-contract) and `src/layered_backend.py` for the current implementation. This clarification adds no runtime test or platform-compatibility claim.
 
 
 Encryption & Backup Security Levels
@@ -10,14 +12,14 @@ Core protects private-key material with its wallet passphrase. Public keys, addr
 
 
 One GPG layer — the default
-GPG encrypts the complete TAR package, including wallet data, filenames and documents, using AES-256 CFB encryption with an OpenPGP modification detection code (MDC). Recovery requires the .gpg file and its passphrase. No GPG keypair is needed. Maintain multiple verified copies of the encrypted file and independent redundant arrangements for the secret.
+GPG encrypts the complete verified wallet file directly when the input is exactly one supported Bitcoin Core SQLite `wallet.dat`. Grouped inputs and other selected files are first put in a standard TAR package, including their filenames and folder structure. Both paths use AES-256 CFB encryption with an OpenPGP modification detection code (MDC). Recovery requires the .gpg file and its passphrase. No GPG keypair is needed. Maintain multiple verified copies of the encrypted file and independent redundant arrangements for the secret.
 
 
 Two or more GPG layers
 Click + Add Encryption Layer. Each layer needs an independent passphrase, and all layers must be opened for recovery. The application supports up to 16 layers, including 10, but most plans should stay simpler.
 
 
-StepResultPackage original filesStandard TAREncrypt with AGPG layer 1Encrypt that with BGPG layer 2Encrypt that with Cbackup.gpg, outer layer 3
+Prepare the plaintext payload in RAM: the verified single wallet directly, or a standard TAR for grouped/other inputs. Encrypt it with A (layer 1), encrypt that result with B (layer 2), then encrypt that result with C (layer 3). The same layering process applies to either payload type.
 Example: keep redundant encrypted backup copies in two locations; keep redundant copies of A with trusted holders in one region, B with independent holders in another, and C with independent holders in a third. Recovery requires one usable encrypted copy and A, B and C. Copies within each group reduce loss risk, while separation matters for theft resistance. Consider collusion, travel, incapacity and access delays.
 
 
@@ -66,7 +68,7 @@ Backup & verify
 - Use Wallet Backup on Home for a wallet, or Files → Create Encrypted Backup for selected files and folders.
 - One GPG layer is the default. Add more only for an explicit recovery plan. Generate and confirm a different passphrase for each.
 - Choose a new .gpg destination in Private Workspace, any other writable folder or external media. No external drive is required. Click Create Encrypted Backup.
-- Vault snapshots loaded wallets through Bitcoin Core and closed wallets through read-only SQLite backup. It packages the inputs in RAM, encrypts and verifies each layer, then decrypts the complete result and checks it against the original package.
+- Vault snapshots loaded wallets through Bitcoin Core and closed wallets through read-only SQLite backup. It prepares the direct-wallet or TAR payload in RAM, encrypts and verifies each layer, then decrypts the complete result and checks it against the original payload.
 - The published encrypted file is checked after copying. A direct wallet export is authenticated again and compared with the original verified wallet snapshot before its session receipt is saved.
 - Make independent copies and perform a complete restore/signing drill at least annually.
 
@@ -88,12 +90,12 @@ Open Decrypt Backup on Home, double-click a .gpg file in Files, or choose Decryp
 
 - Enter the available backup passphrases, in any order. Use + Add Passphrase for additional secrets.
 - Choose Private Workspace or a writable USB drive, name a new folder and click Decrypt Backup.
-- Vault authenticates each layer and restores the original filenames and folder structure into the chosen folder.
+- Vault authenticates each layer, then writes `wallet.dat` for a supported direct-wallet backup or restores the validated TAR contents and folder structure into the chosen folder.
 
 If a secret is missing or wrong, add or correct it and retry. Damage and unsupported encryption can also cause a failure. Vault discards incomplete results in RAM. When copying authenticated files to USB, power loss or unplugging the drive can leave partial plaintext on the drive. Existing files are never overwritten.
 
 
-For an ordinary GPG file made outside Vault, select Recover one ordinary GPG layer only. This deliberately stops after one authenticated layer and saves recovered-file; it does not guess whether your original data are themselves encrypted. Rename or handle that file explicitly. Vault backups always use a standard TAR package as their final payload; an original GPG file inside the package is preserved unchanged.
+For an ordinary GPG file made outside Vault, select Recover one ordinary GPG layer only. This deliberately stops after one authenticated layer and saves recovered-file; it does not guess whether your original data are themselves encrypted. Rename or handle that file explicitly. Vault backups finish with either a supported direct wallet or a validated TAR package. An original GPG file selected as backup input is preserved unchanged inside its TAR package; it is not recursively decrypted as another backup layer.
 
 
 Recovery defaults to Private Workspace in RAM. Selecting a USB drive saves the recovered files there without the outer GPG protection. They remain on the drive after shutdown. A recovered file alone is not a verified current-wallet export.
@@ -113,12 +115,15 @@ With Vault
 - For a wallet, use Bitcoin Core's Restore Wallet on the recovered wallet.dat. Check expected addresses, labels and a signing test. If encrypted in Core, supply its separate internal passphrase when signing.
 
 Without Vault
-For new archives, use any current GnuPG release supporting the widely implemented RFC 4880 AES-256 CFB+MDC profile and standard TAR. The tested Debian engine is GnuPG 2.4.7. macOS and Windows GUI compatibility must still be checked using real target applications. Old OCB archives remain recoverable by Vault's GnuPG 2.4 decoder.
+For new backups, use a current GnuPG release supporting the widely implemented RFC 4880 AES-256 CFB+MDC profile. A direct-wallet backup needs Bitcoin Core to restore the resulting wallet; grouped backups and previous GPG/TAR backups additionally need standard TAR extraction. The tested Debian engine is GnuPG 2.4.7. macOS and Windows GUI compatibility must still be checked using real target applications. Old OCB archives remain recoverable by Vault's GnuPG 2.4 decoder.
 
 
 Work on a trusted offline system in an owned mode-0700 tmpfs directory with swap disabled and sufficient RAM. Do not run the following in an ordinary persistent Downloads folder. Use new output filenames. Let GnuPG prompt interactively; never put secrets in shell arguments, environment variables or a script.
 
 
+The following example is specifically for a known three-layer **TAR-backed** backup. For a supported direct-wallet backup, the last GPG output is `wallet.dat` and no TAR extraction follows.
+
+```sh
 umask 077
 gpg --output layer2.gpg --decrypt backup.gpg
 gpg --output layer1.gpg --decrypt layer2.gpg
@@ -126,10 +131,12 @@ gpg --output payload.tar --decrypt layer1.gpg
 tar --list --file payload.tar
 mkdir recovered
 tar --extract --file payload.tar --directory recovered --no-same-owner --no-same-permissions
-For the three-layer example, enter C, then B, then A. With one layer, decrypt backup.gpg directly to payload.tar. Proceed to the next command only after GPG exits successfully without authentication errors. Failed commands may leave provisional output; do not use it. Stock GPG does not advertise the total Vault layer count. If order was lost, try the available secrets on the outer layer, then repeat with the remaining secrets.
+```
+
+For this three-layer TAR example, enter C, then B, then A. With one TAR-backed layer, decrypt backup.gpg directly to payload.tar. Proceed to the next command only after GPG exits successfully without authentication errors. Failed commands may leave provisional output; do not use it. Stock GPG does not advertise the total Vault layer count. If order was lost, try the available secrets on the outer layer, then repeat with the remaining secrets.
 
 
-For your known backup, inspect TAR's listing before extracting into a new RAM directory. Reject absolute paths, parent traversal, links, devices and unexpected files. Do not extract an untrusted archive blindly. The Vault GUI performs its own strict validation. A file originally selected as a GPG or TAR file remains a file inside the final TAR; stop there rather than recursively opening it.
+For a known TAR-backed backup, inspect TAR's listing before extracting into a new RAM directory. Reject absolute paths, parent traversal, links, devices and unexpected files. Do not extract an untrusted archive blindly. The Vault GUI performs its own strict validation. A file originally selected as a GPG or TAR file remains a file inside the final TAR; stop there rather than recursively opening it.
 
 
 Practice with disposable data and the intended holders. Keep independent usable copies of every required secret. A missing required layer secret cannot be bypassed by Vault, and losing a password manager's unlocking secret is another recovery dependency.
@@ -140,7 +147,7 @@ These actions never request passphrases or verify backups. First confirm that yo
 
 
 Portable filename conventions
-A Vault backup is standard TAR encrypted in consecutive GPG layers. A one-layer file has a name ending .tar.gpg; two layers use .tar.gpg.gpg; three use .tar.gpg.gpg.gpg. Decrypting strips one .gpg extension per layer in common desktop applications. The final output is a .tar archive, which contains the original wallet.dat and other selected files. Embedded encrypted literal names are always generic inner.gpg and payload.tar; wallet names, private paths and secrets are not embedded in those names. The external filename may reveal the number of encryption layers; rename the encrypted file if that metadata must remain confidential, and explicitly select the proper output filename during recovery. For pre-update backups with only one .gpg extension, a decrypted file without an extension may itself be another valid GPG layer; verify with a trusted GPG tool and rename it to inner.gpg rather than executing it.
+A supported direct-wallet backup uses names such as `wallet.dat.gpg`, `wallet.dat.gpg.gpg` or `wallet.dat.gpg.gpg.gpg`; its final plaintext is the verified wallet file. A TAR-backed backup uses `.tar.gpg`, `.tar.gpg.gpg` or `.tar.gpg.gpg.gpg`; its final plaintext is a TAR archive containing the selected files. Common desktop applications may remove one `.gpg` extension per layer, but recovery must inspect authenticated content rather than trust extensions. Embedded literal names are fixed as `inner.gpg` for intermediate layers and either `wallet.dat` or `payload.tar` for the final payload; user-defined wallet names, private paths and secrets are not embedded in those names. The external filename may reveal the number of encryption layers; rename the encrypted file if that metadata must remain confidential, and explicitly select the proper output filename during recovery. For pre-update backups with only one .gpg extension, a decrypted file without an extension may itself be another valid GPG layer; verify with a trusted GPG tool and rename it to inner.gpg rather than executing it.
 
 Single-wallet recovery without TAR
 When Wallet Backup creates an encrypted copy of exactly one Bitcoin Core SQLite
@@ -151,8 +158,10 @@ to wallet.dat; open the resulting file with Bitcoin Core's Restore Wallet.
 On macOS, GPG Suite should use the embedded wallet.dat name, and the default
 external filename also ends with .dat when both .gpg suffixes have been removed.
 
-For multiple selected files, folders, or a file other than the supported
-wallet.dat format, Vault still builds a standard TAR before GPG encryption.
+For multiple selected files, folders, or a single file with a different name,
+Vault builds a standard TAR before GPG encryption. A single input named
+`wallet.dat` must pass the supported SQLite-wallet checks; invalid input is
+refused rather than silently accepted as a direct wallet.
 Previous single-wallet GPG/TAR backups also remain recoverable. Vault checks
 the authenticated decrypted content, not merely file extensions, to choose
 which recovery path to use. Never execute an unknown recovered file.

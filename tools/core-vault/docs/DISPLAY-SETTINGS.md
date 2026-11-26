@@ -1,7 +1,9 @@
 # Shared display settings
 
-Node and Vault use the same native PySide6 Display Settings dialog and the same
-unprivileged RandR backend. They keep the existing X11/Openbox desktop; no full
+**Vault scope: v0.9.0**, publication source `58f873fa727054f262b2f99bf742aff251cc5672`; reconciled 2026-11-26. See [the current baseline](../../../docs/development/CURRENT.md) and [module map](../../../docs/development/MODULES.md). Shared design does not imply that the two repositories' copies or persistence policies are identical at every revision.
+
+Node and Vault use a shared native PySide6 Display Settings design and
+unprivileged RandR backend family. They keep the existing X11/Openbox desktop; no full
 desktop environment, network screen-sharing service or root GUI is added.
 
 ## User workflow
@@ -37,9 +39,16 @@ separately validated keyboard/mouse preferences; it never copies a home director
 Confirmed profiles are stored at `~/.config/core-desktop/display.json`, mode 0600.
 Node's installed home persists them. Vault uses the fixed path
 `/home/vault/.config/core-desktop/display.json`, rejects symlink ancestors, and
-writes only when the actual destination filesystem is tmpfs, including any
-nested mount. Vault exports go only to
-the destination explicitly chosen by the user.
+writes its working profile only when the actual destination filesystem is tmpfs,
+including any nested mount. After a confirmed profile is saved, installed Vault
+also persists the validated `display` component through `vault_device_state` in
+`/var/lib/core-vault-device-settings/preferences.json`. Boot preparation restores
+that allowlisted component into the new RAM home before session display restore.
+Live Vault does not call the persistent helper. A failed installed save is
+reported; rollback/recovery handles the previous profile through the same
+component boundary. Neither mode restores a persistent user home. See
+[SETTINGS.md](SETTINGS.md) for the installed-marker, ownership and schema checks.
+Vault profile exports go only to the destination explicitly chosen by the user.
 
 A layout is automatically restored only when every connected output has the same
 connector and EDID SHA-256 identity as the saved profile. Every selected mode and
@@ -132,20 +141,22 @@ Live application always uses a separately checked transaction.
 
 ## Verification and limits
 
-`tests/test_shared_display.py` uses disposable simulated devices and real child
-processes for timeout, EOF, GUI death, worker death, interrupted commit and
-concurrent-change scenarios. `tests/test_shared_display_ui.py` exercises the native
-Qt dialog offscreen with simulated devices. Neither suite calls host xrandr.
-Actual RandR mode changes must additionally be exercised in a disposable X11 VM;
-physical monitors/capture devices need hardware testing before compatibility is
-claimed. Shared X11 scale remains one value for the desktop, not independent
-per-monitor scaling. Network screen sharing is outside this feature.
+This Vault checkout contains `tools/core-vault/test-display-scale.py`,
+`test-display-x11.py`, `test-session-display-handoff.py`,
+`test-settings-local.py` and `test-device-persistence.py`. Read each entry point
+and its environment requirements before running it. Tests of persistence and
+mocked controls do not establish real RandR mode switching or helper authorization.
+Use a disposable X11 VM for actual Apply/Keep/Revert, disconnect/reconnect,
+worker-recovery and Live/installed restart scenarios; physical monitor/capture
+device compatibility requires its own evidence.
 
-`tests/shared_display_x11_smoke.py` creates and terminates its own authenticated
-Xvfb server, with private HOME/runtime paths, and never connects to the caller's
-DISPLAY. It exercises the real xrandr/xrdb backend, primary selection, DPI,
-confirmation, rollback and worker recovery. Xvfb reports a fixed virtual mode
-with unspecified refresh; this is exposed as Automatic, and no refresh rate is
-forced. Unsupported orientations and unnecessary panning resets are not offered
-or sent to that output. The dated acceptance record is
-`docs/qa/display-settings-20261123.json`.
+Earlier revisions of this document referred to `tests/test_shared_display.py`,
+`tests/test_shared_display_ui.py`, `tests/shared_display_x11_smoke.py` and
+`docs/qa/display-settings-20261123.json`. Those files are not present in this
+Vault publication checkout. They are historical cross-project references,
+not runnable Vault paths or new acceptance evidence. Locate the exact source and
+results before reusing them, and establish which relevant implementation matches.
+
+Shared X11 scale remains one value for the desktop, not independent per-monitor
+scaling. Network screen sharing is outside this feature. A missing display,
+failed GPU or power loss cannot be repaired merely by a successful fixture test.
